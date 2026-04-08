@@ -1,0 +1,6 @@
+# CMake files
+build/
+# For local-only files, drafts, experiments, random files, etc
+local/
+
+
