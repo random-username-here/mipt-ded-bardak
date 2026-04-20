@@ -9,4 +9,4 @@ server turns:turn();
 server turns:skip();
 
 # You sent something, but this is not your turn
-server turns:r.!your(id msg);
+server turns:notYour(id msg);
