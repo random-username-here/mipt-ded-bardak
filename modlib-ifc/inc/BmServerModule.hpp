@@ -7,6 +7,7 @@
 #pragma once
 #include "modlib_mod.hpp"
 #include "binmsg.hpp"
+#include <cstdint>
 #include <functional>
 #include <sstream>
 
@@ -25,12 +26,15 @@ public:
     /** Send already encoded message to him */
     virtual void send(bmsg::RawMessage msg) = 0;
 
-    /** Encode given message using `.encode(std::ostream)` function, and send it. */
+    /* Get ID for new message */
+    virtual bmsg::Id getMsgId() { return 0; }
+
+    /** Encode given message using `.encode(std::ostream, id, flags)` function, and send it. */
     template<typename T>
-    void send(const T& msg) {
+    void send(const T& msg, uint16_t flags = 0) {
         std::ostringstream oss;
-        msg.encode(oss);
-        send(oss.str());
+        msg.encode(oss, getMsgId(), flags);
+        send(bmsg::RawMessage(oss.str()));
     }
 
     /** Client's ID */
