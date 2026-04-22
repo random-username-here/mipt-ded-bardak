@@ -36,11 +36,12 @@ class Map : public Mod {
     virtual Unit *addUnit(Vec2i pos, std::unique_ptr<Unit> &&u) = 0;
     virtual void moveUnit(Unit *u, Vec2i pos) = 0;
     virtual void removeUnit(Unit *u) = 0;
+    size_t lastId = 0;
 public:
 
     template<typename T, typename ...Args>
     T* spawn(Vec2i pos, Args... args) {
-        return static_cast<T*>(addUnit(pos, std::make_unique<T>(pos, args...)));
+        return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
     }
 
     virtual Unit *byId(size_t id) = 0;
