@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="520" height="304" viewBox="0 0 520 304" role="img" aria-label="console2svg output">
+<style>
+.crt {
+  font-family: ui-monospace,"JetBrains Mono","Cascadia Mono","Segoe UI Mono","Noto Sans Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  font-size: 14px;
+}
+text {
+  dominant-baseline: alphabetic;
+}
+.bg {
+  shape-rendering: crispEdges;
+}
+</style>
+<rect x="0" y="0" width="520" height="304" fill="#1e1e1e"/>
+<rect x="8" y="8" width="504" height="18" fill="#1e1e1e"/>
+<text class="crt" x="8" y="22" fill="#d4d4d4">$ ./pan c ../examples/add.pan ../examples/add.bmsg</text>
+<g transform="translate(8 26)">
+<rect width="504" height="270" fill="#1e1e1e"/>
+<text class="crt" x="0" y="32" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">Loading</text>
+<text class="crt" x="67.2" y="32" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">defs</text>
+<text class="crt" x="109.2" y="32" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">from</text>
+<text class="crt" x="151.2" y="32" fill="#d4d4d4" textLength="159.6" lengthAdjust="spacing">../examples/add.pan</text>
+<text class="crt" x="0" y="50" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">Defs</text>
+<text class="crt" x="42" y="50" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">loaded</text>
+<text class="crt" x="0" y="86" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">Dumping</text>
+<text class="crt" x="67.2" y="86" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">binmsg</text>
+<text class="crt" x="126" y="86" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">from</text>
+<text class="crt" x="168" y="86" fill="#d4d4d4" textLength="168" lengthAdjust="spacing">../examples/add.bmsg</text>
+<text class="crt" x="8.4" y="122" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
+<text class="crt" x="33.6" y="122" fill="#3b8eea" textLength="50.4" lengthAdjust="spacing">client</text>
+<text class="crt" x="92.4" y="122" fill="#23d18b" textLength="33.6" lengthAdjust="spacing">test</text>
+<text class="crt" x="126" y="122" fill="#666666" textLength="8.4" lengthAdjust="spacing">:</text>
+<text class="crt" x="134.4" y="122" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">add</text>
+<text class="crt" x="168" y="122" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">#1</text>
+<text class="crt" x="193.2" y="122" fill="#666666" textLength="33.6" lengthAdjust="spacing">with</text>
+<text class="crt" x="235.2" y="122" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">16</text>
+<text class="crt" x="260.4" y="122" fill="#666666" textLength="42" lengthAdjust="spacing">bytes</text>
+<text class="crt" x="310.8" y="122" fill="#666666" textLength="16.8" lengthAdjust="spacing">of</text>
+<text class="crt" x="336" y="122" fill="#666666" textLength="33.6" lengthAdjust="spacing">args</text>
+<text class="crt" x="67.2" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">74</text>
+<text class="crt" x="92.4" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">65</text>
+<text class="crt" x="117.6" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">73</text>
+<text class="crt" x="142.8" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">74</text>
+<text class="crt" x="168" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="193.2" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="218.4" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="243.6" y="140" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="277.2" y="140" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="140" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">prefix</text>
+<text class="crt" x="361.2" y="140" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="378" y="140" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">`test`</text>
+<text class="crt" x="67.2" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">61</text>
+<text class="crt" x="92.4" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">64</text>
+<text class="crt" x="117.6" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">64</text>
+<text class="crt" x="142.8" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="168" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="193.2" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="218.4" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="243.6" y="158" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="277.2" y="158" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="158" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">type</text>
+<text class="crt" x="344.4" y="158" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="361.2" y="158" fill="#23d18b" textLength="42" lengthAdjust="spacing">`add`</text>
+<text class="crt" x="67.2" y="176" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">01</text>
+<text class="crt" x="92.4" y="176" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="117.6" y="176" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="142.8" y="176" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="168" y="176" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="193.2" y="176" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="218.4" y="176" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="243.6" y="176" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="277.2" y="176" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="176" fill="#d4d4d4" textLength="67.2" lengthAdjust="spacing">sequence</text>
+<text class="crt" x="378" y="176" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">number</text>
+<text class="crt" x="436.8" y="176" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="453.6" y="176" fill="#f5f543" textLength="8.4" lengthAdjust="spacing">1</text>
+<text class="crt" x="67.2" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="92.4" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="117.6" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="142.8" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="168" y="194" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">10</text>
+<text class="crt" x="193.2" y="194" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="218.4" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="243.6" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="277.2" y="194" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="194" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">body</text>
+<text class="crt" x="344.4" y="194" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">length</text>
+<text class="crt" x="403.2" y="194" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="420" y="194" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">16</text>
+<text class="crt" x="67.2" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="92.4" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="117.6" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="142.8" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="168" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="193.2" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">..</text>
+<text class="crt" x="218.4" y="212" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="243.6" y="212" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="277.2" y="212" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="212" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">flags</text>
+<text class="crt" x="352.8" y="212" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="369.6" y="212" fill="#f5f543" textLength="8.4" lengthAdjust="spacing">0</text>
+<text class="crt" x="67.2" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">01</text>
+<text class="crt" x="92.4" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="117.6" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="142.8" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="168" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="193.2" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="218.4" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="243.6" y="230" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="277.2" y="230" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="230" fill="#29b8db" textLength="42" lengthAdjust="spacing">int64</text>
+<text class="crt" x="352.8" y="230" fill="#d4d4d4" textLength="8.4" lengthAdjust="spacing">a</text>
+<text class="crt" x="369.6" y="230" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="386.4" y="230" fill="#f5f543" textLength="8.4" lengthAdjust="spacing">1</text>
+<text class="crt" x="67.2" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">02</text>
+<text class="crt" x="92.4" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="117.6" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="142.8" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="168" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="193.2" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="218.4" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="243.6" y="248" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">00</text>
+<text class="crt" x="277.2" y="248" fill="#666666" textLength="16.8" lengthAdjust="spacing">--</text>
+<text class="crt" x="302.4" y="248" fill="#29b8db" textLength="42" lengthAdjust="spacing">int64</text>
+<text class="crt" x="352.8" y="248" fill="#d4d4d4" textLength="8.4" lengthAdjust="spacing">b</text>
+<text class="crt" x="369.6" y="248" fill="#666666" textLength="8.4" lengthAdjust="spacing">=</text>
+<text class="crt" x="386.4" y="248" fill="#f5f543" textLength="8.4" lengthAdjust="spacing">2</text>
+</g>
+</svg>
