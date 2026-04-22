@@ -11,7 +11,7 @@ class Map;
 class Tile;
 
 class Unit {
-protected:
+public:
     virtual Map *map() = 0;
     virtual Tile *tile() = 0; // map().at(pos())
 
