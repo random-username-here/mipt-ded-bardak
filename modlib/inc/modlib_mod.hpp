@@ -46,13 +46,13 @@ public:
     virtual ModVersion version() const = 0;
 
     /** Modules were just loaded, find dependencies */
-    virtual void onResolveDeps(ModManager *mm) const {}
+    virtual void onResolveDeps(ModManager *mm) {}
 
     /** Modules loaded and ready, attach hooks/call other modules */
-    virtual void onDepsResolved(ModManager *mm) const {}
+    virtual void onDepsResolved(ModManager *mm) {}
 
     /** Application is about to shut down */
-    virtual void onBeforeCleanup(ModManager *mm) const {}
+    virtual void onBeforeCleanup(ModManager *mm) {}
 
     virtual ~Mod() {}
 };

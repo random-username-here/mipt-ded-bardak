@@ -7,6 +7,7 @@
  * This header is mainly for standardizing plugin API-s.
  */
 #pragma once
+#include <cassert>
 #include <cstdint>
 #include <string_view>
 #include <cstring>
@@ -19,6 +20,31 @@ namespace bmsg {
 union Char64 {
     char as_chars[8];
     uint64_t as_u64;
+
+    Char64() = default;
+    Char64(uint64_t v) :as_u64(v) {}
+
+    Char64(const std::string_view &s) {
+        assert(s.size() <= 8);
+        as_u64 = 0;
+        memcpy(as_chars, s.data(), s.size());
+    }
+
+    Char64(const char *c) :Char64(std::string_view(c)) {}
+
+    Char64 &operator=(const std::string_view &s) {
+        (*this) = Char64(s);
+        return *this;
+    }
+
+    size_t size() const {
+        size_t s = 0;
+        while (s < 8 && as_chars[s] != '\0') ++s;
+        return s;
+    }
+
+    operator uint64_t() { return as_u64; }
+    operator std::string_view() { return std::string_view(as_chars, size()); }
 };
 
 inline bool operator==(Char64 c, std::string_view s) {
@@ -37,8 +63,10 @@ using Id = uint32_t;
 /** 
  * \brief BMSG header structure
  * Flags are currently not being used by standard for anything.
+ * Note on this not being packed: this is due to Char64 not being POD because
+ * of convenience constructors. But this works fine, because this is packed by hand.
  */
-struct __attribute__((packed)) Header {
+struct Header {
     Char64 pref;
     Char64 type;
     Id id;
