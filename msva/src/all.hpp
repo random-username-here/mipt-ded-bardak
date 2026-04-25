@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <netinet/in.h>
 #include <unordered_map>
+#include "Timer.hpp"
 
 #define ESC_GRY "\x1b[90m"
 #define ESC_RED "\x1b[91m"
@@ -59,6 +60,7 @@ class Server : public modlib::BmServer {
     ModManager *m_mm;
     std::string m_name;
     size_t m_port;
+    modlib::Timer *m_tm;
 
     void m_addToEpoll(Client *cl, int fd, uint32_t flags);
     void m_incoming(Client *cl, std::string_view data);

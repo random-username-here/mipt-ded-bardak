@@ -31,9 +31,8 @@ struct Person : public Unit {
     size_t id() override { return m_id; }
 
     void takeDamage(int d) override {
-        m_hp += d;
+        m_hp -= d;
         if (m_hp < 0) m_hp = 0;
-        m_client->send(bmsg::SV_person_hp { m_hp });
         if (m_hp < 0) destroy();
     }
 
@@ -64,15 +63,19 @@ class PersonCtl : public BmServerModule {
         auto size = map->size();
         for (auto [cl, ps] : m_people) {
             cl->send(bmsg::SV_person_tick {});
+            cl->send(bmsg::SV_person_at { ps->pos().x, ps->pos().y });
+            cl->send(bmsg::SV_person_hp { ps->hp() });
+            ps->takeDamage(1);
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
-                    int x = ps->pos().x, y = ps->pos().y;
+                    int x = ps->pos().x + dx, y = ps->pos().y + dy;
                     if (x < 0 || y < 0 || x >= size.x || y >= size.y)
                         continue;
                     if (!map->at({x, y})->isWalkable())
                         cl->send(bmsg::SV_person_wall { x, y });
                     for (auto i : map->at({x, y})->units())
-                        cl->send(bmsg::SV_person_sees { x, y, (uint32_t) i->id() });
+                        if (i != ps)
+                            cl->send(bmsg::SV_person_sees { x, y, (uint32_t) i->id() });
                 }
             }
         }
@@ -106,7 +109,13 @@ class PersonCtl : public BmServerModule {
             if (!map->at(pos)->isWalkable()) return;
             pl->move(pos);
         } else if (m.header()->type == "attack") {
-            // pass            
+            auto atkCmd = bmsg::CL_person_attack::decode(m);
+            if (!atkCmd) return;
+            auto u = map->byId(atkCmd->whom);
+            if (!u) return;
+            if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
+                return;
+            u->takeDamage(10);
         }
 
         tm->setTimer(1, [pl](){ pl->m_actionDone = false; });

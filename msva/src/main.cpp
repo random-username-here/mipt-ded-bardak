@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     ini_parse(argv[1], l_iniHandler, &r);
 
     for (auto &i : mgr.all())
-        std::cerr << ESC_GRY << "server ... : " << ESC_RST << "loaded mod " << ESC_GRN << i->id() << ESC_RST << " -- " << i->brief() << '\n';
+        std::cerr << ESC_GRY << "server ... : " << ESC_RST << "loaded mod " << ESC_BLU << i->id() << ESC_RST << " -- " << i->brief() << '\n';
     mgr.initLoaded();
     srv.initMods();
     srv.mainloop();
