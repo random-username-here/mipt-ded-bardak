@@ -3,16 +3,46 @@
 
 namespace modlib {
 
-class Timer : public Mod {
-public:
-    using TimerID = uint64_t;
+class Timer : public Mod
+{
+    using Tick = size_t;
     using Callback = std::function<void(void)>;
+    enum class Stage
+    {
+        IMMEDIATELY = 0,
+        ONSERVERUPDATE
+    };
 
-    virtual TimerID setTimer(size_t delay, Callback callback) = 0;
-    virtual void cancelTimer(TimerID id) = 0;
-    virtual void tick() = 0;
+private:
+    struct CallbackEntry
+    {
+        Stage type;
+        std::function<void(void)> callback;
+    };
 
-    virtual size_t getTicksSinceCreation() = 0;
+public:
+    class TimerID
+    {
+        friend class Timer;
+
+    private:
+
+        TimerID (Tick stamp, std::list<CallbackEntry>::iterator entryIterator);
+    };
+
+    TimerID setTimer (
+        Tick delay,
+        Callback callback,
+        Stage type
+    );
+
+    void cancelTimer (
+        TimerID id
+    );
+
+    void tick ();
+
+    Tick getTicksSinceCreation ();
 };
 
 };

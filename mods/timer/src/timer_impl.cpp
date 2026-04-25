@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <random>
+#include <queue>
 #include "../timer_impl.hpp"
 
 
@@ -25,7 +26,8 @@ Timer::version () const
 Timer::TimerID 
 Timer::setTimer (
     Tick delay,
-    Callback callback
+    Callback callback,
+    Stage type
 )
 {
     if (callback == nullptr)
@@ -33,12 +35,16 @@ Timer::setTimer (
         throw std::runtime_error ("invalid callback provided");
     }
 
-    TimerID timerID = rand ();
-    Tick tickStamp = getTicksSinceCreation () + delay;
+    Tick stamp = ticksSinceCreation + delay;
 
-    stampBus[tickStamp][timerID] = callback;
+    CallbackEntry entry = {
+        .type = type,
+        .callback = callback
+    };
+
+    stamps[stamp].push_back (entry);
     
-    return timerID;
+    return TimerID (stamp, std::prev (stamps[stamp].end()));
 }
 
 void
@@ -46,18 +52,7 @@ Timer::cancelTimer (
     Timer::TimerID id
 )
 {
-    for (auto [timestamp, timers] : stampBus)
-    {
-        auto timer = timers.find (id);
-        if (timer != timers.end ())
-        {
-            timers.erase (timer);
-            if (timers.empty ())
-            {
-                stampBus.erase (timestamp);
-            }
-        }
-    }
+    stamps[id.stamp].erase (id.entryIterator);
 }
 
 
@@ -66,15 +61,29 @@ Timer::tick ()
 {
     ticksSinceCreation++;
 
-    if (stampBus[ticksSinceCreation].empty () == false)
+    if (stamps[ticksSinceCreation].empty () == false)
     {
-        for (auto [_, callback] : stampBus[ticksSinceCreation])
-        {
-            callback ();
-        }
-        stampBus.erase (ticksSinceCreation);
-    }
+        std::queue<Callback> callbackbackQueue;
 
+        for (const CallbackEntry& entry : stamps[ticksSinceCreation])
+        {
+            if (entry.type == Stage::IMMEDIATELY)
+            {
+                entry.callback ();
+            }
+            else
+            {
+                callbackbackQueue.push (entry.callback);
+            }
+        }
+        stamps.erase (ticksSinceCreation);
+
+        while (callbackbackQueue.empty () == false)
+        {
+            callbackbackQueue.front () ();
+            callbackbackQueue.pop ();
+        }
+    }
 }
 
 Timer::Tick
