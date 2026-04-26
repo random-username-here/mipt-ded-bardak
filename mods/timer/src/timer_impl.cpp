@@ -13,13 +13,13 @@ Timer::id () const
 std::string_view 
 Timer::brief () const
 {
-    return "I wanna sleep, dont awake me";
+    return "Singleton timer module by DoDoeb";
 }
 
 ModVersion
 Timer::version () const
 {
-    return ModVersion (1, 0, 0);
+    return ModVersion (1, 1, 6);
 }
 
 
@@ -35,48 +35,54 @@ Timer::setTimer (
         throw std::runtime_error ("invalid callback provided");
     }
 
-    Tick stamp = ticksSinceCreation + delay;
+    Tick tickStamp = m_tickCounter + delay;
 
-    CallbackEntry entry = {
-        .type = type,
-        .callback = callback
+    TimerID id = {
+        tickStamp,
+        rand ()
     };
 
-    stamps[stamp].push_back (entry);
+    m_tickStamps[tickStamp][id.second] = {
+        type,
+        callback
+    };
     
-    return TimerID (stamp, std::prev (stamps[stamp].end()));
+    
+    return id;
 }
 
 void
 Timer::cancelTimer (
-    Timer::TimerID id
+    Timer::TimerID& id
 )
 {
-    stamps[id.stamp].erase (id.entryIterator);
+    m_tickStamps[id.first].erase (id.second);
+
+    id = {0, 0};
 }
 
 
 void
 Timer::tick ()
 {
-    ticksSinceCreation++;
+    m_tickCounter++;
 
-    if (stamps[ticksSinceCreation].empty () == false)
+    if (m_tickStamps[m_tickCounter].empty () == false)
     {
-        std::queue<Callback> callbackbackQueue;
+        std::queue<const Callback> callbackbackQueue;
 
-        for (const CallbackEntry& entry : stamps[ticksSinceCreation])
+        for (const auto [_, entry] : m_tickStamps[m_tickCounter])
         {
-            if (entry.type == Stage::IMMEDIATELY)
+            if (entry.first == Stage::ON_UPDATE)
             {
-                entry.callback ();
+                entry.second ();
             }
             else
             {
-                callbackbackQueue.push (entry.callback);
+                callbackbackQueue.push (entry.second);
             }
         }
-        stamps.erase (ticksSinceCreation);
+        m_tickStamps.erase (m_tickCounter);
 
         while (callbackbackQueue.empty () == false)
         {
@@ -89,11 +95,12 @@ Timer::tick ()
 Timer::Tick
 Timer::getTicksSinceCreation ()
 {
-    return ticksSinceCreation;
+    return m_tickCounter;
 }
 
-extern "C" Mod *
-modlib_create (ModManager *mm)
+
+
+extern "C" Mod *modlib_create (ModManager *mm)
 {
     return new Timer();
 }

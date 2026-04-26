@@ -2,59 +2,34 @@
 
 
 #include <functional>
-#include <list>
-#include <unordered_map>
+#include <map>
 #include "Timer.hpp"
 
 
 class Timer : public modlib::Timer
 {
-    using Tick = size_t;
-    using Callback = std::function<void(void)>;
-    enum class Stage
-    {
-        IMMEDIATELY = 0,
-        ONSERVERUPDATE
-    };
-
-private:
-    struct CallbackEntry
-    {
-        Stage type;
-        std::function<void(void)> callback;
-    };
-
-    Tick ticksSinceCreation = 0;
-
-    std::unordered_map<Tick, std::list<CallbackEntry>> stamps;
-
 public:
-    class TimerID
-    {
-        friend class Timer;
-
-    private:
-        Tick stamp;
-        std::list<CallbackEntry>::iterator entryIterator;
-
-        TimerID (Tick stamp, std::list<CallbackEntry>::iterator entryIterator);
-    };
-
     TimerID setTimer (
         Tick delay,
         Callback callback,
         Stage type
-    );
+    ) override;
 
     void cancelTimer (
-        TimerID id
-    );
+        TimerID& id
+    ) override;
 
-    void tick ();
+    void tick () override;
 
-    Tick getTicksSinceCreation ();
+    Tick getTicksSinceCreation () override;
 
     std::string_view id      () const override;
     std::string_view brief   () const override;
     ModVersion       version () const override;
+
+private:
+    using CallbackEntry = std::pair<Stage, Callback>;
+
+    Tick m_tickCounter = 0;
+    std::map<Tick, std::map<uint64_t, CallbackEntry>> m_tickStamps;
 };
