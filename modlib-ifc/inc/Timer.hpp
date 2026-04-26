@@ -1,48 +1,34 @@
 #include "modlib_mod.hpp"
 #include <functional>
+#include <utility>
 
 namespace modlib {
 
 class Timer : public Mod
 {
-    using Tick = size_t;
+public:
     using Callback = std::function<void(void)>;
     enum class Stage
     {
-        IMMEDIATELY = 0,
-        ONSERVERUPDATE
+        ON_UPDATE = 0,
+        ON_UPDATE_DONE
     };
+    using Tick = size_t;
+    using TimerID = std::pair<Tick, uint64_t>;
 
-private:
-    struct CallbackEntry
-    {
-        Stage type;
-        std::function<void(void)> callback;
-    };
-
-public:
-    class TimerID
-    {
-        friend class Timer;
-
-    private:
-
-        TimerID (Tick stamp, std::list<CallbackEntry>::iterator entryIterator);
-    };
-
-    TimerID setTimer (
+    virtual TimerID setTimer (
         Tick delay,
         Callback callback,
         Stage type
-    );
+    ) = 0;
 
-    void cancelTimer (
-        TimerID id
-    );
+    virtual void cancelTimer (
+        TimerID& id
+    ) = 0;
 
-    void tick ();
+    virtual void tick () = 0;
 
-    Tick getTicksSinceCreation ();
+    virtual Tick getTicksSinceCreation () = 0;
 };
 
 };
