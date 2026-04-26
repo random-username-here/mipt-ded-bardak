@@ -1,6 +1,6 @@
 project(person)
 
-pan_header(../../proto/person.pan ./person_proto.hpp)
+pan_header(../../specs/proto/person.pan ./person_proto.hpp)
 
 add_library(person MODULE main.cpp person_proto.hpp)
 target_link_libraries(person PRIVATE modlib modlib-ifc binmsg libpan_cxx_macros)
