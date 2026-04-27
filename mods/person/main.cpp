@@ -79,11 +79,11 @@ class PersonCtl : public BmServerModule {
                 }
             }
         }
-        tm->setTimer(1, [this](){ tick(); });
+        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
     }
 
     void onDepsResolved(ModManager *mm) override {
-        tm->setTimer(1, [this](){ tick(); });
+        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
     }
 
     void onSetup(BmServer *server) override {
@@ -118,7 +118,7 @@ class PersonCtl : public BmServerModule {
             u->takeDamage(10);
         }
 
-        tm->setTimer(1, [pl](){ pl->m_actionDone = false; });
+        tm->setTimer(1, [pl](){ pl->m_actionDone = false; }, modlib::Timer::Stage::ON_UPDATE);
     }
 
     void onDisconnect(BmClient *cl) override {

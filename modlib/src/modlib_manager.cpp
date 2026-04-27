@@ -4,6 +4,7 @@
 #include <dlfcn.h>
 #include <dirent.h>
 #include <string.h>
+#include <iostream>
 
 //#define TAG "modlib"
 //using namespace misc::color;
@@ -25,6 +26,7 @@ Mod *ModManager::loadFromFile(std::string_view file) {
     ModCreateFn modFn = reinterpret_cast<ModCreateFn>(dlsym(so, "modlib_create"));
     if (modFn == nullptr) {
         dlclose(so);
+        std::cerr << "failed to get ModCreateFn from `" << file << "` plugin\n"; 
         /*misc::warn(TAG) << "Mod " << ACCENT << file << RST << " is missing " 
             << ACCENT << "modlib_create()" << RST << " function, skipping";*/
         return nullptr;

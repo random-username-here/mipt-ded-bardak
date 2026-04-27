@@ -11,3 +11,6 @@ add_subdirectory(tools/pan)
 add_subdirectory(servers/msva)
 add_subdirectory(mods/person)
 add_subdirectory(mods/timer)
+add_subdirectory(mods/map)
+
+add_subdirectory(clients/random)

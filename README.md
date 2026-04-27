@@ -12,3 +12,27 @@
  - `modlib/` -- Либа для загрузки .so-шных модулей, по COM модели
  - `modlib-ifc/` -- Заголовочники со стандартными интерфейсами для модулей
  - `proto/` -- Протоколы для общения клиента с сервером с помощью стандарта `binmsg`
+
+
+
+## Configuration & Build
+```
+git clone https://github.com/random-username-here/mipt-ded-bardak.git
+
+cmake -B build -S . 
+
+cmake --build build 
+```
+
+## Как запускать
+
+1) В первом терминале запустите сервер 
+```
+./build/servers/msva/msva ./servers/msva/sample.ini
+```
+
+2) Во втором терминале запустите клиент
+```
+./build/clients/random/random_client localhost <port>
+```
+вместо `<port>` подставьте порт, который вывел сервер в консоль при запуске.
