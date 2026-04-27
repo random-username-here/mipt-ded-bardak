@@ -1,6 +1,6 @@
 project(map)
 
-add_library(map MODULE main.cpp map.hpp)
+add_library(map MODULE main.cpp)
 
 target_link_libraries(map PRIVATE modlib modlib-ifc binmsg)
 
