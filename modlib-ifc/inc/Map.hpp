@@ -22,13 +22,15 @@ public:
 
     virtual void move(Vec2i to);
     virtual void destroy();
+    virtual ~Unit() = default;
 };
 
 class Tile {
 public:
-    virtual Vec2i pos() const;
+    virtual Vec2i pos() const = 0;
     virtual const std::vector<Unit*> &units() = 0;
     virtual bool isWalkable() const = 0;
+    ~Tile() = default;
 };
 
 class Map : public Mod {
@@ -38,6 +40,7 @@ class Map : public Mod {
     virtual void removeUnit(Unit *u) = 0;
     size_t lastId = 0;
 public:
+    virtual ~Map() = default;
 
     template<typename T, typename ...Args>
     T* spawn(Vec2i pos, Args... args) {

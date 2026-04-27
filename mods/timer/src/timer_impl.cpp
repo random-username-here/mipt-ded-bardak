@@ -69,7 +69,7 @@ Timer::tick ()
 
     if (m_tickStamps[m_tickCounter].empty () == false)
     {
-        std::queue<const Callback> callbackbackQueue;
+        std::queue<Callback> callbackbackQueue;
 
         for (const auto [_, entry] : m_tickStamps[m_tickCounter])
         {
