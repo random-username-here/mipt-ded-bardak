@@ -72,7 +72,6 @@ class PersonCtl : public BmServerModule {
             cl->send(bmsg::SV_person_tick {});
             cl->send(bmsg::SV_person_at { ps->pos().x, ps->pos().y });
             cl->send(bmsg::SV_person_hp { ps->hp() });
-            ps->takeDamage(1);
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
                     int x = ps->pos().x + dx, y = ps->pos().y + dy;
