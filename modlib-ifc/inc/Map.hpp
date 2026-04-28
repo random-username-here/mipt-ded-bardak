@@ -1,96 +1,114 @@
 #pragma once
+
+
+#include "Vec2.hpp"
 #include "modlib_mod.hpp"
+#include "binmsg.hpp"
+
+#include <cstdint>
 #include <memory>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
-namespace modlib {
+// namespace modlib is forbidden here. DONT UNCOMMENT, ILL FIND U :)
 
-struct Vec2i { int x = 0, y = 0; };
 
-class Map;
 class Tile;
 
-class Unit {
+class Entity
+{
 public:
-    virtual Map *map() = 0;
-    virtual Tile *tile() = 0; 
+    using ID = uint64_t;
 
-    virtual uint64_t id() = 0;
-    virtual uint64_t type() const = 0;
-    virtual uint64_t teamId() const = 0;
+    // deprecated soon
+    using Type = bmsg::Char64;
 
-    virtual int hp() const = 0;
-    virtual void takeDamage(int d) = 0;
+    Entity (Type type, Tile* tile, Tile::Layer layer = Tile::Layer::BOTTOM);
+    Entity (Type type, Tile* tile, uint8_t     layer = UINT8_MAX);
+
+    ~Entity ();
+
+
+    ID    getID   () const;
+    Type  getType () const;
     
-    virtual void pickUp() = 0;
-    virtual int weight() const = 0;
-    virtual void setWeight(const int weight) = 0;
+    Tile*    getTile     () const;
+    Vec2D<>  getPosition () const;
+    void     setTile     (Tile*   tile,     Tile::Layer layer = Tile::Layer::BOTTOM);
+    void     setTile     (Tile*   tile,     uint8_t     layer = UINT8_MAX);
+    void     setPosition (Vec2D<> position, Tile::Layer layer = Tile::Layer::BOTTOM);
+    void     setPosition (Vec2D<> position, uint8_t     layer = UINT8_MAX);
 
-    virtual Vec2i pos() const = 0;
-
-    virtual void move(Vec2i to);
-    virtual void destroy();
-    
-    virtual uint64_t getAssetId() const = 0; 
-
-    virtual ~Unit() = default;
+private:
+    Type  m_type;
+    ID    m_ID;
+    Tile* m_tile;
 };
 
-class Tile {
+class Level;
+
+class Tile
+{
 public:
-    enum class BasicType : uint64_t {
-        Ground = 0,
-        Wall = 1
+    enum class Layer : uint8_t
+    {
+        TOP     = 0,
+        CURRENT = UINT8_MAX - 1,
+        BOTTOM  = UINT8_MAX
     };
 
-    virtual Vec2i pos() const = 0;
-    virtual const std::vector<Unit*> &units() = 0;
-    virtual uint64_t type() const = 0;
+    // deprecated soon
+    using Type = bmsg::Char64;
 
-    ~Tile() = default;
+    Level*   getLevel () const;
+    Vec2D<>  getPos   () const;
+    Type     getType  () const;
+    void     setType  (Type type);
+
+    void    addEntity (Entity*     entity, uint8_t layer = UINT8_MAX);
+    void    addEntity (Entity*     entity, Layer   layer = Layer::BOTTOM);
+    void removeEntity (Entity::ID  id);
+
+    const std::vector<Entity*>& getEntityList () const;
+private:
+    Level&  m_level;
+    Vec2D<> m_position;
+    Type    m_type;
+
+    std::vector<Entity*> m_EntityList;
 };
 
-class Map : public Mod {
-    friend class Unit;
-    virtual Unit *addUnit(Vec2i pos, std::unique_ptr<Unit> &&u) = 0;
-    virtual void moveUnit(Unit *u, Vec2i pos) = 0;
-    virtual void removeUnit(Unit *u) = 0;
-    uint64_t lastId = 0;
+class Level : public Mod 
+{
 public:
-    virtual ~Map() = default;
+    using ID = uint64_t;
 
-    template<typename T, typename ...Args>
-    T* spawn(Vec2i pos, Args... args) {
-        return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
-    }
+    ID      getLevelID () const;
+    Vec2D<> getSize    () const;
+    
+                                  Tile       & getTile      (Vec2D<> position) const;
+          std::vector<std::vector<Tile>     >& getTileMap   ()                 const;
+    const std::unordered_set<     Tile::Type>& getTileTypes ()                 const;
+    
+    Entity::ID                                     addEntity       (Entity* entity, Vec2D<>  position) const;
+    Entity::ID                                     addEntity       (Entity* entity, Tile   & tile    ) const;
+    void                                        removeEntity       (Entity::ID id,  Vec2D<>  position) const;
+    void                                        removeEntity       (Entity::ID id                    ) const;
+    void                                        removeEntity       (Entity::ID id,  Tile   & tile    ) const;
+                             Entity*                getEntity      (Entity::ID id                    ) const;
+    const std::vector       <Entity*             >& getEntityList  ()                                  const;
+    const std::unordered_map<Entity::Type, size_t>& getEntityTypes ()                                  const;
 
-    virtual void setTileType(Vec2i pos, const uint64_t type) = 0;
-    virtual bool loadFromFile(const std::string& path) = 0;
+    void loadLevel (std::string_view path2level);
 
-    virtual Unit *byId(uint64_t id) = 0;
+private:
+    ID      m_levelID;
+    Vec2D<> m_size;
 
-    virtual Vec2i size() const = 0;
-    virtual Tile *at(Vec2i pos) = 0;
-};
+    std::vector<std::vector<Tile>> m_tileMap;
+    std::unordered_set<Tile::Type> m_tileTypes;
 
-
-inline void Unit::move(Vec2i to) { map()->moveUnit(this, to); }
-inline void Unit::destroy() { map()->removeUnit(this); }
-
-inline bool operator==(uint64_t lhs, modlib::Tile::BasicType rhs) {
-    return lhs == static_cast<uint64_t>(rhs);
-}
-
-inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
-    return static_cast<uint64_t>(lhs) == rhs;
-}
-
-inline bool operator!=(uint64_t lhs, modlib::Tile::BasicType rhs) {
-    return !(lhs == rhs);
-}
-
-inline bool operator!=(modlib::Tile::BasicType lhs, uint64_t rhs) {
-    return !(lhs == rhs);
-}
-
+    std::unordered_map<Entity::ID,   Entity*> m_entityList;
+    std::unordered_map<Entity::Type, size_t > m_entityTypes;
 };
