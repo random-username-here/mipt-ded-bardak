@@ -1,0 +1,72 @@
+name: build action
+on: [push, pull_request]
+jobs:
+  build-cmake:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        build_type: [Debug, Release]
+    steps:
+      - name: clone
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libinih-dev
+      - name: build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake --build build
+  tests:
+    needs: build-cmake
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++, clang++]
+        build_type: [Debug, Release]
+    if: ${{ success() }}
+    steps:
+      - name: clone
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libinih-dev
+      - name: build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake --build build
+      - name: test
+        run: |
+          ./build/servers/msva/msva ./servers/msva/sample.ini &
+          SERVER_PID=$!
+
+          ./build/clients/random/random_client $(hostname -I | awk '{print $1}') 3000 &
+          CLIENT_PID=$!
+
+          sleep 2
+
+          kill $SERVER_PID 2>/dev/null || true
+          wait $SERVER_PID 2>/dev/null || true
+
+          wait $CLIENT_PID 2>/dev/null
+          CLIENT_RESULT=$?
+
+          exit $CLIENT_RESULT
+
+  footjob:
+    needs: [build-cmake, tests]
+    runs-on: ubuntu-latest
+    if: ${{ success() }}
+    steps:
+      - name: chill-drill
+        run: |
+          echo Hello foot world
+
