@@ -97,7 +97,16 @@ class PersonCtl : public BmServerModule {
     };
 
     void onConnect(BmClient *client) override {
-        m_people[client] = map->spawn<Person>(Vec2i { rand() % map->size().x, rand() % map->size().y }, this, client);
+        auto sz = map->size();
+        assert(sz.x > 2 && sz.y > 2);
+        m_people[client] = map->spawn<Person>(
+            Vec2i {
+                1 + rand() % (sz.x - 2),
+                1 + rand() % (sz.y - 2)
+            },
+            this,
+            client
+        );
     }
 
     void onMessage(BmClient *cl, bmsg::RawMessage m) override {
