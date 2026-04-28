@@ -33,7 +33,7 @@ static void l_help(const char *exec)
     puts("");
 }
 
-static void l_logger(const char *fmt, ...) {
+static void l_logger(void* _, const char *fmt, ...) {
     va_list args, copy;
     va_start(args, fmt);
     va_copy(copy, args);

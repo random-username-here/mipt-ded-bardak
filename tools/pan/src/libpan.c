@@ -23,7 +23,7 @@
 // Initialization
 //==============================================================================
 
-static void l_defaultLogger(const char *fmt, ...) {
+static void l_defaultLogger(void *_, const char *fmt, ...) {
     va_list args;
     fputs("libpan: ", stderr);
     va_start(args, fmt);
@@ -185,7 +185,7 @@ has_spaces:
 
 static bool l_synError(const struct Tok *tok, struct PAN *pan, const char *msg)
 {
-    pan->logger(
+    pan->logger(pan->userptr, 
         "%sSyntax error @ line %zu, token `%.*s`: %s%s",
         (pan->color ? ESC_RED : ""), tok->line, tok->size, tok->origin,
         msg, (pan->color ? ESC_RST : "")
@@ -591,7 +591,7 @@ size_t pan_binDump(struct PAN *pan, enum PAN_Side side, const void *msg, size_t 
 end:
     if (!pan->color)
         l_db_killColor(&db);
-    pan->logger("%s", db.buf);
+    pan->logger(pan->userptr, "%s", db.buf);
     free(db.buf);
     return pos;
 }
@@ -636,7 +636,7 @@ size_t pan_binDump_short(struct PAN *pan, enum PAN_Side side, const void *msg, s
 end:
     if (!pan->color)
         l_db_killColor(&db);
-    pan->logger("%s", db.buf);
+    pan->logger(pan->userptr, "%s", db.buf);
     free(db.buf);
     return pos;
 

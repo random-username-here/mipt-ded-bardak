@@ -60,12 +60,13 @@ struct PAN_MsgType {
     struct PAN_Arg *firstArg;
 };
 
-typedef void (*PAN_Logger)(const char *fmt, ...);
+typedef void (*PAN_Logger)(void *userptr, const char *fmt, ...);
 
 struct PAN {
     PAN_Logger logger;
     struct PAN_MsgType *msgTypes;
     bool color;
+    void *userptr;
 };
 
 
