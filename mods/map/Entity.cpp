@@ -1,18 +1,11 @@
 #include "Map.hpp"
 #include <random>
 
-Entity::Entity (Entity::Type type, Tile* tile, Tile::Layer layer) : m_type (type)
+Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
 {
     m_ID = rand ();
 
-    tile->addEntity (this, layer);
-    m_tile = tile;
-}
-Entity::Entity (Entity::Type type, Tile* tile, uint8_t layer) : m_type (type)
-{
-    m_ID = rand ();
-
-    tile->addEntity (this, layer);
+    tile->addEntity (this);
     m_tile = tile;
 }
 
@@ -39,34 +32,20 @@ Tile* Entity::getTile () const
 
 Vec2D<> Entity::getPosition () const
 {
-    return m_tile->getPos ()
+    return m_tile->getPos ();
 }
 
 
-void Entity::setTile (Tile* tile, uint8_t layer)
+void Entity::setTile (Tile* tile)
 {
     m_tile->removeEntity (m_ID);
     m_tile = tile;
-    m_tile->addEntity    (this, layer);
+    m_tile->addEntity    (this);
 }
 
-void Entity::setTile (Tile* tile, Tile::Layer layer)
-{
-    m_tile->removeEntity (m_ID);
-    m_tile = tile;
-    m_tile->addEntity    (this, layer);
-}
-
-void Entity::setPosition (Vec2D<> position, uint8_t layer)
+void Entity::setPosition (Vec2D<> position)
 {
     m_tile->removeEntity (m_ID);
     m_tile = &(m_tile->getLevel ()->getTile (position));
-    m_tile->addEntity (this, layer);
-}
-
-void Entity::setPosition (Vec2D<> position, Tile::Layer layer)
-{
-    m_tile->removeEntity (m_ID);
-    m_tile = &(m_tile->getLevel ()->getTile (position));
-    m_tile->addEntity (this, layer);
+    m_tile->addEntity (this);
 }

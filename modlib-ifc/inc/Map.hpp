@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <list>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -24,8 +25,8 @@ public:
     // deprecated soon
     using Type = bmsg::Char64;
 
-    Entity (Type type, Tile* tile, Tile::Layer layer = Tile::Layer::BOTTOM);
-    Entity (Type type, Tile* tile, uint8_t     layer = UINT8_MAX);
+    Entity (Type type, Tile* tile);
+    Entity (Type type, Tile* tile);
 
     ~Entity ();
 
@@ -35,10 +36,8 @@ public:
     
     Tile*    getTile     () const;
     Vec2D<>  getPosition () const;
-    void     setTile     (Tile*   tile,     Tile::Layer layer = Tile::Layer::BOTTOM);
-    void     setTile     (Tile*   tile,     uint8_t     layer = UINT8_MAX);
-    void     setPosition (Vec2D<> position, Tile::Layer layer = Tile::Layer::BOTTOM);
-    void     setPosition (Vec2D<> position, uint8_t     layer = UINT8_MAX);
+    void     setTile     (Tile*   tile);
+    void     setPosition (Vec2D<> position);
 
 private:
     Type  m_type;
@@ -51,32 +50,27 @@ class Level;
 class Tile
 {
 public:
-    enum class Layer : uint8_t
-    {
-        TOP     = 0,
-        CURRENT = UINT8_MAX - 1,
-        BOTTOM  = UINT8_MAX
-    };
-
     // deprecated soon
     using Type = bmsg::Char64;
+
+     Tile (Level* level, Vec2D<> position, Type type);
+    ~Tile ();
 
     Level*   getLevel () const;
     Vec2D<>  getPos   () const;
     Type     getType  () const;
     void     setType  (Type type);
 
-    void    addEntity (Entity*     entity, uint8_t layer = UINT8_MAX);
-    void    addEntity (Entity*     entity, Layer   layer = Layer::BOTTOM);
+    void    addEntity (Entity*     entity);
     void removeEntity (Entity::ID  id);
 
-    const std::vector<Entity*>& getEntityList () const;
+    const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;
 private:
-    Level&  m_level;
+    Level*  m_level;
     Vec2D<> m_position;
     Type    m_type;
 
-    std::vector<Entity*> m_EntityList;
+    std::unordered_map<Entity::ID, Entity*> m_EntityList;
 };
 
 class Level : public Mod 
