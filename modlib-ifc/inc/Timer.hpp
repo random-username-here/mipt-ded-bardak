@@ -1,3 +1,4 @@
+#pragma once
 #include "modlib_mod.hpp"
 #include <functional>
 #include <utility>

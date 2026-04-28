@@ -5,11 +5,12 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <stdarg.h>
 
 struct Refs {
     ModManager *mm;
     PAN *pan;
-    msva::Server *server;
+    msva::ServerImpl *server;
     std::filesystem::path configPath;
 };
 
@@ -53,10 +54,29 @@ int l_iniHandler(void *p, const char *sec_c, const char *name_c, const char *val
         r->server->setPort(std::atoi(val_c));
     } else if (name == "tick_time") {
         r->server->setTickTime(std::atoi(val_c));
+    } else if (name == "log_file") {
+        auto path = std::filesystem::absolute(r->configPath.parent_path() / val).lexically_normal();
+        r->server->setLogFile(std::string(path.c_str()));
     } else {
         l_logPrefix() << ESC_YLW << "Key " << name << " is not known\n" << ESC_RST;
     }
     return 0;
+}
+
+static ModManager mgr;
+static PAN pan;
+static msva::ServerImpl srv(&mgr, &pan);
+
+static void l_panLogger(void *data, const char *fmt, ...) {
+    va_list args, copy;
+    va_start(args, fmt);
+    va_copy(copy, args);
+    std::string res;
+    res.resize(vsnprintf(nullptr, 0, fmt, copy) + 1);
+    vsnprintf(res.data(), res.size(), fmt, args);
+    va_end(args);
+    std::ostream *ls = (std::ostream*) data;
+    if (ls) (*ls) << res;
 }
 
 int main(int argc, char *argv[]) {
@@ -66,11 +86,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ModManager mgr;
-    PAN pan;
-    pan_init(&pan, nullptr, true);
-    msva::Server srv(&mgr, &pan);
-    
+    pan.userptr = &std::cerr;
+    pan_init(&pan, l_panLogger, true);
 
     l_logPrefix() << "Starting server with config from " << ESC_BLU << argv[1] << ESC_RST << '\n';
 
