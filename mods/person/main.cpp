@@ -12,7 +12,7 @@ using namespace modlib;
 
 class PersonCtl;
 
-struct Person : public Unit {
+struct Person : public MOB {
     BmClient *m_client;
     PersonCtl *m_ctl;
     Map *m_map;
@@ -42,7 +42,7 @@ struct Person : public Unit {
 
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
-        Unit::destroy();
+        MOB::destroy();
     }
 };
 
@@ -119,7 +119,9 @@ class PersonCtl : public BmServerModule {
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
-            u->takeDamage(10);
+            if (auto mob = static_cast<MOB *>(u)) {
+                mob->takeDamage(10);
+            }
         }
 
         tm->setTimer(1, [pl](){ pl->m_actionDone = false; }, modlib::Timer::Stage::ON_UPDATE);
