@@ -1,4 +1,5 @@
 #include "../person_base.hpp"
+#include "Map.hpp"
 #include "ghost_proto.hpp"
 #include "RoleMgr.hpp"
 #include "Timer.hpp"
@@ -26,6 +27,7 @@ struct Ghost final : public PersonBase {
     uint64_t type() const override { return kGhostType; }
     uint64_t teamId() const override { return kGhostTeam; }
     int attackDamage() const override { return kAttackDamage; }
+    virtual uint64_t getAssetId() const override { return 0; }; 
 };
 
 class GhostRole final : public modlib::BmServerModule {
@@ -158,7 +160,7 @@ private:
             return;
         }
 
-        auto* target = map_->byId(attack->whom);
+        auto* target = dynamic_cast<modlib::MOB*>(map_->byId(attack->whom));
         if (target == nullptr) {
             return;
         }
