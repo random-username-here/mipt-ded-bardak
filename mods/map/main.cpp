@@ -133,10 +133,10 @@ public:
     std::string_view brief() const override { return "Provides tile grid with entities "; }
     ModVersion version() const override { return ModVersion(1, 0, 0); }
 
-    void setTyleType(Vec2i pos, const uint64_t type) override {
+    void setTileType(Vec2i pos, const uint64_t type) override {
         IDATile *tile = static_cast<IDATile *>(grid_[pos.y][pos.x].get());
         if (tile == nullptr) {
-            std::cerr << id() << " failed to cast tile to `IDATile` in `setTyleType`\n";
+            std::cerr << id() << " failed to cast tile to `IDATile` in `setTileType`\n";
             return;
         }
         tile->setType(type);

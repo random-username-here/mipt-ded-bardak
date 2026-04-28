@@ -40,7 +40,7 @@ Vec2D<> Entity::getPosition () const
 }
 
 
-void Entity::setTyleType (Tile* tile)
+void Entity::setTileType (Tile* tile)
 {
     m_tile->removeEntity (m_ID);
     m_tile = tile;
