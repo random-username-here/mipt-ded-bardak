@@ -54,20 +54,22 @@
     }
 
 #define PAN_GH_READ(buf, count)\
-    do {\
-        if (_pos + (count) < _msg.header()->len)\
-            std::memcpy((buf), (const char*) _msg.bodyPtr() + _pos, (count));\
-        else\
-            return std::nullopt;\
-    } while (0)
+	    do {\
+	        if (_pos + (count) <= _msg.header()->len)\
+	            std::memcpy((buf), (const char*) _msg.bodyPtr() + _pos, (count));\
+	        else\
+	            return std::nullopt;\
+	        _pos += (count);\
+	    } while (0)
 
 #define PAN_GH_READ_SLICE(ref, count)\
-    do {\
-        if (_pos + (count) < _msg.header()->len)\
-            *(ref) = std::string_view((const char*) _msg.bodyPtr() + _pos, (count));\
-        else\
-            return std::nullopt;\
-    } while (0)
+	    do {\
+	        if (_pos + (count) <= _msg.header()->len)\
+	            *(ref) = std::string_view((const char*) _msg.bodyPtr() + _pos, (count));\
+	        else\
+	            return std::nullopt;\
+	        _pos += (count);\
+	    } while (0)
 
 #define PAN_GH_DECODE(loc, ipref, itype, spref, stype, ...)\
     PAN_GH_DECODE_I(PAN_GH_NAME(loc, ipref, itype), __VA_ARGS__)
