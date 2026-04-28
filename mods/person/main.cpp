@@ -44,6 +44,11 @@ struct Person : public MOB {
         m_client->send(bmsg::SV_person_hp { 0 });
         MOB::destroy();
     }
+
+    uint64_t getAssetId() const override {
+        return 0;
+    }
+
 };
 
 class PersonCtl : public BmServerModule {
