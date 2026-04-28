@@ -42,7 +42,7 @@ void Tile::removeEntity (Entity::ID id)
 {
     if (m_EntityList.contains (id))
     {
-        m_EntityList[id]->setTyleType (nullptr);
+        m_EntityList[id]->setTileType (nullptr);
     }
     m_EntityList.erase (id);
 }
