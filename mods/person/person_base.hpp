@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <cstdint>
 
-struct PersonBase : public modlib::Unit {
+struct PersonBase : public modlib::MOB {
     modlib::BmClient* m_client = nullptr;
     modlib::Map* m_map = nullptr;
     modlib::Vec2i m_pos {};
