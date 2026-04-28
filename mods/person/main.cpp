@@ -29,25 +29,33 @@ struct Person : public Unit {
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
-    int hp() const override { return m_hp; }
-    Vec2i pos() const override { return m_pos; }
+    
     size_t id() override { return m_id; }
+    uint64_t type() const override { return 0; }
+    uint64_t teamId() const override { return 0; }
 
-    void takeDamage(int d) override {
+    int hp() const override { return m_hp; }
+        void takeDamage(int d) override {
         m_hp -= d;
         if (m_hp < 0) m_hp = 0;
         if (m_hp == 0) destroy();
     }
+
+    void pickUp() override {}
+    int weight() const override { return 1; }
+    void setWeight(const int weight) override {}
+
+    Vec2i pos() const override { return m_pos; }
 
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
         Unit::destroy();
     }
 
-    void move(Vec2i to) override {
-        Unit::move(to);
-        m_pos = to;
+    uint64_t getAssetId() const override {
+        return 0;
     }
+
 };
 
 class PersonCtl : public BmServerModule {
@@ -86,7 +94,7 @@ class PersonCtl : public BmServerModule {
                     int x = ps->pos().x + dx, y = ps->pos().y + dy;
                     if (x < 0 || y < 0 || x >= size.x || y >= size.y)
                         continue;
-                    if (!map->at({x, y})->isWalkable())
+                    if (map->at({x, y})->type() == Tile::BasicType::Wall)
                         cl->send(bmsg::SV_person_wall { x, y });
                     for (auto i : map->at({x, y})->units())
                         if (i != ps)
@@ -125,8 +133,7 @@ class PersonCtl : public BmServerModule {
             if (m_tick < pl->m_nextMoveTick) return;
             Vec2i pos = pl->pos();
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
-            auto *t = map->at(pos);
-            if (!t->isWalkable()) return;
+            if (map->at(pos)->type() == Tile::BasicType::Wall) return;
             pl->move(pos);
             pl->m_nextMoveTick = m_tick + kMoveCdTicks;
         } else if (m.header()->type == "attack") {
