@@ -30,6 +30,11 @@ struct Person : public Unit {
     Vec2i pos() const override { return m_pos; }
     size_t id() override { return m_id; }
 
+    void move(Vec2i to) override {
+        Unit::move(to);
+        m_pos = to;
+    }
+
     void takeDamage(int d) override {
         m_hp -= d;
         if (m_hp < 0) m_hp = 0;
