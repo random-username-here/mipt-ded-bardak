@@ -39,7 +39,7 @@ struct Person : public Unit {
     }
 
     void pickUp() override {}
-    int weigth() const override { return 1; }
+    int weight() const override { return 1; }
     void setWeight(const int weight) override {}
 
     Vec2i pos() const override { return m_pos; }

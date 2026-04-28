@@ -23,7 +23,7 @@ public:
     virtual void takeDamage(int d) = 0;
     
     virtual void pickUp() = 0;
-    virtual int weigth() const = 0;
+    virtual int weight() const = 0;
     virtual void setWeight(const int weight) = 0;
 
     virtual Vec2i pos() const = 0;
@@ -86,11 +86,11 @@ inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
 }
 
 inline bool operator!=(uint64_t lhs, modlib::Tile::BasicType rhs) {
-    return lhs == static_cast<uint64_t>(rhs);
+    return !(lhs == rhs);
 }
 
 inline bool operator!=(modlib::Tile::BasicType lhs, uint64_t rhs) {
-    return static_cast<uint64_t>(lhs) == rhs;
+    return !(lhs == rhs);
 }
 
 };
