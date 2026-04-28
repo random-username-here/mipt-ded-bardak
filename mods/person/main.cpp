@@ -26,6 +26,10 @@ struct Person : public Unit {
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
+    
+    uint64_t type() const override { return 0; }
+    uint64_t teamId() const override { return 0; }
+
     int hp() const override { return m_hp; }
     Vec2i pos() const override { return m_pos; }
     size_t id() override { return m_id; }
@@ -71,7 +75,7 @@ class PersonCtl : public BmServerModule {
                     int x = ps->pos().x + dx, y = ps->pos().y + dy;
                     if (x < 0 || y < 0 || x >= size.x || y >= size.y)
                         continue;
-                    if (!map->at({x, y})->isWalkable())
+                    if (map->at({x, y})->type() == Tile::BasicType::Wall)
                         cl->send(bmsg::SV_person_wall { x, y });
                     for (auto i : map->at({x, y})->units())
                         if (i != ps)
@@ -106,7 +110,7 @@ class PersonCtl : public BmServerModule {
             if (abs(moveCmd->dx) > 1 || abs(moveCmd->dy) > 1) return;
             Vec2i pos = pl->pos();
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
-            if (!map->at(pos)->isWalkable()) return;
+            if (map->at(pos)->type() == Tile::BasicType::Wall) return;
             pl->move(pos);
         } else if (m.header()->type == "attack") {
             auto atkCmd = bmsg::CL_person_attack::decode(m);

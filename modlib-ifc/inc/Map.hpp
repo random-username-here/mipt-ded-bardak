@@ -13,7 +13,10 @@ class Tile;
 class Unit {
 public:
     virtual Map *map() = 0;
-    virtual Tile *tile() = 0; // map().at(pos())
+    virtual Tile *tile() = 0; 
+
+    virtual uint64_t type() const = 0;
+    virtual uint64_t teamId() const = 0;
 
     virtual int hp() const = 0;
     virtual Vec2i pos() const = 0;
@@ -27,9 +30,15 @@ public:
 
 class Tile {
 public:
+    enum class BasicType : uint64_t {
+        Ground = 0,
+        Wall = 1
+    };
+
     virtual Vec2i pos() const = 0;
     virtual const std::vector<Unit*> &units() = 0;
-    virtual bool isWalkable() const = 0;
+    virtual uint64_t type() const = 0;
+
     ~Tile() = default;
 };
 
@@ -47,6 +56,9 @@ public:
         return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
     }
 
+    virtual void setTile(Vec2i pos, const uint64_t type) = 0;
+    virtual bool loadFromFile(const std::string& path) = 0;
+
     virtual Unit *byId(size_t id) = 0;
 
     virtual Vec2i size() const = 0;
@@ -56,5 +68,13 @@ public:
 
 inline void Unit::move(Vec2i to) { map()->moveUnit(this, to); }
 inline void Unit::destroy() { map()->removeUnit(this); }
+
+inline bool operator==(uint64_t lhs, modlib::Tile::BasicType rhs) {
+    return lhs == static_cast<uint64_t>(rhs);
+}
+
+inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
+    return static_cast<uint64_t>(lhs) == rhs;
+}
 
 };

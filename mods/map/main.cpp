@@ -8,23 +8,23 @@
 #include <cassert>
 #include <unordered_map>
 #include <memory>
+#include <fstream>
 
 namespace modlib {
 
 class IDATile : public Tile {
     Vec2i pos_;
+    uint64_t type_;
     std::vector<Unit *> units_;
-    bool isWalkable_;
-
 public:
-    IDATile(const Vec2i pos, const bool isWalkable) 
-        : pos_(pos), isWalkable_(isWalkable) {}
+    IDATile(const Vec2i pos, const uint64_t type) 
+        : pos_(pos), type_(type) {}
         
     ~IDATile() = default; 
 
     Vec2i pos() const override { return pos_; }
     const std::vector<Unit*> &units() override { return units_; }
-    bool isWalkable() const override { return isWalkable_; }
+    uint64_t type() const override { return type_; }
 
     void addUnit(Unit *unit) {
         if (!unit) return;
@@ -41,6 +41,10 @@ public:
         if (it != units_.end()) {
             units_.erase(it, units_.end());
         }
+    }
+
+    void setType(const uint64_t type) {
+        type_ = type;
     }
 };
 
@@ -111,7 +115,8 @@ class IDAMapModule : public Map {
             grid_[y].reserve(width);
             for (int x = 0; x < width; ++x) {
                 bool wall = (x == 0 || x == width - 1 || y == 0 || y == height - 1);
-                auto tile = std::make_unique<IDATile>(Vec2i{x, y}, !wall);
+                uint64_t type = static_cast<uint64_t>(wall ? Tile::BasicType::Wall : Tile::BasicType::Ground);
+                auto tile = std::make_unique<IDATile>(Vec2i{x, y}, type);
                 grid_[y].push_back(std::move(tile));
             }
         }
@@ -127,6 +132,55 @@ public:
     std::string_view id() const override { return "ida.bardak.map"; }
     std::string_view brief() const override { return "Provides tile grid with entities "; }
     ModVersion version() const override { return ModVersion(1, 0, 0); }
+
+    void setTile(Vec2i pos, const uint64_t type) override {
+        IDATile *tile = static_cast<IDATile *>(grid_[pos.y][pos.x].get());
+        if (tile == nullptr) {
+            std::cerr << id() << " failed to cast tile to `IDATile` in `setTile`\n";
+            return;
+        }
+        tile->setType(type);
+    }
+
+    bool loadFromFile(const std::string& path) override {
+        std::ifstream file(path);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open file `" << path << "` with map\n";
+            return false;
+        }
+
+        int height = 0, width = 0;
+        if (!(file >> height >> width)) {
+            std::cerr << "Failed to parse height, width in `" << path << "` map file\n";
+            return false;
+        }
+
+        if (height <= 0 || width <= 0) {
+            std::cerr << "Invalid map dimensions`" << height << " " << width << "\n";
+            return false;
+        }
+
+        grid_.clear();
+        grid_.resize(height);
+        for (int y = 0; y < height; ++y) {
+            grid_[y].clear();
+            grid_[y].reserve(width);
+            
+            for (int x = 0; x < width; ++x) {
+                uint64_t typeRaw;
+                if (!(file >> typeRaw)) return false;
+
+                auto tile = std::make_unique<IDATile>(
+                    Vec2i{x, y}, 
+                    typeRaw
+                );
+                
+                grid_[y].push_back(std::move(tile));
+            }
+        }
+
+        return true;
+    }
 
     Unit *byId(size_t id) override {
         auto it = units_.find(id);
