@@ -96,4 +96,12 @@ inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
     return static_cast<uint64_t>(lhs) == rhs;
 }
 
+inline bool operator!=(uint64_t lhs, modlib::Tile::BasicType rhs) {
+    return lhs == static_cast<uint64_t>(rhs);
+}
+
+inline bool operator!=(modlib::Tile::BasicType lhs, uint64_t rhs) {
+    return static_cast<uint64_t>(lhs) == rhs;
+}
+
 };
