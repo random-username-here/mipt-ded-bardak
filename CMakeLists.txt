@@ -14,4 +14,4 @@ add_subdirectory(mods/role_manager)
 add_subdirectory(mods/timer)
 add_subdirectory(mods/map)
 
-add_subdirectory(clients/random)
+add_subdirectory(clients)
