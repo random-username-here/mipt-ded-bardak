@@ -75,7 +75,7 @@ public:
         return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
     }
 
-    virtual void setTile(Vec2i pos, const uint64_t type) = 0;
+    virtual void setTyleType(Vec2i pos, const uint64_t type) = 0;
     virtual bool loadFromFile(const std::string& path) = 0;
 
     virtual Unit *byId(uint64_t id) = 0;
