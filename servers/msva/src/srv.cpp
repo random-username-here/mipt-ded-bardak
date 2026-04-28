@@ -19,24 +19,30 @@
 
 namespace msva {
 
-std::ostream &Client::m_log() {
+LogStream ClientImpl::logg() {
     static const char *colors[] = {
         ESC_RED, ESC_GRN, ESC_YLW,
         ESC_BLU, ESC_CYN, ESC_MGN
     };
 
-    std::cerr << colors[m_id % 6] << "client " << std::setw(3) << m_id << ESC_GRY << " : " << ESC_RST;
-    return std::cerr;
+    auto ls = LogStream(m_server->m_logCallback);
+    ls << colors[m_id % 6] << "client " << std::setw(3) << m_id << ESC_GRY << " : " << ESC_RST;
+    return ls;
 }
 
-void Client::send(bmsg::RawMessage m) {
-    m_log();
-    pan_binDump_short(m_server->m_pan, PAN_SERVER, m.data().data(), m.data().size());
+void ClientImpl::send(bmsg::RawMessage m) {
+    {
+        auto l = logg();
+        m_server->m_pan->userptr = &l.stream();
+        pan_binDump_short(m_server->m_pan, PAN_SERVER, m.data().data(), m.data().size());
+        l << "\n";
+        m_server->m_pan->userptr = &std::cerr;
+    }
 
     ssize_t err = ::send(m_fd, m.data().data(), m.data().size(), MSG_NOSIGNAL);
 
     if (err < 0) {
-        m_log() << "write failed: " << strerror(errno) << '\n';
+        logg() << "write failed: " << strerror(errno) << '\n';
     }
 }
 
@@ -45,34 +51,40 @@ static uint64_t l_ch64u(std::string_view s) {
     return ch.as_u64;
 }
 
-std::ostream &Server::m_log() {
-    std::cerr << ESC_GRY << "server ... : " << ESC_RST;
-    return std::cerr;
+LogStream ServerImpl::logg() {
+    auto ls = LogStream(m_logCallback);
+    ls << ESC_GRY << "server ... : " << ESC_RST;
+    return ls;
 }
 
-bool Server::registerPrefix(std::string_view pref, modlib::BmServerModule *mod) {
+bool ServerImpl::registerPrefix(std::string_view pref, modlib::BmServerModule *mod) {
     if (pref == "srv") return false;
     uint64_t u = l_ch64u(pref);
     if (m_prefMapping.count(u)) return false;
     m_prefMapping[u] = mod;
-    m_log() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now responsible for prefix " << ESC_GRN << pref << ESC_RST << '\n';
+    logg() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now responsible for prefix " << ESC_GRN << pref << ESC_RST << '\n';
     return true;
 }
 
-void Server::listenPrefix(std::string_view pref, modlib::BmServerModule *mod) {
+void ServerImpl::listenPrefix(std::string_view pref, modlib::BmServerModule *mod) {
     uint64_t u = l_ch64u(pref);
     m_listeners[u].push_back(mod);
-    m_log() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now listening messages for " << ESC_GRN << pref << ESC_RST << '\n';
+    logg() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now listening messages for " << ESC_GRN << pref << ESC_RST << '\n';
 }
 
-void Server::listenAll(modlib::BmServerModule *mod) {
+void ServerImpl::listenAll(modlib::BmServerModule *mod) {
     m_listenersForAll.push_back(mod);
-    m_log() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now listening all incoming messages\n";
+    logg() << "Plugin " << ESC_BLU << mod->id() << ESC_RST << " now listening all incoming messages\n";
 }
 
-void Server::m_processMessage(Client *cl, bmsg::RawMessage msg) {
-    cl->m_log();
-    pan_binDump_short(m_pan, PAN_CLIENT, msg.data().data(), msg.data().size());
+void ServerImpl::m_processMessage(ClientImpl *cl, bmsg::RawMessage msg) {
+    {
+        auto l = cl->logg();
+        m_pan->userptr = &l.stream();
+        pan_binDump_short(m_pan, PAN_CLIENT, msg.data().data(), msg.data().size());
+        l << "\n";
+        m_pan->userptr = &std::cerr;
+    }
 
     assert(msg.isCorrect());
     uint64_t pref = msg.header()->pref.as_u64;
@@ -90,13 +102,13 @@ void Server::m_processMessage(Client *cl, bmsg::RawMessage msg) {
         i->onMessage(cl, msg);
 }
 
-void Server::m_srvMessage(Client *cl, bmsg::RawMessage msg) {
+void ServerImpl::m_srvMessage(ClientImpl *cl, bmsg::RawMessage msg) {
     assert(msg.isCorrect());
     // TODO
     return;
 }
 
-void Server::m_onConnect(Client *cl) {
+void ServerImpl::m_onConnect(ClientImpl *cl) {
     cl->send(bmsg::SV_srv_name {m_name});
     cl->send(bmsg::SV_srv_id {(uint32_t) cl->m_id});
     cl->send(bmsg::SV_srv_level { "player" });
@@ -107,34 +119,42 @@ void Server::m_onConnect(Client *cl) {
         i->onConnect(cl);
 }
 
-Server::Server(ModManager *mm, PAN *pan) {
+ServerImpl::ServerImpl(ModManager *mm, PAN *pan) {
     m_pan = pan;
     m_mm = mm;
+    m_port = 3000;
+    m_tickTime = 1000;
+    m_name = "Unnamed server";
+    m_logCallback = [this](std::string_view s) {
+        if (m_ttylog) std::cerr << s;
+        if (m_fileLogger)
+            *m_fileLogger << s;
+    };
 }
 
-void Server::initMods() {
+void ServerImpl::initMods() {
     m_plugins = m_mm->allOfType<modlib::BmServerModule>();
     for (auto mod : m_plugins) {
-        m_log() << "Adding BmServerModule " << ESC_BLU << mod->id() << ESC_RST << "\n";
+        logg() << "Adding BmServerModule " << ESC_BLU << mod->id() << ESC_RST << "\n";
         mod->setServer(this);
         mod->onSetup(this);
     }
     m_tm = m_mm->anyOfType<modlib::Timer>();
     if (!m_tm)
-        m_log() << "No timer found, will not do tick()\n";
+        logg() << "No timer found, will not do tick()\n";
 }
 
-void Server::m_addToEpoll(Client *cl, int fd, uint32_t flags) {
+void ServerImpl::m_addToEpoll(ClientImpl *cl, int fd, uint32_t flags) {
     epoll_event e;
     e.events = flags;
     e.data.ptr = cl;
     if (epoll_ctl(m_epollFd, EPOLL_CTL_ADD, fd, &e) == -1) {
-        m_log() << "Failed add fd to epoll: " << strerror(errno) << '\n';
+        logg() << "Failed add fd to epoll: " << strerror(errno) << '\n';
         abort();
     }
 }
 
-void Server::m_incoming(Client *cl, std::string_view data) {
+void ServerImpl::m_incoming(ClientImpl *cl, std::string_view data) {
     cl->m_partialMsg += data;
 maybe_again:
     bmsg::RawMessage m(cl->m_partialMsg);
@@ -153,13 +173,14 @@ static uint64_t l_curMs() {
     return tm.tv_sec * 1000 + tm.tv_nsec / 1e6;
 }
 
-void Server::mainloop() {
+void ServerImpl::mainloop() {
 
-    m_log() << "Starting server `" << m_name << "` on port " << m_port << '\n';
+    logg() << "Starting server `" << m_name << "` on port " << m_port << '\n';
+    logg() << "Tick time is " << m_tickTime << "ms\n";
 
     m_sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_sockFd < 0) {
-        m_log() << "Failed to open socket: " << strerror(errno) << '\n';
+        logg() << "Failed to open socket: " << strerror(errno) << '\n';
         return;
     } 
 
@@ -170,17 +191,17 @@ void Server::mainloop() {
 
     int en = 1;
     if (setsockopt(m_sockFd, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en)) < 0) {
-        m_log() << "Failed to set SO_REUSEADDR on socket: " << strerror(errno) << '\n';
+        logg() << "Failed to set SO_REUSEADDR on socket: " << strerror(errno) << '\n';
         return;
     }
 
     if (bind(m_sockFd, (sockaddr*) &sin, sizeof(sin)) < 0) {
-        m_log() << "Failed to bind socket: " << strerror(errno) << '\n';
+        logg() << "Failed to bind socket: " << strerror(errno) << '\n';
         return;
     }
 
     if (listen(m_sockFd, 10) < 0) {
-        m_log() << "Failed to listen socket: " << strerror(errno) << '\n';
+        logg() << "Failed to listen socket: " << strerror(errno) << '\n';
         return;
     }
 
@@ -189,7 +210,7 @@ void Server::mainloop() {
 
     char buf[BUF_SIZE] = {0};
 
-    m_log() << "Listening...\n";
+    logg() << "Listening...\n";
 
     uint64_t nextClock = 0;
 
@@ -199,7 +220,7 @@ void Server::mainloop() {
             waitTime = nextClock - curTime;
         } else {
             if (m_tm) {
-                m_log() << "tick @ " << curTime << "ms\n";
+                logg() << ESC_GRY << "Tick @ " << nextClock << "ms\n" << ESC_RST;
                 m_tm->tick();
             }
             nextClock = curTime + TICK_TIME;
@@ -208,13 +229,13 @@ void Server::mainloop() {
         epoll_event ev;
         int nfds = epoll_wait(m_epollFd, &ev, 1, waitTime); // 1s time
         if (nfds < 0) {
-            m_log() << "epoll_wait() error: " << strerror(errno) << '\n';
+            logg() << "epoll_wait() error: " << strerror(errno) << '\n';
             return;
         } if (nfds == 0) {
             continue;
         }
 
-        m_log() << "epoll event: ptr = " << ev.data.ptr << ", ev = " << ev.events << "\n";
+        logg() << "epoll event: ptr = " << ev.data.ptr << ", ev = " << ev.events << "\n";
 
         if (!ev.data.ptr) {
             // socket
@@ -222,22 +243,22 @@ void Server::mainloop() {
             sockaddr_in addr;
             socklen_t slen = sizeof(addr);
             int clsock = accept(m_sockFd, (sockaddr*) &addr, &slen);
-            m_clients[id] = std::make_unique<Client>(Client(this, clsock, id, addr));
+            m_clients[id] = std::make_unique<ClientImpl>(ClientImpl(this, clsock, id, addr));
             inet_ntop(AF_INET, (const void*) &addr.sin_addr, buf, sizeof(buf));
-            m_clients[id]->m_log() << "Client connected from " << buf << ":" << ntohs(addr.sin_port) << "\n";
+            m_clients[id]->logg() << ESC_MGN << "Client connected from " << buf << ":" << ntohs(addr.sin_port) << "\n" << ESC_RST;
             m_addToEpoll(m_clients[id].get(), clsock, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
             m_onConnect(m_clients[id].get()); 
             continue;
         }
         if (ev.events & EPOLLIN) {
-            Client *cl = (Client*) ev.data.ptr;
+            ClientImpl *cl = (ClientImpl*) ev.data.ptr;
             int n = read(cl->m_fd, buf, sizeof(buf));
             if (n > 0)
                 m_incoming(cl, std::string_view(buf, n));
         }
         if (ev.events & (EPOLLRDHUP | EPOLLHUP)) {
-            Client *cl = (Client*) ev.data.ptr;
-            cl->m_log() << "Client disconnect\n";
+            ClientImpl *cl = (ClientImpl*) ev.data.ptr;
+            cl->logg() << ESC_MGN << "Client disconnect\n" << ESC_RST;
             for (auto i : m_plugins)
                 i->onDisconnect(cl);
             epoll_ctl(m_epollFd, EPOLL_CTL_DEL, cl->m_fd, NULL);

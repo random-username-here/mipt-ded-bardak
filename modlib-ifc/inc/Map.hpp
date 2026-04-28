@@ -19,9 +19,18 @@ public:
     virtual uint64_t type() const = 0;
     virtual uint64_t teamId() const = 0;
 
+    virtual int hp() const = 0;
+    virtual void takeDamage(int d) = 0;
+    
+    virtual void pickUp() = 0;
+    virtual int weight() const = 0;
+    virtual void setWeight(const int weight) = 0;
+
     virtual Vec2i pos() const = 0;
+
     virtual void move(Vec2i to);
     virtual void destroy();
+    
     virtual uint64_t getAssetId() const = 0; 
 
     virtual ~Unit() = default;
@@ -94,6 +103,14 @@ inline bool operator==(uint64_t lhs, modlib::Tile::BasicType rhs) {
 
 inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
     return static_cast<uint64_t>(lhs) == rhs;
+}
+
+inline bool operator!=(uint64_t lhs, modlib::Tile::BasicType rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator!=(modlib::Tile::BasicType lhs, uint64_t rhs) {
+    return !(lhs == rhs);
 }
 
 };
