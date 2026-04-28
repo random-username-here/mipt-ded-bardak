@@ -40,10 +40,14 @@ const std::unordered_map<Entity::ID, Entity*>& Tile::getEntityList () const
 
 void Tile::removeEntity (Entity::ID id)
 {
+    if (m_EntityList.contains (id))
+    {
+        m_EntityList[id]->setTile (nullptr);
+    }
     m_EntityList.erase (id);
 }
 
 void Tile::addEntity (Entity* entity)
 {
-    m_EntityList[entity->getID ()] = entity;   
+    m_EntityList[entity->getID ()] = entity;
 }
