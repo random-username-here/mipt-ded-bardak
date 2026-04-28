@@ -21,6 +21,7 @@ struct Pacman final : public PersonBase {
     uint64_t type() const override { return kPacmanType; }
     uint64_t teamId() const override { return kPacmanTeam; }
     int attackDamage() const override { return 0; }
+    virtual uint64_t getAssetId() const override { return 0; }; 
 };
 
 class PacmanRole final : public modlib::BmServerModule {
