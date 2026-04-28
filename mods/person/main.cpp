@@ -1,11 +1,12 @@
+#include <cstdlib>
+#include <optional>
+
 #include "BmServerModule.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
-#include <cstdlib>
-#include <optional>
 #include "./person_proto.hpp"
 
 using namespace modlib;
@@ -68,22 +69,32 @@ class PersonCtl : public BmServerModule {
 
     void tick() {
         auto size = map->size();
+
         for (auto [cl, ps] : m_people) {
-            cl->send(bmsg::SV_person_tick {});
-            cl->send(bmsg::SV_person_at { ps->pos().x, ps->pos().y });
+            Vec2i ps_pos = ps->pos();
+
+            cl->send(bmsg::SV_person_at { ps_pos.x, ps_pos.y });
             cl->send(bmsg::SV_person_hp { ps->hp() });
+
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
-                    int x = ps->pos().x + dx, y = ps->pos().y + dy;
+                    int x = ps_pos.x + dx, y = ps_pos.y + dy;
+
                     if (x < 0 || y < 0 || x >= size.x || y >= size.y)
                         continue;
-                    if (!map->at({x, y})->isWalkable())
+
+                    Tile *tile = map->at({x, y});
+                    if (!tile->isWalkable())
                         cl->send(bmsg::SV_person_wall { x, y });
-                    for (auto i : map->at({x, y})->units())
+
+                    for (auto i : tile->units()) {
                         if (i != ps)
-                            cl->send(bmsg::SV_person_sees { x, y, (uint32_t) i->id() });
+                            cl->send(bmsg::SV_person_sees { x, y, (uint32_t)i->id() });
+                    }
                 }
             }
+
+            cl->send(bmsg::SV_person_tick {});
         }
         tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
     }
