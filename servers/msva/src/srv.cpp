@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 
 #define BUF_SIZE 1024
+#define TICK_TIME 1000
 
 namespace msva {
 
@@ -109,9 +110,6 @@ void Server::m_onConnect(Client *cl) {
 Server::Server(ModManager *mm, PAN *pan) {
     m_pan = pan;
     m_mm = mm;
-    m_port = 3000;
-    m_tickTime = 1000;
-    m_name = "Unnamed server";
 }
 
 void Server::initMods() {
@@ -158,7 +156,6 @@ static uint64_t l_curMs() {
 void Server::mainloop() {
 
     m_log() << "Starting server `" << m_name << "` on port " << m_port << '\n';
-    m_log() << "Tick time is " << m_tickTime << "ms\n";
 
     m_sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (m_sockFd < 0) {
@@ -194,7 +191,7 @@ void Server::mainloop() {
 
     m_log() << "Listening...\n";
 
-    uint64_t nextClock = l_curMs();
+    uint64_t nextClock = 0;
 
     while (1) {
         uint64_t curTime = l_curMs(), waitTime = 0;
@@ -202,10 +199,10 @@ void Server::mainloop() {
             waitTime = nextClock - curTime;
         } else {
             if (m_tm) {
-                m_log() << "tick @ " << nextClock << "ms\n";
+                m_log() << "tick @ " << curTime << "ms\n";
                 m_tm->tick();
             }
-            nextClock += (curTime - nextClock) / m_tickTime * m_tickTime + m_tickTime;
+            nextClock = curTime + TICK_TIME;
         }
 
         epoll_event ev;
