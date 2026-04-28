@@ -61,6 +61,7 @@ class Server : public modlib::BmServer {
     std::string m_name;
     size_t m_port;
     modlib::Timer *m_tm;
+    size_t m_tickTime;
 
     void m_addToEpoll(Client *cl, int fd, uint32_t flags);
     void m_incoming(Client *cl, std::string_view data);
@@ -84,6 +85,7 @@ public:
     void initMods();
     void setPort(size_t port) { m_port = port; }
     void setName(std::string_view name) { m_name = name; }
+    void setTickTime(size_t time) { m_tickTime = time; }
     void mainloop();
 
     Server(const Server &s) = delete;
