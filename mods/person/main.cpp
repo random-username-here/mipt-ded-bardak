@@ -21,7 +21,7 @@ struct Person : public Unit {
     int m_hp;
     bool m_actionDone = false;
 
-    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl) 
+    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
 
     Map *map() override { return m_map; }
@@ -37,8 +37,10 @@ struct Person : public Unit {
 
     void takeDamage(int d) override {
         m_hp -= d;
-        if (m_hp < 0) m_hp = 0;
-        if (m_hp < 0) destroy();
+        if (m_hp <= 0) {
+            m_hp = 0;
+            destroy();
+        }
     }
 
     void destroy() override {
