@@ -49,6 +49,8 @@ jobs:
           ./build/servers/msva/msva ./servers/msva/sample.ini &
           SERVER_PID=$!
 
+          sleep 2
+
           ./build/clients/random/random_client $SERVER_IP 3000 &
           CLIENT_PID=$!
 
