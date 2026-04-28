@@ -37,6 +37,12 @@ typedef struct {
 } PanHeader;
 
 typedef struct {
+	uint32_t id;
+	int32_t x;
+	int32_t y;
+} VisibleUnit;
+
+typedef struct {
 	int fd;
 
 	int alive;
@@ -45,7 +51,7 @@ typedef struct {
 	int32_t self_x;
 	int32_t self_y;
 
-	uint32_t visible_ids[MAX_VISIBLE];
+	VisibleUnit visible[MAX_VISIBLE];
 	size_t visible_count;
 
 	Pos walls[MAX_WALLS];
@@ -316,14 +322,20 @@ static void add_wall(BotState *st, int32_t x, int32_t y) {
 	}
 }
 
-static void add_visible(BotState *st, uint32_t id) {
+static void add_visible(BotState *st, uint32_t id, int32_t x, int32_t y) {
 	for (size_t i = 0; i < st->visible_count; i++) {
-		if (st->visible_ids[i] == id) {
+		if (st->visible[i].id == id) {
+			st->visible[i].x = x;
+			st->visible[i].y = y;
 			return;
 		}
 	}
+
 	if (st->visible_count < MAX_VISIBLE) {
-		st->visible_ids[st->visible_count++] = id;
+		st->visible[st->visible_count].id = id;
+		st->visible[st->visible_count].x = x;
+		st->visible[st->visible_count].y = y;
+		st->visible_count++;
 	}
 }
 
@@ -336,9 +348,26 @@ static void do_random_action(BotState *st) {
 		return;
 	}
 
-	if (st->visible_count > 0) {
-		size_t idx = (size_t)(rand() % (int)st->visible_count);
-		uint32_t target = st->visible_ids[idx];
+	VisibleUnit attackable[MAX_VISIBLE];
+	size_t attackable_count = 0;
+
+	if (st->have_pos) {
+		for (size_t i = 0; i < st->visible_count; i++) {
+			int32_t dx = st->visible[i].x - st->self_x;
+			int32_t dy = st->visible[i].y - st->self_y;
+
+			if (dx < 0) dx = -dx;
+			if (dy < 0) dy = -dy;
+
+			if (dx <= 1 && dy <= 1) {
+				attackable[attackable_count++] = st->visible[i];
+			}
+		}
+	}
+
+	if (attackable_count > 0) {
+		size_t idx = (size_t)(rand() % (int)attackable_count);
+		uint32_t target = attackable[idx].id;
 
 		if (send_person_attack(st->fd, target) != 0) {
 			fprintf(stderr, "send attack failed\n");
@@ -440,7 +469,7 @@ static void handle_person_message(BotState *st, const char *type, const uint8_t 
 		(void)x;
 		(void)y;
 
-		add_visible(st, who);
+		add_visible(st, who, x, y);
 		fprintf(stderr, "sees id=%u at (%d, %d)\n", who, x, y);
 		return;
 	}
