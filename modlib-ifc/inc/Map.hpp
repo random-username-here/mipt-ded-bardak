@@ -22,6 +22,7 @@ public:
     virtual Vec2i pos() const = 0;
     virtual void move(Vec2i to);
     virtual void destroy();
+    virtual uint64_t getAssetId() const = 0; 
 
     virtual ~Unit() = default;
 };
@@ -36,8 +37,6 @@ public:
 class Item : public Unit {
 public:
     virtual void pickUp() = 0;
-    virtual void destroy() = 0;
-    virtual void move(Vec2i to) = 0;
     virtual ~Item() = default;
 };
 
@@ -45,6 +44,7 @@ class Building : public Unit {
 public:
     virtual int  hp() const = 0;
     virtual void takeDamage(int d) = 0;
+    virtual ~Building() = default;
 };
 
 class Tile {
