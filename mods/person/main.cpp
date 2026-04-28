@@ -24,12 +24,12 @@ struct Person : public Unit {
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
 
-    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl) 
+    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
-    
+
     size_t id() override { return m_id; }
     uint64_t type() const override { return 0; }
     uint64_t teamId() const override { return 0; }
@@ -116,7 +116,7 @@ class PersonCtl : public BmServerModule {
     void onConnect(BmClient *client) override {
     again:
         Vec2i pos = { rand() % map->size().x, rand() % map->size().y };
-        if (!map->at(pos)->isWalkable()) goto again;
+        if (map->at(pos)->type() == modlib::Tile::BasicType::Wall) goto again;
         m_people[client] = map->spawn<Person>(pos, this, client);
     }
 
