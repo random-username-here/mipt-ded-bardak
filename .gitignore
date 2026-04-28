@@ -4,5 +4,3 @@ build/
 local/
 
 *.log
-
-.vscode/c_cpp_properties.json
