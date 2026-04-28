@@ -1,17 +1,21 @@
 #include "Map.hpp"
 #include <random>
+#include <stdexcept>
 
 Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
 {
     m_ID = rand ();
 
-    tile->addEntity (this);
+    if (tile)
+    {
+        tile->addEntity (this);
+    }
     m_tile = tile;
 }
 
 Entity::~Entity ()
 {
-    m_tile->getLevel ()->removeEntity (m_ID);
+    if (m_tile) m_tile->getLevel ()->removeEntity (m_ID);
 }
 
 
@@ -40,12 +44,22 @@ void Entity::setTile (Tile* tile)
 {
     m_tile->removeEntity (m_ID);
     m_tile = tile;
-    m_tile->addEntity    (this);
+    if (m_tile)
+    {
+        m_tile->addEntity (this);
+    }
 }
 
 void Entity::setPosition (Vec2D<> position)
 {
-    m_tile->removeEntity (m_ID);
-    m_tile = &(m_tile->getLevel ()->getTile (position));
-    m_tile->addEntity (this);
+    if (m_tile)
+    {
+        m_tile->removeEntity (m_ID);
+        m_tile = &(m_tile->getLevel ()->getTile (position));
+        m_tile->addEntity (this);
+    }
+    else
+    {
+        throw std::runtime_error ("Entity must be added to the Level");
+    }
 }
