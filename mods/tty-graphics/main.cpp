@@ -56,7 +56,7 @@ class TTYgraph : public BmServerModule {
         h = wsz.ws_row;
         std::cout << "\x1b[2J"; // clear screen
     }
-    
+
     void frameEnd() {
     }
 
@@ -105,7 +105,7 @@ class TTYgraph : public BmServerModule {
                 auto tile = m_map->at({j, i});
                 if (!tile->units().empty())
                     clr = ESC_RED, chr = "@";
-                else if (!tile->isWalkable())
+                else if (tile->type() == modlib::Tile::BasicType::Wall)
                     clr = ESC_RST, chr = "#";
                 else
                     clr = ESC_GRY, chr = ".";
