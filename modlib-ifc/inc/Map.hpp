@@ -19,32 +19,21 @@ public:
     virtual uint64_t type() const = 0;
     virtual uint64_t teamId() const = 0;
 
+    virtual int hp() const = 0;
+    virtual void takeDamage(int d) = 0;
+    
+    virtual void pickUp() = 0;
+    virtual int weigth() const = 0;
+    virtual void setWeight(const int weight) = 0;
+
     virtual Vec2i pos() const = 0;
+
     virtual void move(Vec2i to);
     virtual void destroy();
+    
     virtual uint64_t getAssetId() const = 0; 
 
     virtual ~Unit() = default;
-};
-
-class MOB : public Unit {
-public:
-    virtual int  hp() const = 0;
-    virtual void takeDamage(int d) = 0;
-    virtual ~MOB() = default;
-};
-
-class Item : public Unit {
-public:
-    virtual void pickUp() = 0;
-    virtual ~Item() = default;
-};
-
-class Building : public Unit {
-public:
-    virtual int  hp() const = 0;
-    virtual void takeDamage(int d) = 0;
-    virtual ~Building() = default;
 };
 
 class Tile {

@@ -12,7 +12,7 @@ using namespace modlib;
 
 class PersonCtl;
 
-struct Person : public MOB {
+struct Person : public Unit {
     BmClient *m_client;
     PersonCtl *m_ctl;
     Map *m_map;
@@ -27,22 +27,26 @@ struct Person : public MOB {
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
     
+    size_t id() override { return m_id; }
     uint64_t type() const override { return 0; }
     uint64_t teamId() const override { return 0; }
 
     int hp() const override { return m_hp; }
-    Vec2i pos() const override { return m_pos; }
-    size_t id() override { return m_id; }
-
-    void takeDamage(int d) override {
+        void takeDamage(int d) override {
         m_hp -= d;
         if (m_hp < 0) m_hp = 0;
         if (m_hp < 0) destroy();
     }
 
+    void pickUp() override {}
+    int weigth() const override { return 1; }
+    void setWeight(const int weight) override {}
+
+    Vec2i pos() const override { return m_pos; }
+
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
-        MOB::destroy();
+        Unit::destroy();
     }
 
     uint64_t getAssetId() const override {
@@ -124,9 +128,7 @@ class PersonCtl : public BmServerModule {
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
-            if (auto mob = static_cast<MOB *>(u)) {
-                mob->takeDamage(10);
-            }
+            u->takeDamage(10);
         }
 
         tm->setTimer(1, [pl](){ pl->m_actionDone = false; }, modlib::Timer::Stage::ON_UPDATE);
