@@ -15,17 +15,36 @@ public:
     virtual Map *map() = 0;
     virtual Tile *tile() = 0; 
 
+    virtual uint64_t id() = 0;
     virtual uint64_t type() const = 0;
     virtual uint64_t teamId() const = 0;
 
-    virtual int hp() const = 0;
     virtual Vec2i pos() const = 0;
-    virtual void takeDamage(int d) = 0;
-    virtual size_t id() = 0;
-
     virtual void move(Vec2i to);
     virtual void destroy();
+    virtual uint64_t getAssetId() const = 0; 
+
     virtual ~Unit() = default;
+};
+
+class MOB : public Unit {
+public:
+    virtual int  hp() const = 0;
+    virtual void takeDamage(int d) = 0;
+    virtual ~MOB() = default;
+};
+
+class Item : public Unit {
+public:
+    virtual void pickUp() = 0;
+    virtual ~Item() = default;
+};
+
+class Building : public Unit {
+public:
+    virtual int  hp() const = 0;
+    virtual void takeDamage(int d) = 0;
+    virtual ~Building() = default;
 };
 
 class Tile {
@@ -47,7 +66,7 @@ class Map : public Mod {
     virtual Unit *addUnit(Vec2i pos, std::unique_ptr<Unit> &&u) = 0;
     virtual void moveUnit(Unit *u, Vec2i pos) = 0;
     virtual void removeUnit(Unit *u) = 0;
-    size_t lastId = 0;
+    uint64_t lastId = 0;
 public:
     virtual ~Map() = default;
 
@@ -56,10 +75,10 @@ public:
         return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
     }
 
-    virtual void setTile(Vec2i pos, const uint64_t type) = 0;
+    virtual void setTyleType(Vec2i pos, const uint64_t type) = 0;
     virtual bool loadFromFile(const std::string& path) = 0;
 
-    virtual Unit *byId(size_t id) = 0;
+    virtual Unit *byId(uint64_t id) = 0;
 
     virtual Vec2i size() const = 0;
     virtual Tile *at(Vec2i pos) = 0;
