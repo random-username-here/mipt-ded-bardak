@@ -5,6 +5,7 @@
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
 #include <cstdlib>
+#include <iostream>
 #include <optional>
 #include "./person_proto.hpp"
 
@@ -42,6 +43,11 @@ struct Person : public Unit {
         m_client->send(bmsg::SV_person_hp { 0 });
         Unit::destroy();
     }
+
+    void move(Vec2i to) override {
+        Unit::move(to);
+        m_pos = to;
+    }
 };
 
 class PersonCtl : public BmServerModule {
@@ -68,14 +74,13 @@ class PersonCtl : public BmServerModule {
         if (!map) throw ModManager::Error("Map module not found");
     }
 
-    void tick() {
+    void sendState() {
         ++m_tick;
         auto size = map->size();
         for (auto [cl, ps] : m_people) {
             cl->send(bmsg::SV_person_tick {});
             cl->send(bmsg::SV_person_at { ps->pos().x, ps->pos().y });
             cl->send(bmsg::SV_person_hp { ps->hp() });
-            ps->takeDamage(1);
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
                     int x = ps->pos().x + dx, y = ps->pos().y + dy;
@@ -89,11 +94,11 @@ class PersonCtl : public BmServerModule {
                 }
             }
         }
-        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
+        tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
     void onDepsResolved(ModManager *mm) override {
-        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
+        tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
     void onSetup(BmServer *server) override {
@@ -101,7 +106,10 @@ class PersonCtl : public BmServerModule {
     };
 
     void onConnect(BmClient *client) override {
-        m_people[client] = map->spawn<Person>(Vec2i { rand() % map->size().x, rand() % map->size().y }, this, client);
+    again:
+        Vec2i pos = { rand() % map->size().x, rand() % map->size().y };
+        if (!map->at(pos)->isWalkable()) goto again;
+        m_people[client] = map->spawn<Person>(pos, this, client);
     }
 
     void onMessage(BmClient *cl, bmsg::RawMessage m) override {
@@ -118,9 +126,7 @@ class PersonCtl : public BmServerModule {
             Vec2i pos = pl->pos();
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
             auto *t = map->at(pos);
-            if (!t) return;
-            // New feature: when low HP, allow phasing through walls.
-            if (!t->isWalkable() && pl->hp() > kLowHpThreshold) return;
+            if (!t->isWalkable()) return;
             pl->move(pos);
             pl->m_nextMoveTick = m_tick + kMoveCdTicks;
         } else if (m.header()->type == "attack") {
@@ -128,6 +134,7 @@ class PersonCtl : public BmServerModule {
             if (!atkCmd) return;
             if (m_tick < pl->m_nextAttackTick) return;
             auto u = map->byId(atkCmd->whom);
+            std::cerr << "attack " << u << '\n';
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
