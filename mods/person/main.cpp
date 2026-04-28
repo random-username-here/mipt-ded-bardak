@@ -20,6 +20,8 @@ struct Person : public Unit {
     size_t m_id;
     int m_hp;
     bool m_actionDone = false;
+    uint64_t m_nextMoveTick = 0;
+    uint64_t m_nextAttackTick = 0;
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl) 
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
@@ -37,7 +39,7 @@ struct Person : public Unit {
     void takeDamage(int d) override {
         m_hp -= d;
         if (m_hp < 0) m_hp = 0;
-        if (m_hp < 0) destroy();
+        if (m_hp == 0) destroy();
     }
 
     void destroy() override {
@@ -55,6 +57,13 @@ class PersonCtl : public BmServerModule {
     Timer *tm;
     Map *map;
     std::unordered_map<BmClient *, Person*> m_people;
+    uint64_t m_tick = 0;
+
+    static constexpr uint64_t kMoveCdTicks = 1;
+    static constexpr uint64_t kAttackCdTicks = 2;
+    static constexpr int kBaseAttackDamage = 10;
+    static constexpr int kBerserkBonusDamage = 6; // when low hp
+    static constexpr int kLowHpThreshold = 25;
 
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
@@ -64,6 +73,7 @@ class PersonCtl : public BmServerModule {
     }
 
     void tick() {
+        ++m_tick;
         auto size = map->size();
         for (auto [cl, ps] : m_people) {
             cl->send(bmsg::SV_person_tick {});
@@ -108,20 +118,30 @@ class PersonCtl : public BmServerModule {
             auto moveCmd = bmsg::CL_person_move::decode(m);
             if (moveCmd == std::nullopt) return;
             if (abs(moveCmd->dx) > 1 || abs(moveCmd->dy) > 1) return;
+            if (m_tick < pl->m_nextMoveTick) return;
             Vec2i pos = pl->pos();
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
-            if (map->at(pos)->type() == Tile::BasicType::Wall) return;
+            auto *t = map->at(pos);
+            if (!t) return;
+            // New feature: when low HP, allow phasing through walls.
+            if (!(t->type() == Tile::BasicType::Wall) && pl->hp() > kLowHpThreshold) return;
             pl->move(pos);
+            pl->m_nextMoveTick = m_tick + kMoveCdTicks;
         } else if (m.header()->type == "attack") {
             auto atkCmd = bmsg::CL_person_attack::decode(m);
             if (!atkCmd) return;
+            if (m_tick < pl->m_nextAttackTick) return;
             auto u = map->byId(atkCmd->whom);
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
-            u->takeDamage(10);
+            int dmg = kBaseAttackDamage;
+            if (pl->hp() <= kLowHpThreshold) dmg += kBerserkBonusDamage;
+            u->takeDamage(dmg);
+            pl->m_nextAttackTick = m_tick + kAttackCdTicks;
         }
 
+        pl->m_actionDone = true;
         tm->setTimer(1, [pl](){ pl->m_actionDone = false; }, modlib::Timer::Stage::ON_UPDATE);
     }
 
