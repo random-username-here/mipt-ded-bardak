@@ -5,34 +5,49 @@
 #include <functional>
 
 
-namespace Event
+template<typename ...Args>
+class Event
 {
-    template<typename ...Args>
-    class Entry
+public:
+    using Callback = std::function<void(Args...)>;
+    class SID
     {
-        using Callback = std::function<void(Args...)>;
-        class SID
-        {
-            friend class Entry;
-
-        public:
-            SID (std::list<Callback>::iterator subscriptionIterator) : it(subscriptionIterator) {}
-
-        private:
-            std::list<Callback>::iterator it;
-        };
+        friend class Entry;
 
     public:
-        SID    subscribe (Callback callback);
-        void unsubscribe (SID      subscriptionID);
+        SID (std::list<Callback>::iterator subscriptionIterator) : it(subscriptionIterator) {}
 
-        uint16_t emit (Args... args);
-
-        const std::list<Callback>& getSubscriptions () const;
-        
     private:
-        std::list<Callback> callbackBus;
+        std::list<Callback>::iterator it;
     };
 
+    SID subscribe (Callback callback)
+    {
+        callbackBus.push_back (callback);
+
+        return SID (std::prev (callbackBus.end()));
+    }
+
+    void unsubscribe (SID subscriptionID)
+    {
+        callbackBus.erase (subscriptionID.it);
+    }
+
+    size_t emit (Args... args)
+    {   
+        for (const auto& callback : callbackBus)
+        {
+            callback (args...);
+        }
+
+        return callbackBus.size ();
+    }
+
+    const std::list<Callback>& getSubscriptions () const
+    {
+        return callbackBus;
+    }
     
-}
+private:
+    std::list<Callback> callbackBus;
+};
