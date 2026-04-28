@@ -3,6 +3,7 @@
 #include "modlib_manager.hpp"
 #include "ini.h"
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <stdarg.h>
 
@@ -12,6 +13,10 @@ struct Refs {
     msva::ServerImpl *server;
     std::filesystem::path configPath;
 };
+
+std::ostream &l_logPrefix() {
+    return std::cerr << ESC_GRY << "server ... : " << ESC_RST;
+}
 
 int l_iniHandler(void *p, const char *sec_c, const char *name_c, const char *val_c) {
     Refs *r = (Refs*) p;

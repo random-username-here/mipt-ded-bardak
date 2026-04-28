@@ -1,6 +1,11 @@
 #include "../utils/tcp_connection.h"
+#include "../../mods/person/pacman/pacman_proto.hpp"
+#include "../../mods/role_manager/role_proto.hpp"
+#include "../../servers/msva/src/srv_proto.hpp"
+
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -30,13 +35,13 @@ class Pacman
 		};
 	};
 
-	int m_fd;
+	int m_fd = -1;
 
-	bool m_alive;
-	int m_have_pos;
+	bool m_alive = true;
+	int m_have_pos = 0;
 
-	int32_t m_hp;
-	Pos m_coord;
+	int32_t m_hp = 0;
+	Pos m_coord { 0, 0 };
 	std::unordered_set<uint32_t> m_visible_ids;
 	std::unordered_set<Pos, Pos::Hash> m_walls;
 
@@ -77,6 +82,32 @@ class Pacman
 	}
 
   private:
+	std::string
+	makeRawMessage(const PanHeader &hdr, const uint8_t *payload)
+	{
+		std::string raw;
+		raw.resize(PAN_HEADER_LEN + hdr.len);
+		fill_name8(reinterpret_cast<uint8_t *>(raw.data()) + 0, hdr.prefix);
+		fill_name8(reinterpret_cast<uint8_t *>(raw.data()) + 8, hdr.type);
+		wr_u32_le(reinterpret_cast<uint8_t *>(raw.data()) + 16, hdr.id);
+		wr_u16_le(reinterpret_cast<uint8_t *>(raw.data()) + 20, hdr.len);
+		wr_u16_le(reinterpret_cast<uint8_t *>(raw.data()) + 22, hdr.flags);
+		if (hdr.len > 0) {
+			memcpy(raw.data() + PAN_HEADER_LEN, payload, hdr.len);
+		}
+		return raw;
+	}
+
+	template <typename Msg>
+	int
+	sendMessage(const Msg &msg)
+	{
+		std::ostringstream os;
+		msg.encode(os, 0, 0);
+		const std::string raw = os.str();
+		return write_exact(m_fd, raw.data(), raw.size(), IO_TIMEOUT_MS);
+	}
+
 	template <typename AbortFunc, typename Callback, typename ...Args>
 	int
 	waitForAnswer(AbortFunc af, Callback cb)
@@ -129,18 +160,21 @@ class Pacman
   	int
 	choosePacmanRole()
 	{
-		std::string pacman_role_id = "pacman";
-		int send_status = send_frame(m_fd, "role", "choose", 0, 0, pacman_role_id.data(), pacman_role_id.size());
+		int send_status = sendMessage(bmsg::CL_role_choose { "pacman" });
 		if ( send_status != 0) {
 			fprintf(stderr, "send pacman role failed\n");
 			return send_status;
 		}
 
+		bool role_chosen = false;
 		int choice_status = waitForAnswer(
-			[](){return true;},
-			[this](PanHeader *hdr, const uint8_t *payload, uint16_t len){
+			[&role_chosen](){return !role_chosen;},
+			[this, &role_chosen](PanHeader *hdr, const uint8_t *payload, uint16_t len){
 				if (strcmp(hdr->prefix, "role") == 0) {
-					return handleRoleMsg(hdr->type, payload, len);
+					if (strcmp(hdr->type, "chosen") == 0) {
+						role_chosen = true;
+					}
+					return handleRoleMsg(hdr, payload, len);
 				}
 
 				return 0;
@@ -151,23 +185,26 @@ class Pacman
 	}
 
 	int
-	handleRoleMsg(const char *type, const uint8_t *payload, uint16_t len)
+	handleRoleMsg(PanHeader *hdr, const uint8_t *payload, uint16_t len)
 	{
-		if ( strcmp(type, "chosen") == 0 )
-		{
-			return 0;
-		} else if ( strcmp(type, "reject") == 0 )
-		{
-			PanHeader hdr;
-			if (read_pan_header(m_fd, &hdr, IO_TIMEOUT_MS) != 0)
-			{
-				fprintf(stderr, "role choice reject, could not read reject reason\n");						
-				return 1;
-			}
+		(void)len;
+		const std::string raw = makeRawMessage(*hdr, payload);
+		bmsg::RawMessage msg(raw);
 
-			std::string reason;
-			reason.resize(hdr.len);
-			fprintf(stderr, "role choice reject, reason: %s\n", reason.data());						
+		if ( strcmp(hdr->type, "chosen") == 0 )
+		{
+			return bmsg::SV_role_chosen::decode(msg) ? 0 : 1;
+		} else if ( strcmp(hdr->type, "option") == 0 )
+		{
+			return bmsg::SV_role_option::decode(msg) ? 0 : 1;
+		} else if ( strcmp(hdr->type, "reject") == 0 )
+		{
+			const auto reject = bmsg::SV_role_reject::decode(msg);
+			if (reject) {
+				fprintf(stderr, "role choice reject, reason: %.*s\n", (int)reject->reason.size(), reject->reason.data());
+			} else {
+				fprintf(stderr, "role choice reject\n");
+			}
 			return 1;
 		}
 
@@ -177,16 +214,25 @@ class Pacman
 	int
 	handlePacmanMsg(const char *type, const uint8_t *payload, uint16_t len)
 	{
+		PanHeader hdr;
+		memset(&hdr, 0, sizeof(hdr));
+		strcpy(hdr.prefix, "pacman");
+		strncpy(hdr.type, type, sizeof(hdr.type) - 1);
+		hdr.len = len;
+		const std::string raw = makeRawMessage(hdr, payload);
+		bmsg::RawMessage msg(raw);
+
 		if (strcmp(type, "tick") == 0) {
-			return (len != 0) ? 0 : tick();
+			return bmsg::SV_pacman_tick::decode(msg) ? tick() : 0;
 		}
 
 		if (strcmp(type, "hp") == 0) {
-			if (len != 4) {
+			const auto hp = bmsg::SV_pacman_hp::decode(msg);
+			if (!hp) {
 				return 0;
 			}
 
-			m_hp = rd_i32_le(payload);
+			m_hp = hp->val;
 			fprintf(stderr, "hp = %d\n", m_hp);
 
 			if (m_hp <= 0) {
@@ -198,38 +244,35 @@ class Pacman
 		}
 
 		if (strcmp(type, "at") == 0) {
-			if (len != 8) {
+			const auto at = bmsg::SV_pacman_at::decode(msg);
+			if (!at) {
 				return 0;
 			}
-			m_coord.x = rd_i32_le(payload + 0);
-			m_coord.y = rd_i32_le(payload + 4);
+			m_coord.x = at->x;
+			m_coord.y = at->y;
 			m_have_pos = 1;
 			fprintf(stderr, "at = (%d, %d)\n", m_coord.x, m_coord.y);
 			return 0;
 		}
 
 		if (strcmp(type, "sees") == 0) {
-			if (len != 12) {
+			const auto sees = bmsg::SV_pacman_sees::decode(msg);
+			if (!sees) {
 				return 0;
 			}
 
-			int32_t x = rd_i32_le(payload + 0);
-			int32_t y = rd_i32_le(payload + 4);
-			uint32_t who = rd_u32_le(payload + 8);
-
-			m_visible_ids.insert(who);
-			fprintf(stderr, "sees id=%u at (%d, %d)\n", who, x, y);
+			m_visible_ids.insert(sees->who);
+			fprintf(stderr, "sees id=%u at (%d, %d)\n", sees->who, sees->x, sees->y);
 			return 0;
 		}
 
 		if (strcmp(type, "wall") == 0) {
-			if (len != 8) {
+			const auto wall = bmsg::SV_pacman_wall::decode(msg);
+			if (!wall) {
 				return 0;
 			}
-			int32_t x = rd_i32_le(payload + 0);
-			int32_t y = rd_i32_le(payload + 4);
-			m_walls.insert({x, y});
-			fprintf(stderr, "wall at (%d, %d)\n", x, y);
+			m_walls.insert({wall->x, wall->y});
+			fprintf(stderr, "wall at (%d, %d)\n", wall->x, wall->y);
 			return 0;
 		}		
 
@@ -239,61 +282,65 @@ class Pacman
 	int
 	handleSrvMsg(const char *type, const uint8_t *payload, uint16_t len)
 	{
+		PanHeader hdr;
+		memset(&hdr, 0, sizeof(hdr));
+		strcpy(hdr.prefix, "srv");
+		strncpy(hdr.type, type, sizeof(hdr.type) - 1);
+		hdr.len = len;
+		const std::string raw = makeRawMessage(hdr, payload);
+		bmsg::RawMessage msg(raw);
+
 		if (strcmp(type, "hasPref") == 0) {
-			if (len != 8) {
-				fprintf(stderr, "bad srv:hasPref len=%u\n", (unsigned)len);
+			const auto has_pref = bmsg::SV_srv_hasPref::decode(msg);
+			if (!has_pref) {
 				return 0;
 			}
 
-			char pref[9];
-			rd_char64(pref, payload);
-			fprintf(stderr, "srv:hasPref pref='%s'\n", pref);
+			bmsg::Char64 pref_value = has_pref->pref;
+			const std::string_view pref = pref_value;
+			fprintf(stderr, "srv:hasPref pref='%.*s'\n", (int)pref.size(), pref.data());
 			return 0;
 		}
 
 		if (strcmp(type, "name") == 0) {
-			char name[1024];
-			if (rd_pan_string(payload, len, name, sizeof(name)) < 0) {
-				fprintf(stderr, "bad srv:name len=%u\n", (unsigned)len);
+			const auto name = bmsg::SV_srv_name::decode(msg);
+			if (!name) {
 				return 0;
 			}
 
-			fprintf(stderr, "srv:name name='%s'\n", name);
+			fprintf(stderr, "srv:name name='%.*s'\n", (int)name->name.size(), name->name.data());
 			return 0;
 		}
 
 		if (strcmp(type, "id") == 0) {
-			if (len != 4) {
-				fprintf(stderr, "bad srv:id len=%u\n", (unsigned)len);
+			const auto id = bmsg::SV_srv_id::decode(msg);
+			if (!id) {
 				return 0;
 			}
 
-			uint32_t client_id = rd_u32_le(payload);
-			fprintf(stderr, "srv:id clientId=%u\n", client_id);
+			fprintf(stderr, "srv:id clientId=%u\n", id->clientId);
 			return 0;
 		}
 
 		if (strcmp(type, "level") == 0) {
-			if (len != 8) {
-				fprintf(stderr, "bad srv:level len=%u\n", (unsigned)len);
+			const auto level = bmsg::SV_srv_level::decode(msg);
+			if (!level) {
 				return 0;
 			}
 
-			char level[9];
-			rd_char64(level, payload);
-			fprintf(stderr, "srv:level level='%s'\n", level);
+			bmsg::Char64 level_value = level->level;
+			const std::string_view level_view = level_value;
+			fprintf(stderr, "srv:level level='%.*s'\n", (int)level_view.size(), level_view.data());
 			return 0;
 		}
 
 		if (strcmp(type, "r.setLvl") == 0) {
-			if (len != 5) {
-				fprintf(stderr, "bad srv:r.setLvl len=%u\n", (unsigned)len);
+			const auto set_level = bmsg::SV_srv_r_setLvl::decode(msg);
+			if (!set_level) {
 				return 0;
 			}
 
-			uint32_t msg = rd_u32_le(payload + 0);
-			int ok = rd_bool_u8(payload + 4);
-			fprintf(stderr, "srv:r.setLvl msg=%u ok=%d\n", msg, ok);
+			fprintf(stderr, "srv:r.setLvl msg=%u ok=%d\n", set_level->msg, set_level->ok);
 			return 0;
 		}
 
@@ -353,10 +400,7 @@ class Pacman
 	int
 	sendMove(int8_t dx, int8_t dy)
 	{
-		uint8_t payload[2];
-		payload[0] = (uint8_t)dx;
-		payload[1] = (uint8_t)dy;
-		return send_frame(m_fd, "pacman", "move", 0, 0, payload, (uint16_t)sizeof(payload));
+		return sendMessage(bmsg::CL_pacman_move { dx, dy });
 	}
 };
 

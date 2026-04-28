@@ -92,19 +92,21 @@ public:
 
         const auto choose = bmsg::CL_role_choose::decode(msg);
         if (!choose) {
-				std::cerr << "[SERVER]: reject via" << "bad choose body" << std::endl;
+				std::cerr << "[ROLE MANAGER] REJECT - " << "bad choose body" << std::endl;
             sendReject(client, "bad choose body");
             return;
         }
 
+		std::cerr << "[ROLE MANAGER] CHOOSE REQUEST - " << choose->id << std::endl;
+
         try {
             if (!selectRole(client, choose->id)) {
-				std::cerr << "[SERVER]: reject via" << "role unavailable" << std::endl;
+				std::cerr << "[ROLE MANAGER] REJECT - " << "role unavailable" << std::endl;
                 sendReject(client, "role unavailable");
                 return;
             }
         } catch (const std::exception& err) {
-			std::cerr << "[SERVER]: reject via" << err.what() << std::endl;
+			std::cerr << "[ROLE MANAGER]: REJECT - " << err.what() << std::endl;
             sendReject(client, err.what());
             return;
         }
