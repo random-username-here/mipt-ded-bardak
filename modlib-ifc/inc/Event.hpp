@@ -1,6 +1,6 @@
 #pragma once
 
-#include "binmsg.hpp"
+
 #include <list>
 #include <functional>
 
