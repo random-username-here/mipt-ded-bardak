@@ -1,4 +1,4 @@
-#include "../utils/client_base.h"
+#include "../utils/client_base.hpp"
 #include "../../mods/person/pacman/pacman_proto.hpp"
 #include "../../servers/msva/src/srv_proto.hpp"
 
@@ -46,7 +46,7 @@ class Pacman : public ClientBase
 	std::unordered_set<Pos, Pos::Hash> m_walls;
 
   public:
-	Pacman(std::string_view host, std::string_view port) : ClientBase(host, port)
+	Pacman(const std::string &ini) : ClientBase(ini)
 	{
 		registerOnPrefix("pacman",
 		                 [this](const PanFrame &frame) { return handlePacmanMsg(frame); });
@@ -177,13 +177,13 @@ class Pacman : public ClientBase
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) {
-		std::cerr << "usage: " << argv[0] << " HOST PORT\n";
+	if (argc != 2) {
+		std::cerr << "usage: " << argv[0] << " INI\n";
 		return 1;
 	}
 
 	try {
-		return Pacman(argv[1], argv[2]).run() ? 0 : 1;
+		return Pacman(argv[1]).run() ? 0 : 1;
 	}
 	catch (const std::exception &err) {
 		std::cerr << err.what() << '\n';
