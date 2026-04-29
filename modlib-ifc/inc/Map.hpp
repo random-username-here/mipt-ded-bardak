@@ -63,7 +63,7 @@ public:
 
     const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;                                      // Please refrain from using this method for safety reasons
 
-    Event<Type> EvTileTypeChanged;
+    Event<Type>       EvTileTypeChanged;
     Event<Entity::ID> EvEntityHasCome;
     Event<Entity::ID> EvEntityHasGone;
 private:

@@ -31,17 +31,29 @@ const std::unordered_map<Tile::Type, size_t>& Level::getTileTypes () const
 Entity::ID Level::newEntity (Entity* entity, Vec2D<> position)
 {
     m_entityList [entity->getID   ()] = entity;
+
     m_entityTypes[entity->getType ()]++;
+    if (m_entityTypes[entity->getType ()] == 1)
+    {
+        EvEntityTypeNew.emit (entity->getType ());
+    }
 
     m_tileMap[position.m_x][position.m_y].addEntity (entity);
+    EvEntitySpawned.emit (entity->getID ());
 }
 
 Entity::ID Level::newEntity (Entity* entity, Tile& tile)
 {
     m_entityList [entity->getID   ()] = entity;
+    
     m_entityTypes[entity->getType ()]++;
+    if (m_entityTypes[entity->getType ()] == 1)
+    {
+        EvEntityTypeNew.emit (entity->getType ());
+    }
 
     tile.addEntity (entity);
+    EvEntitySpawned.emit (entity->getID ());
 }
 
 void Level::removeEntity (Entity::ID id)
@@ -51,10 +63,18 @@ void Level::removeEntity (Entity::ID id)
         return;
     }
 
-    m_entityList[id]->getTile ()->removeEntity (id);
+    Entity* entity = m_entityList[id];
+
+    entity->getTile ()->removeEntity (id);
     
-    m_entityTypes[m_entityList[id]->getType ()]--;
+        m_entityTypes[entity->getType ()]--;
+    if (m_entityTypes[entity->getType ()] == 0)
+    {
+        EvEntityTypeExpired.emit (entity->getType ());
+    }
+
     m_entityList.erase (id);
+    EvEntityDespawned.emit (entity);
 }
 
 

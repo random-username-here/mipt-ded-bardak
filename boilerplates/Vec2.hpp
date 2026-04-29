@@ -63,3 +63,7 @@ public:
         return *this;
     }
 };
+
+typedef Vec2D<int> Vec2i;
+typedef Vec2D<float> Vec2f;
+typedef Vec2D<double> Vec2d;

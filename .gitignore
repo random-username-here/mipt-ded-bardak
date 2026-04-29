@@ -7,5 +7,4 @@ local/
 
 #metadirs
 .vscode
-#metadirs
-.vscode
+.DS_Store
