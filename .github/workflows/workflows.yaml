@@ -46,12 +46,12 @@ jobs:
       - name: move_mod_dirs
         run: |
           mkdir CItest
-          cp ./build/* ./CItest/*
-          rm -r ./CItest/mods/tty-graphics
+          cp build/* CItest/*
+          rm -r CItest/mods/tty-graphics
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
-          ./build/servers/msva/msva ./.github/CI_test.ini &
+          ./build/servers/msva/msva ./.github/CItest.ini &
           SERVER_PID=$!
 
           sleep 2
