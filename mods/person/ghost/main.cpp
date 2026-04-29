@@ -160,7 +160,7 @@ private:
             return;
         }
 
-        auto* target = dynamic_cast<modlib::MOB*>(map_->byId(attack->whom));
+        auto* target = map_->byId(attack->whom);
         if (target == nullptr) {
             return;
         }
