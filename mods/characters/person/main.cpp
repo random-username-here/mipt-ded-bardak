@@ -20,11 +20,12 @@ struct Person : public Unit {
     PersonCtl *m_ctl;
     Map *m_map;
     Vec2i m_pos;
-    size_t m_id;
+    uint64_t m_id;
     int m_hp;
     bool m_actionDone = false;
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
+    AssetId m_assetId = 0;
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(max_hp) {}
@@ -32,9 +33,10 @@ struct Person : public Unit {
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
     
-    size_t id() override { return m_id; }
+    uint64_t id() override { return m_id; }
     uint64_t type() const override { return 0; }
     uint64_t teamId() const override { return 0; }
+    AssetId getAssetId() const override { return m_assetId; }
 
     int hp() const override { return m_hp; }
     int maxHp() const override { return max_hp; }
@@ -62,11 +64,6 @@ struct Person : public Unit {
         m_client->send(bmsg::SV_person_hp { 0 });
         Unit::destroy();
     }
-
-    uint64_t getAssetId() const override {
-        return 0;
-    }
-
 };
 
 class PersonCtl : public BmServerModule {
@@ -77,8 +74,10 @@ class PersonCtl : public BmServerModule {
 
     Timer *tm;
     Map *map;
+    AssetManager *assets = nullptr;
     std::unordered_map<BmClient *, Person*> m_people;
     uint64_t m_tick = 0;
+    AssetId m_unitAssetId = 0;
 
     static constexpr uint64_t kMoveCdTicks = 1;
     static constexpr uint64_t kAttackCdTicks = 2;
@@ -89,8 +88,10 @@ class PersonCtl : public BmServerModule {
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
         map = mm->anyOfType<Map>();
+        assets = mm->anyOfType<AssetManager>();
         if (!tm) throw ModManager::Error("Timer module not found");
         if (!map) throw ModManager::Error("Map module not found");
+        if (!assets) throw ModManager::Error("AssetManager module not found");
     }
 
     void sendState() {
@@ -127,6 +128,8 @@ class PersonCtl : public BmServerModule {
     }
 
     void onDepsResolved(ModManager *mm) override {
+        // Register this unit's texture once and reuse returned asset id.
+        m_unitAssetId = assets->addTexture(AssetKind::Unit, "assets/units/person.png");
         tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
