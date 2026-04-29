@@ -103,9 +103,15 @@ class TTYgraph : public BmServerModule {
             for (int j = 0; j < m_map->size().x; ++j) {
                 const char *clr = "", *chr = "?";
                 auto tile = m_map->at({j, i});
-                if (!tile->units().empty())
-                    clr = ESC_RED, chr = "@";
-                else if (!tile->isWalkable())
+                if (!tile->units().empty()) {
+                    clr = ESC_RED; // chr = "@";
+					// hotfix to see difference between ghost and pacman 
+					if (tile->units().size() > 1)
+						chr = "?";
+					else
+						chr = (tile->units()[0]->getAssetId() == 0 ? "0" : "1");
+				}
+                else if (!(tile->type() == Tile::BasicType::Wall))
                     clr = ESC_RST, chr = "#";
                 else
                     clr = ESC_GRY, chr = ".";

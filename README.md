@@ -33,6 +33,6 @@ cmake --build build
 
 2) Во втором терминале запустите клиент
 ```
-./build/clients/random/random_client localhost <port>
+./build/clients/players/ghost/ghost_client clients/default.ini # привидение
+./build/clients/players/pacman/pacman_client clients/default.ini # пакман
 ```
-вместо `<port>` подставьте порт, который вывел сервер в консоль при запуске.
