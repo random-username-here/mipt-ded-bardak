@@ -71,7 +71,7 @@ public:
                     continue;
                 }
 
-                snap.walkable[idx] = tile->isWalkable();
+                snap.walkable[idx] = tile->type() != modlib::Tile::BasicType::Wall;
 
                 const std::vector<modlib::Unit *> &units = tile->units();
 

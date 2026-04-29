@@ -34,10 +34,7 @@ struct Person : public Unit {
     uint64_t type() const override { return 0; }
     uint64_t teamId() const override { return 0; }
 
-    void move(Vec2i to) override {
-        Unit::move(to);
-        m_pos = to;
-    }
+    int hp() const override { return m_hp; }
 
     void takeDamage(int d) override {
         m_hp -= d;
@@ -52,6 +49,11 @@ struct Person : public Unit {
     void setWeight(const int weight) override {}
 
     Vec2i pos() const override { return m_pos; }
+
+    void move(Vec2i to) override {
+        Unit::move(to);
+        m_pos = to;
+    }
 
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
@@ -106,7 +108,7 @@ class PersonCtl : public BmServerModule {
                         continue;
 
                     Tile *tile = map->at({x, y});
-                    if (!tile->isWalkable())
+                    if (tile->type() == modlib::Tile::BasicType::Wall)
                         cl->send(bmsg::SV_person_wall { x, y });
 
                     for (auto i : tile->units()) {
@@ -163,7 +165,7 @@ class PersonCtl : public BmServerModule {
             if (!atkCmd) return;
             if (m_tick < pl->m_nextAttackTick) return;
             auto u = map->byId(atkCmd->whom);
-            std::cerr << "attack " << u << '\n';
+            // std::cerr << "attack " << u << '\n';
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
