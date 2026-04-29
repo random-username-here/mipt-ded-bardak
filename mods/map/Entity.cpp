@@ -15,7 +15,7 @@ Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
 
 Entity::~Entity ()
 {
-    if (m_tile) m_tile->getLevel ()->removeEntity (m_ID);
+    if (m_tile) m_tile->getLevel ().removeEntity (m_ID);
 }
 
 
@@ -42,11 +42,16 @@ Vec2D<> Entity::getPosition () const
 
 void Entity::setTile (Tile* tile)
 {
+    Vec2D<> oldPosition = m_tile->getPos ();
+
     m_tile->removeEntity (m_ID);
+    
     m_tile = tile;
     if (m_tile)
     {
         m_tile->addEntity (this);
+
+        EvEntityMoved.emit (m_tile->getPos () - oldPosition);
     }
 }
 
@@ -54,9 +59,14 @@ void Entity::setPosition (Vec2D<> position)
 {
     if (m_tile)
     {
+        Vec2D<> oldPosition = m_tile->getPos ();
+
         m_tile->removeEntity (m_ID);
-        m_tile = &(m_tile->getLevel ()->getTile (position));
+
+        m_tile = &(m_tile->getLevel ().getTile (position));
         m_tile->addEntity (this);
+
+        EvEntityMoved.emit (m_tile->getPos () - oldPosition);
     }
     else
     {
