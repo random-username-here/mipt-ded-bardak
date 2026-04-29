@@ -14,6 +14,8 @@ using namespace modlib;
 class PersonCtl;
 
 struct Person : public Unit {
+    const int max_hp = 200;
+
     BmClient *m_client;
     PersonCtl *m_ctl;
     Map *m_map;
@@ -25,7 +27,7 @@ struct Person : public Unit {
     uint64_t m_nextAttackTick = 0;
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
-        :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
+        :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(max_hp) {}
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
@@ -35,6 +37,7 @@ struct Person : public Unit {
     uint64_t teamId() const override { return 0; }
 
     int hp() const override { return m_hp; }
+    int maxHp() const override { return max_hp; }
 
     void takeDamage(int d) override {
         m_hp -= d;

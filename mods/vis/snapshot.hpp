@@ -8,9 +8,6 @@
 
 namespace vis {
 
-// WARN: inferred from game logic and hardcoded = bad
-static const int PERSON_MAX_HP = 100;
-
 struct UnitSnap {
     int x;
     int y;
@@ -22,7 +19,7 @@ struct UnitSnap {
         : x(0)
         , y(0)
         , hp(0)
-        , maxHp(PERSON_MAX_HP)
+        , maxHp(0)
         , id(0)
     {}
 };
@@ -83,7 +80,7 @@ public:
                     us.x     = x;
                     us.y     = y;
                     us.hp    = u->hp();
-                    us.maxHp = PERSON_MAX_HP;
+                    us.maxHp = u->maxHp();
                     us.id    = u->id();
 
                     snap.units.push_back(us);

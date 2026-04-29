@@ -248,7 +248,7 @@ public:
         , m_x(0)
         , m_y(0)
         , m_hp(0)
-        , m_maxHp(PERSON_MAX_HP)
+        , m_maxHp(0)
         , m_dir(DIR_DOWN)
         , m_motion()
         , m_attack()
