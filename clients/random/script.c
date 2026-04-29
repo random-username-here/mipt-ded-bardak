@@ -343,6 +343,44 @@ static void clear_tick_state(BotState *st) {
 	st->visible_count = 0;
 }
 
+static int iabs32(int32_t v) {
+	return v < 0 ? -v : v;
+}
+
+static int sign32(int32_t v) {
+	if (v < 0) return -1;
+	if (v > 0) return 1;
+	return 0;
+}
+
+static int long_dist(int32_t ax, int32_t ay, int32_t bx, int32_t by) {
+	int dx = iabs32(ax - bx);
+	int dy = iabs32(ay - by);
+	return dx > dy ? dx : dy;
+}
+
+static int try_move(BotState *st, int8_t dx, int8_t dy, const char *why) {
+	if (dx == 0 && dy == 0) {
+		return 0;
+	}
+
+	int32_t nx = st->self_x + dx;
+	int32_t ny = st->self_y + dy;
+
+	if (st->have_pos && wall_known(st, nx, ny)) {
+		return 0;
+	}
+
+	if (send_person_move(st->fd, dx, dy) != 0) {
+		fprintf(stderr, "send move failed\n");
+		st->alive = 0;
+		return 1;
+	}
+
+	fprintf(stderr, "%s move %d %d\n", why, (int)dx, (int)dy);
+	return 1;
+}
+
 static void do_random_action(BotState *st) {
 	if (!st->alive) {
 		return;
@@ -378,6 +416,60 @@ static void do_random_action(BotState *st) {
 
 		clear_tick_state(st);
 		return;
+	}
+
+	if (st->have_pos && st->visible_count > 0) {
+		size_t best = 0;
+		int best_dist = long_dist(
+			st->self_x,
+			st->self_y,
+			st->visible[0].x,
+			st->visible[0].y
+		);
+
+		for (size_t i = 1; i < st->visible_count; i++) {
+			int d = long_dist(
+				st->self_x,
+				st->self_y,
+				st->visible[i].x,
+				st->visible[i].y
+			);
+
+			if (d < best_dist) {
+				best = i;
+				best_dist = d;
+			}
+		}
+
+		VisibleUnit target = st->visible[best];
+
+		int8_t sx = (int8_t)sign32(target.x - st->self_x);
+		int8_t sy = (int8_t)sign32(target.y - st->self_y);
+
+		if (try_move(st, sx, sy, "chase")) {
+			clear_tick_state(st);
+			return;
+		}
+
+		if (iabs32(target.x - st->self_x) >= iabs32(target.y - st->self_y)) {
+			if (try_move(st, sx, 0, "chase")) {
+				clear_tick_state(st);
+				return;
+			}
+			if (try_move(st, 0, sy, "chase")) {
+				clear_tick_state(st);
+				return;
+			}
+		} else {
+			if (try_move(st, 0, sy, "chase")) {
+				clear_tick_state(st);
+				return;
+			}
+			if (try_move(st, sx, 0, "chase")) {
+				clear_tick_state(st);
+				return;
+			}
+		}
 	}
 
 	static const int8_t dirs[4][2] = {
@@ -465,9 +557,6 @@ static void handle_person_message(BotState *st, const char *type, const uint8_t 
 		int32_t x = rd_i32_le(payload + 0);
 		int32_t y = rd_i32_le(payload + 4);
 		uint32_t who = rd_u32_le(payload + 8);
-
-		(void)x;
-		(void)y;
 
 		add_visible(st, who, x, y);
 		fprintf(stderr, "sees id=%u at (%d, %d)\n", who, x, y);
