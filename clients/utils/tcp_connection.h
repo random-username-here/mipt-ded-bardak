@@ -1,276 +1,238 @@
-#define _POSIX_C_SOURCE 200809L
+#pragma once
 
-#include <arpa/inet.h>
-#include <errno.h>
-#include <netdb.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "binmsg.hpp"
+
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <time.h>
+#include <netdb.h>
 #include <unistd.h>
+#include <vector>
 
-enum {
-	PAN_NAME_LEN       = 8,
-	PAN_HEADER_LEN     = 8 + 8 + 4 + 2 + 2,
-	PAN_MAX_PAYLOAD    = 65535,
-	IO_TIMEOUT_MS      = 250,
-	CONNECT_TIMEOUT_S  = 5,
-	MAX_VISIBLE        = 256,
-	MAX_WALLS          = 8192
+struct PanFrame
+{
+	bmsg::Header header{};
+	std::vector<uint8_t> payload;
+
+	std::string_view prefix() const
+	{
+		return std::string_view(header.pref.as_chars, header.pref.size());
+	}
+
+	std::string_view type() const
+	{
+		return std::string_view(header.type.as_chars, header.type.size());
+	}
+
+	std::string rawMessage() const
+	{
+		bmsg::Header raw_header = header;
+		raw_header.len = static_cast<uint16_t>(payload.size());
+
+		std::string raw(sizeof(bmsg::Header) + payload.size(), '\0');
+		std::memcpy(raw.data(), &raw_header, sizeof(raw_header));
+		if (!payload.empty()) {
+			std::memcpy(raw.data() + sizeof(bmsg::Header), payload.data(), payload.size());
+		}
+		return raw;
+	}
 };
 
-typedef struct {
-	char prefix[9];
-	char type[9];
-	uint32_t id;
-	uint16_t len;
-	uint16_t flags;
-} PanHeader;
+class TcpConnection
+{
+  private:
+	int m_fd = -1;
 
-static uint16_t rd_u16_le(const uint8_t *src) {
-	return (uint16_t)src[0] | ((uint16_t)src[1] << 8);
-}
-static uint16_t rd_u16_be(const uint8_t *src) {
-	return (uint16_t)src[1] | ((uint16_t)src[0] << 8);
-}
+  public:
+	static constexpr int IO_TIMEOUT_MS = 250;
 
-static uint32_t rd_u32_le(const uint8_t *src) {
-	return ((uint32_t)src[0]) |
-		((uint32_t)src[1] << 8) |
-		((uint32_t)src[2] << 16) |
-		((uint32_t)src[3] << 24);
-}
+	enum class IoStatus
+	{
+		OK,
+		TIMEOUT,
+		CLOSED,
+		ERROR,
+	};
 
-static int32_t rd_i32_le(const uint8_t *src) {
-	return (int32_t)rd_u32_le(src);
-}
-
-static void wr_u16_le(uint8_t *dst, uint16_t src) {
-	dst[0] = (uint8_t)(src & 0xffu);
-	dst[1] = (uint8_t)((src >> 8) & 0xffu);
-}
-
-static void wr_u32_le(uint8_t *dst, uint32_t src) {
-	dst[0] = (uint8_t)(src & 0xffu);
-	dst[1] = (uint8_t)((src >> 8) & 0xffu);
-	dst[2] = (uint8_t)((src >> 16) & 0xffu);
-	dst[3] = (uint8_t)((src >> 24) & 0xffu);
-}
-
-
-static int rd_bool_u8(const uint8_t *src) {
-	return src[0] != 0;
-}
-
-static void rd_char64(char out[9], const uint8_t *src) {
-	memcpy(out, src, 8);
-	out[8] = '\0';
-
-	/* trim trailing zero padding if present */
-	for (int i = 7; i >= 0; --i) {
-		if (out[i] == '\0') {
-			continue;
-		}
-		break;
-	}
-}
-
-static int rd_pan_string(const uint8_t *payload, uint16_t len, char *out, size_t out_cap) {
-	if (len < 2 || out_cap == 0) {
-		return -1;
+	TcpConnection(std::string_view host, std::string_view port) : m_fd(connect(host, port))
+	{
 	}
 
-	uint16_t slen = rd_u16_le(payload);
-	if ((uint32_t)slen + 2u != (uint32_t)len) {
-		return -1;
+	~TcpConnection()
+	{
+		closeConnection();
 	}
 
-	size_t copy_n = slen;
-	if (copy_n >= out_cap) {
-		copy_n = out_cap - 1;
+	TcpConnection(const TcpConnection &) = delete;
+	TcpConnection &operator=(const TcpConnection &) = delete;
+
+	TcpConnection(TcpConnection &&other) noexcept : m_fd(other.m_fd)
+	{
+		other.m_fd = -1;
 	}
 
-	memcpy(out, payload + 2, copy_n);
-	out[copy_n] = '\0';
-	return (int)slen;
-}
-
-static int wait_fd(int fd, int want_write, int timeout_ms) {
-	for (;;) {
-		fd_set rfds, wfds;
-		struct timeval tv;
-
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-
-		if (want_write) {
-			FD_SET(fd, &wfds);
-		} else {
-			FD_SET(fd, &rfds);
+	TcpConnection &operator=(TcpConnection &&other) noexcept
+	{
+		if (this != &other) {
+			closeConnection();
+			m_fd = other.m_fd;
+			other.m_fd = -1;
 		}
-
-		tv.tv_sec = timeout_ms / 1000;
-		tv.tv_usec = (timeout_ms % 1000) * 1000;
-
-		int rc = select(fd + 1, want_write ? NULL : &rfds, want_write ? &wfds : NULL, NULL, &tv);
-		if (rc > 0) {
-			return 0;
-		}
-		if (rc == 0) {
-			return 1; /* timeout */
-		}
-		if (errno == EINTR) {
-			continue;
-		}
-		return -1;
+		return *this;
 	}
-}
 
-static int read_exact(int fd, void *buf, size_t len, int timeout_ms) {
-	uint8_t *p = (uint8_t *)buf;
-	size_t off = 0;
+	int fd() const
+	{
+		return m_fd;
+	}
 
-	while (off < len) {
-		int rc = wait_fd(fd, 0, timeout_ms);
-		if (rc != 0) {
-			return rc;
+	IoStatus readFrame(PanFrame &frame, int timeout_ms = IO_TIMEOUT_MS)
+	{
+		const IoStatus header_status = readExact(&frame.header, sizeof(frame.header), timeout_ms);
+		if (header_status != IoStatus::OK) {
+			return header_status;
 		}
 
-		ssize_t n = recv(fd, p + off, len - off, 0);
-		if (n == 0) {
-			return 2; /* EOF */
+		frame.payload.clear();
+		frame.payload.resize(frame.header.len);
+		return readExact(frame.payload.data(), frame.payload.size(), timeout_ms);
+	}
+
+	IoStatus writeRaw(std::string_view raw, int timeout_ms = IO_TIMEOUT_MS)
+	{
+		return writeExact(raw.data(), raw.size(), timeout_ms);
+	}
+
+	IoStatus readExact(void *buf, std::size_t len, int timeout_ms = IO_TIMEOUT_MS)
+	{
+		return doExact([this, timeout_ms]() { return waitForIo(false, timeout_ms); },
+		               [this, buf, len](std::size_t offset) {
+			               return ::recv(m_fd, static_cast<uint8_t *>(buf) + offset, len - offset,
+			                             0);
+		               },
+		               len);
+	}
+
+	IoStatus writeExact(const void *buf, std::size_t len, int timeout_ms = IO_TIMEOUT_MS)
+	{
+		return doExact([this, timeout_ms]() { return waitForIo(true, timeout_ms); },
+		               [this, buf, len](std::size_t offset) {
+			               return ::send(m_fd, static_cast<const uint8_t *>(buf) + offset,
+			                             len - offset, MSG_NOSIGNAL);
+		               },
+		               len);
+	}
+
+  private:
+	static int connect(std::string_view host, std::string_view port)
+	{
+		addrinfo hints{};
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_family = AF_UNSPEC;
+
+		addrinfo *res = nullptr;
+		const std::string host_string(host);
+		const std::string port_string(port);
+		const int addr_info = ::getaddrinfo(host_string.c_str(), port_string.c_str(), &hints, &res);
+		if (addr_info != 0) {
+			throw std::runtime_error("getaddrinfo(" + host_string + ", " + port_string +
+			                         "): " + ::gai_strerror(addr_info));
 		}
-		if (n < 0) {
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+
+		int fd = -1;
+		for (addrinfo *it = res; it != NULL; it = it->ai_next) {
+			fd = ::socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+			if (fd < 0) {
 				continue;
 			}
-			return -1;
-		}
 
-		off += (size_t)n;
-	}
-
-	return 0;
-}
-
-static int write_exact(int fd, const void *buf, size_t len, int timeout_ms) {
-	const uint8_t *p = (const uint8_t *)buf;
-	size_t off = 0;
-
-	while (off < len) {
-		int rc = wait_fd(fd, 1, timeout_ms);
-		if (rc != 0) {
-			return rc;
-		}
-
-		ssize_t n = send(fd, p + off, len - off, 0);
-		if (n < 0) {
-			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-				continue;
+			if (::connect(fd, it->ai_addr, it->ai_addrlen) == 0) {
+				break;
 			}
-			return -1;
+
+			close(fd);
+			fd = -1;
 		}
 
-		off += (size_t)n;
-	}
+		freeaddrinfo(res);
 
-	return 0;
-}
-
-static void fill_name8(uint8_t out[PAN_NAME_LEN], const char *s) {
-	memset(out, 0, PAN_NAME_LEN);
-	size_t n = strnlen(s, PAN_NAME_LEN);
-	memcpy(out, s, n);
-}
-
-static void unpack_name8(char out[PAN_NAME_LEN + 1], const uint8_t in[PAN_NAME_LEN]) {
-	size_t n = PAN_NAME_LEN;
-	while (n > 0 && in[n - 1] == 0) {
-		n--;
-	}
-	memcpy(out, in, n);
-	out[n] = '\0';
-}
-
-static int send_frame(int fd, const char *prefix, const char *type,
-                      uint32_t msg_id, uint16_t flags,
-                      const void *payload, uint16_t payload_len) {
-	uint8_t header[PAN_HEADER_LEN];
-
-	fill_name8(header + 0, prefix);
-	fill_name8(header + 8, type);
-	wr_u32_le(header + 16, msg_id);
-	wr_u16_le(header + 20, payload_len);
-	wr_u16_le(header + 22, flags);
-
-	if (write_exact(fd, header, sizeof(header), IO_TIMEOUT_MS) != 0) {
-		return -1;
-	}
-	if (payload_len > 0 && payload != NULL) {
-		if (write_exact(fd, payload, payload_len, IO_TIMEOUT_MS) != 0) {
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
-static int connect_tcp(const char *host, const char *port) {
-	struct addrinfo hints;
-	struct addrinfo *res = NULL, *it;
-	int fd = -1;
-
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_family = AF_UNSPEC;
-
-	int gai = getaddrinfo(host, port, &hints, &res);
-	if (gai != 0) {
-		fprintf(stderr, "getaddrinfo(%s, %s): %s\n", host, port, gai_strerror(gai));
-		return -1;
-	}
-
-	for (it = res; it != NULL; it = it->ai_next) {
-		fd = socket(it->ai_family, it->ai_socktype, it->ai_protocol);
 		if (fd < 0) {
-			continue;
+			throw std::runtime_error("connect(" + host_string + ", " + port_string + ") failed");
 		}
 
-		if (connect(fd, it->ai_addr, it->ai_addrlen) == 0) {
-			break;
+		return fd;
+	}
+
+	void closeConnection()
+	{
+		if (m_fd >= 0) {
+			::close(m_fd);
+			m_fd = -1;
 		}
-
-		close(fd);
-		fd = -1;
 	}
 
-	freeaddrinfo(res);
+	template <typename WaitFunc, typename Callback>
+	IoStatus doExact(WaitFunc wf, Callback cb, std::size_t len)
+	{
+		std::size_t offset = 0;
+		while (offset < len) {
+			const IoStatus wait_status = wf();
+			if (wait_status != IoStatus::OK) {
+				return wait_status;
+			}
 
-	if (fd < 0) {
-		fprintf(stderr, "connect(%s, %s) failed\n", host, port);
-		return -1;
+			const ssize_t count = cb(offset);
+			if (count == 0) {
+				return IoStatus::CLOSED;
+			}
+			if (count < 0) {
+				if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
+					continue;
+				}
+				return IoStatus::ERROR;
+			}
+			offset += static_cast<std::size_t>(count);
+		}
+		return IoStatus::OK;
 	}
 
-	(void)CONNECT_TIMEOUT_S;
+	IoStatus waitForIo(bool want_write, int timeout_ms) const
+	{
+		while (true) {
+			fd_set rfds;
+			fd_set wfds;
+			FD_ZERO(&rfds);
+			FD_ZERO(&wfds);
 
-	return fd;
-}
+			if (want_write) {
+				FD_SET(m_fd, &wfds);
+			}
+			else {
+				FD_SET(m_fd, &rfds);
+			}
 
-static int read_pan_header(int fd, PanHeader *hdr, int timeout_ms) {
-	uint8_t raw[PAN_HEADER_LEN];
-	int rc = read_exact(fd, raw, sizeof(raw), timeout_ms);
-	if (rc != 0) {
-		return rc;
+			timeval tv{};
+			tv.tv_sec = timeout_ms / 1000;
+			tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+			const int rc = ::select(m_fd + 1, want_write ? nullptr : &rfds,
+			                        want_write ? &wfds : nullptr, nullptr, &tv);
+			if (rc > 0) {
+				return IoStatus::OK;
+			}
+			if (rc == 0) {
+				return IoStatus::TIMEOUT;
+			}
+			if (errno != EINTR) {
+				return IoStatus::ERROR;
+			}
+		}
 	}
-
-	unpack_name8(hdr->prefix, raw + 0);
-	unpack_name8(hdr->type,   raw + 8);
-	hdr->id    = rd_u32_le(raw + 16);
-	hdr->len   = rd_u16_le(raw + 20);
-	hdr->flags = rd_u16_le(raw + 22);
-	return 0;
-}
+};
