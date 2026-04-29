@@ -116,7 +116,7 @@ class PersonCtl : public BmServerModule {
     void onConnect(BmClient *client) override {
     again:
         Vec2i pos = { rand() % map->size().x, rand() % map->size().y };
-        if (!map->at(pos)->isWalkable()) goto again;
+        if (map->at(pos)->type() == modlib::Tile::BasicType::Wall) goto again;
         m_people[client] = map->spawn<Person>(pos, this, client);
     }
 
