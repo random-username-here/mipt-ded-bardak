@@ -9,6 +9,7 @@
 #include "ECbasis.hpp"
 
 #include <cstdint>
+#include "AssetManager.hpp"
 #include <memory>
 #include <vector>
 #include <unordered_map>
