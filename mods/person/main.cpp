@@ -21,15 +21,18 @@ struct Person : public Unit {
     size_t m_id;
     int m_hp;
     bool m_actionDone = false;
+    uint64_t m_nextMoveTick = 0;
+    uint64_t m_nextAttackTick = 0;
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
-    int hp() const override { return m_hp; }
-    Vec2i pos() const override { return m_pos; }
+    
     size_t id() override { return m_id; }
+    uint64_t type() const override { return 0; }
+    uint64_t teamId() const override { return 0; }
 
     void move(Vec2i to) override {
         Unit::move(to);
@@ -44,10 +47,21 @@ struct Person : public Unit {
         }
     }
 
+    void pickUp() override {}
+    int weight() const override { return 1; }
+    void setWeight(const int weight) override {}
+
+    Vec2i pos() const override { return m_pos; }
+
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
         Unit::destroy();
     }
+
+    uint64_t getAssetId() const override {
+        return 0;
+    }
+
 };
 
 class PersonCtl : public BmServerModule {
@@ -59,6 +73,13 @@ class PersonCtl : public BmServerModule {
     Timer *tm;
     Map *map;
     std::unordered_map<BmClient *, Person*> m_people;
+    uint64_t m_tick = 0;
+
+    static constexpr uint64_t kMoveCdTicks = 1;
+    static constexpr uint64_t kAttackCdTicks = 2;
+    static constexpr int kBaseAttackDamage = 10;
+    static constexpr int kBerserkBonusDamage = 6; // when low hp
+    static constexpr int kLowHpThreshold = 25;
 
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
@@ -67,7 +88,8 @@ class PersonCtl : public BmServerModule {
         if (!map) throw ModManager::Error("Map module not found");
     }
 
-    void tick() {
+    void sendState() {
+        ++m_tick;
         auto size = map->size();
 
         for (auto [cl, ps] : m_people) {
@@ -96,11 +118,11 @@ class PersonCtl : public BmServerModule {
 
             cl->send(bmsg::SV_person_tick {});
         }
-        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
+        tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
     void onDepsResolved(ModManager *mm) override {
-        tm->setTimer(1, [this](){ tick(); }, modlib::Timer::Stage::ON_UPDATE);
+        tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
     void onSetup(BmServer *server) override {
@@ -130,20 +152,28 @@ class PersonCtl : public BmServerModule {
             auto moveCmd = bmsg::CL_person_move::decode(m);
             if (moveCmd == std::nullopt) return;
             if (abs(moveCmd->dx) > 1 || abs(moveCmd->dy) > 1) return;
+            if (m_tick < pl->m_nextMoveTick) return;
             Vec2i pos = pl->pos();
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
-            if (!map->at(pos)->isWalkable()) return;
+            if (map->at(pos)->type() == Tile::BasicType::Wall) return;
             pl->move(pos);
+            pl->m_nextMoveTick = m_tick + kMoveCdTicks;
         } else if (m.header()->type == "attack") {
             auto atkCmd = bmsg::CL_person_attack::decode(m);
             if (!atkCmd) return;
+            if (m_tick < pl->m_nextAttackTick) return;
             auto u = map->byId(atkCmd->whom);
+            std::cerr << "attack " << u << '\n';
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
-            u->takeDamage(10);
+            int dmg = kBaseAttackDamage;
+            if (pl->hp() <= kLowHpThreshold) dmg += kBerserkBonusDamage;
+            u->takeDamage(dmg);
+            pl->m_nextAttackTick = m_tick + kAttackCdTicks;
         }
 
+        pl->m_actionDone = true;
         tm->setTimer(1, [pl](){ pl->m_actionDone = false; }, modlib::Timer::Stage::ON_UPDATE);
     }
 
