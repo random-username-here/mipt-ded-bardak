@@ -1,7 +1,6 @@
 #include "modlib_mod.hpp"
-#include "Map.hpp" 
+#include "Map.hpp"
 
-#include <string>
 #include <vector>
 #include <iostream>
 #include <algorithm>
@@ -37,7 +36,7 @@ public:
     void removeUnit(Unit* unit) {
         if (!unit) return;
         auto it = std::remove(units_.begin(), units_.end(), unit);
-    
+
         if (it != units_.end()) {
             units_.erase(it, units_.end());
         }
@@ -61,7 +60,7 @@ class IDAMapModule : public Map {
             std::cerr << id() << " failed to cast tile to `IDATile` in `addUnit`\n";
             return nullptr;
         }
-    
+
         tile->addUnit(ptr);
         units_[u->id()] = std::move(u);
         return ptr;
@@ -92,14 +91,14 @@ class IDAMapModule : public Map {
     void removeUnit(Unit *u) override {
         assert(u);
         assert(u->tile());
-    
+
         IDATile *tile = static_cast<IDATile *>(u->tile());
         if (tile == nullptr) {
             std::cerr << id() << " failed to cast tile to `IDATile` in `addUnit`\n";
             return;
         }
 
-        tile->removeUnit(u);        
+        tile->removeUnit(u);
 
         if (units_.find(u->id()) == units_.end()) return;
         destroyedUnits_.push_back(std::move(units_[u->id()]));
@@ -126,7 +125,7 @@ public:
     IDAMapModule() {
         initializeGrid();
     }
-    
+
     virtual ~IDAMapModule() = default;
 
     std::string_view id() const override { return "ida.bardak.map"; }

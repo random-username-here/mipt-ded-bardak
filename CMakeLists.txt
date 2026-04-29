@@ -27,6 +27,6 @@ add_subdirectory(servers/msva)
 add_subdirectory(mods/person)
 add_subdirectory(mods/timer)
 add_subdirectory(mods/map)
+add_subdirectory(mods/vis)
 add_subdirectory(mods/tty-graphics)
 add_subdirectory(clients/random)
-

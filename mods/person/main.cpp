@@ -1,12 +1,12 @@
+#include <cstdlib>
+#include <optional>
+
 #include "BmServerModule.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
-#include <cstdlib>
-#include <iostream>
-#include <optional>
 #include "./person_proto.hpp"
 
 using namespace modlib;
@@ -14,6 +14,8 @@ using namespace modlib;
 class PersonCtl;
 
 struct Person : public Unit {
+    const int max_hp = 200;
+
     BmClient *m_client;
     PersonCtl *m_ctl;
     Map *m_map;
@@ -24,8 +26,8 @@ struct Person : public Unit {
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
 
-    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl) 
-        :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(100) {}
+    Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
+        :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(max_hp) {}
 
     Map *map() override { return m_map; }
     Tile *tile() override { return m_map->at(m_pos); }
@@ -35,10 +37,14 @@ struct Person : public Unit {
     uint64_t teamId() const override { return 0; }
 
     int hp() const override { return m_hp; }
-        void takeDamage(int d) override {
+    int maxHp() const override { return max_hp; }
+
+    void takeDamage(int d) override {
         m_hp -= d;
-        if (m_hp < 0) m_hp = 0;
-        if (m_hp == 0) destroy();
+        if (m_hp <= 0) {
+            m_hp = 0;
+            destroy();
+        }
     }
 
     void pickUp() override {}
@@ -46,6 +52,11 @@ struct Person : public Unit {
     void setWeight(const int weight) override {}
 
     Vec2i pos() const override { return m_pos; }
+
+    void move(Vec2i to) override {
+        Unit::move(to);
+        m_pos = to;
+    }
 
     void destroy() override {
         m_client->send(bmsg::SV_person_hp { 0 });
@@ -85,22 +96,32 @@ class PersonCtl : public BmServerModule {
     void sendState() {
         ++m_tick;
         auto size = map->size();
+
         for (auto [cl, ps] : m_people) {
-            cl->send(bmsg::SV_person_tick {});
-            cl->send(bmsg::SV_person_at { ps->pos().x, ps->pos().y });
+            Vec2i ps_pos = ps->pos();
+
+            cl->send(bmsg::SV_person_at { ps_pos.x, ps_pos.y });
             cl->send(bmsg::SV_person_hp { ps->hp() });
+
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
-                    int x = ps->pos().x + dx, y = ps->pos().y + dy;
+                    int x = ps_pos.x + dx, y = ps_pos.y + dy;
+
                     if (x < 0 || y < 0 || x >= size.x || y >= size.y)
                         continue;
-                    if (map->at({x, y})->type() == Tile::BasicType::Wall)
+
+                    Tile *tile = map->at({x, y});
+                    if (tile->type() == modlib::Tile::BasicType::Wall)
                         cl->send(bmsg::SV_person_wall { x, y });
-                    for (auto i : map->at({x, y})->units())
+
+                    for (auto i : tile->units()) {
                         if (i != ps)
-                            cl->send(bmsg::SV_person_sees { x, y, (uint32_t) i->id() });
+                            cl->send(bmsg::SV_person_sees { x, y, (uint32_t)i->id() });
+                    }
                 }
             }
+
+            cl->send(bmsg::SV_person_tick {});
         }
         tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
@@ -114,10 +135,16 @@ class PersonCtl : public BmServerModule {
     };
 
     void onConnect(BmClient *client) override {
-    again:
-        Vec2i pos = { rand() % map->size().x, rand() % map->size().y };
-        if (map->at(pos)->type() == modlib::Tile::BasicType::Wall) goto again;
-        m_people[client] = map->spawn<Person>(pos, this, client);
+        auto sz = map->size();
+        assert(sz.x > 2 && sz.y > 2);
+        m_people[client] = map->spawn<Person>(
+            Vec2i {
+                1 + rand() % (sz.x - 2),
+                1 + rand() % (sz.y - 2)
+            },
+            this,
+            client
+        );
     }
 
     void onMessage(BmClient *cl, bmsg::RawMessage m) override {
@@ -141,7 +168,7 @@ class PersonCtl : public BmServerModule {
             if (!atkCmd) return;
             if (m_tick < pl->m_nextAttackTick) return;
             auto u = map->byId(atkCmd->whom);
-            std::cerr << "attack " << u << '\n';
+            // std::cerr << "attack " << u << '\n';
             if (!u) return;
             if (abs(u->pos().x - pl->pos().x) > 1 || abs(u->pos().y - pl->pos().y) > 1)
                 return;
