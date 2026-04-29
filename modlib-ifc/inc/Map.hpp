@@ -2,6 +2,7 @@
 #include "modlib_mod.hpp"
 #include "AssetManager.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace modlib {

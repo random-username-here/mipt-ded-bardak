@@ -128,8 +128,11 @@ class PersonCtl : public BmServerModule {
     }
 
     void onDepsResolved(ModManager *mm) override {
-        // Register this unit's texture once and reuse returned asset id.
-        m_unitAssetId = assets->addTexture(AssetKind::Unit, "assets/units/person.png");
+        // Unit controller registers texture path on init and receives stable asset id.
+        m_unitAssetId = assets->addTexture(AssetKind::Unit, asset_config::kPersonUnitTexturePath);
+        if (m_unitAssetId == kInvalidAssetId) {
+            throw ModManager::Error("Failed to register unit texture in AssetManager");
+        }
         tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
