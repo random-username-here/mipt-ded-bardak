@@ -1,4 +1,4 @@
-project(random_client)
+project(ghost_client)
 
-add_executable(random_client script.c)
-
+add_executable(ghost_client script.cpp)
+target_link_libraries(ghost_client PRIVATE libpan_cxx_macros)
