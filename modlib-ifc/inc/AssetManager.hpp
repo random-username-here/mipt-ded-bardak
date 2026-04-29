@@ -7,6 +7,7 @@
 namespace modlib {
 
 using AssetId = uint32_t;
+static constexpr AssetId kInvalidAssetId = 0;
 
 enum class AssetKind : uint8_t {
     Tile = 0,

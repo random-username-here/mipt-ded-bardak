@@ -11,6 +11,7 @@
 #include <cstdint>
 #include "AssetManager.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 #include <unordered_map>
 
