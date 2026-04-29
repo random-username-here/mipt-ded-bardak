@@ -46,8 +46,8 @@ jobs:
       - name: move_mod_dirs
         run: |
           mkdir ./CItest
-          cp ./build/* ./CItest
-          rm --recursive ./CItest/mods/tty-graphics
+          cp -r ./build/* ./CItest
+          rm -r ./CItest/mods/tty-graphics
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
