@@ -1,9 +1,15 @@
+/**
+ * \file
+ * \brief Client base interface for convinient clients implementation
+ * \author Seva Solozhenkin
+ * \date 2026-04-29
+ */
 #pragma once
 
 #include "libpan.h"
-#include "tcp_connection.hpp"
-#include "../../mods/role_manager/role_proto.hpp"
-#include "../../servers/msva/src/srv_proto.hpp"
+#include "utils/tcp/tcp_connection.hpp"
+#include "role_proto.hpp"
+#include "srv_proto.hpp"
 
 #include <functional>
 #include <iostream>

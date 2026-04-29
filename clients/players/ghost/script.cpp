@@ -1,6 +1,6 @@
-#include "../utils/client_base.h"
-#include "../../mods/person/ghost/ghost_proto.hpp"
-#include "../../servers/msva/src/srv_proto.hpp"
+#include "utils/base/client_base.hpp"
+#include "ghost_proto.hpp"
+#include "srv_proto.hpp"
 
 #include <algorithm>
 #include <array>

@@ -1,3 +1,10 @@
+/**
+ * \file
+ * \brief TCP Connection RAII interface for convinient clients implementation
+ * \author Seva Solozhenkin
+ * \date 2026-04-29
+ */
+
 #pragma once
 
 #include "binmsg.hpp"

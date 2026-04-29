@@ -1,6 +1,6 @@
-#include "../utils/client_base.hpp"
-#include "../../mods/person/pacman/pacman_proto.hpp"
-#include "../../servers/msva/src/srv_proto.hpp"
+#include "utils/base/client_base.hpp"
+#include "pacman_proto.hpp"
+#include "srv_proto.hpp"
 
 #include <array>
 #include <cstdint>
