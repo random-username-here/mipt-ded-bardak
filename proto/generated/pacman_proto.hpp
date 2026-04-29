@@ -3,9 +3,12 @@
 // Contains:
 //  - server pacman:wall(...)
 //  - server pacman:sees(...)
+//  - server pacman:where(...)
 //  - server pacman:at(...)
 //  - server pacman:hp(...)
 //  - server pacman:tick(...)
+//  - client pacman:sees(...)
+//  - client pacman:where(...)
 //  - client pacman:move(...)
 
 #pragma once
@@ -34,21 +37,50 @@ PAN_GH_MSG(PAN_GH_SERVER, pacman, sees, "pacman", "sees",
     int32_t          x;
     int32_t          y;
     PAN_GH_ID        who;
+    PAN_GH_ID        teamId;
 )
 PAN_GH_DECODE(PAN_GH_SERVER, pacman, sees, "pacman", "sees",
     PAN_GH_READ(&self->x, sizeof(self->x));
     PAN_GH_READ(&self->y, sizeof(self->y));
     PAN_GH_READ(&self->who, sizeof(self->who));
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
 )
 PAN_GH_ENCODE(PAN_GH_SERVER, pacman, sees, "pacman", "sees",
     uint16_t len = 0;
     len += sizeof(self->x);
     len += sizeof(self->y);
     len += sizeof(self->who);
+    len += sizeof(self->teamId);
     PAN_GH_HEADER("pacman", "sees", len);
     PAN_GH_WRITE(&self->x, sizeof(self->x));
     PAN_GH_WRITE(&self->y, sizeof(self->y));
     PAN_GH_WRITE(&self->who, sizeof(self->who));
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
+)
+
+PAN_GH_MSG(PAN_GH_SERVER, pacman, where, "pacman", "where",
+    int32_t          x;
+    int32_t          y;
+    PAN_GH_ID        who;
+    PAN_GH_ID        teamId;
+)
+PAN_GH_DECODE(PAN_GH_SERVER, pacman, where, "pacman", "where",
+    PAN_GH_READ(&self->x, sizeof(self->x));
+    PAN_GH_READ(&self->y, sizeof(self->y));
+    PAN_GH_READ(&self->who, sizeof(self->who));
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
+)
+PAN_GH_ENCODE(PAN_GH_SERVER, pacman, where, "pacman", "where",
+    uint16_t len = 0;
+    len += sizeof(self->x);
+    len += sizeof(self->y);
+    len += sizeof(self->who);
+    len += sizeof(self->teamId);
+    PAN_GH_HEADER("pacman", "where", len);
+    PAN_GH_WRITE(&self->x, sizeof(self->x));
+    PAN_GH_WRITE(&self->y, sizeof(self->y));
+    PAN_GH_WRITE(&self->who, sizeof(self->who));
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
 )
 
 PAN_GH_MSG(PAN_GH_SERVER, pacman, at, "pacman", "at",
@@ -88,6 +120,28 @@ PAN_GH_DECODE(PAN_GH_SERVER, pacman, tick, "pacman", "tick",
 PAN_GH_ENCODE(PAN_GH_SERVER, pacman, tick, "pacman", "tick",
     uint16_t len = 0;
     PAN_GH_HEADER("pacman", "tick", len);
+)
+
+PAN_GH_MSG(PAN_GH_CLIENT, pacman, sees, "pacman", "sees",
+)
+PAN_GH_DECODE(PAN_GH_CLIENT, pacman, sees, "pacman", "sees",
+)
+PAN_GH_ENCODE(PAN_GH_CLIENT, pacman, sees, "pacman", "sees",
+    uint16_t len = 0;
+    PAN_GH_HEADER("pacman", "sees", len);
+)
+
+PAN_GH_MSG(PAN_GH_CLIENT, pacman, where, "pacman", "where",
+    PAN_GH_ID        teamId;
+)
+PAN_GH_DECODE(PAN_GH_CLIENT, pacman, where, "pacman", "where",
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
+)
+PAN_GH_ENCODE(PAN_GH_CLIENT, pacman, where, "pacman", "where",
+    uint16_t len = 0;
+    len += sizeof(self->teamId);
+    PAN_GH_HEADER("pacman", "where", len);
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
 )
 
 PAN_GH_MSG(PAN_GH_CLIENT, pacman, move, "pacman", "move",

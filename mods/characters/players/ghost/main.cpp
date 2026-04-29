@@ -6,15 +6,11 @@
 #include "modlib_manager.hpp"
 
 #include <cstdlib>
-#include <stdexcept>
 #include <string_view>
 #include <unordered_map>
 
-namespace
-{
-
 constexpr uint64_t kGhostType = 2;
-constexpr uint64_t kGhostTeam = 2;
+constexpr uint64_t kGhostTeam = 1;
 constexpr uint64_t kMoveCooldownTicks = 1;
 constexpr uint64_t kAttackCooldownTicks = 2;
 constexpr int kVisionRadius = 4;
@@ -127,6 +123,10 @@ class GhostRole final : public modlib::BmServerModule
 			handleMove(found->second, msg);
 		} else if (msg.header()->type == "attack") {
 			handleAttack(found->second, msg);
+		} else if (msg.header()->type == "where") {
+			handleWhere(client, msg);
+		} else if (msg.header()->type == "sees") {
+			sendVision(client, found->second);
 		}
 	}
 
@@ -159,7 +159,6 @@ class GhostRole final : public modlib::BmServerModule
 			}
 
 			sendState(ghost->m_client, ghost);
-			sendVision(ghost->m_client, ghost);
 			++it;
 		}
 
@@ -212,6 +211,35 @@ class GhostRole final : public modlib::BmServerModule
 		ghost->m_nextAttackTick = tick_ + kAttackCooldownTicks;
 	}
 
+	void handleWhere(modlib::BmClient *client, bmsg::RawMessage msg) const
+	{
+		const auto where = bmsg::CL_ghost_where::decode(msg);
+		if (!where) {
+			return;
+		}
+		sendWhere(client, where->teamId);
+	}
+
+	void sendWhere(modlib::BmClient *client, uint32_t team_id) const
+	{
+		const auto size = map_->size();
+		for (int y = 0; y < size.y; ++y) {
+			for (int x = 0; x < size.x; ++x) {
+				auto *tile = map_->at({x, y});
+				if (tile == nullptr) {
+					continue;
+				}
+				for (auto *unit : tile->units()) {
+					if (unit != nullptr && unit->teamId() == team_id) {
+						client->send(bmsg::SV_ghost_where{unit->pos().x, unit->pos().y,
+						                                  static_cast<uint32_t>(unit->id()),
+						                                  static_cast<uint32_t>(unit->teamId())});
+					}
+				}
+			}
+		}
+	}
+
 	modlib::Vec2i findSpawn() const
 	{
 		const auto size = map_->size();
@@ -259,16 +287,15 @@ class GhostRole final : public modlib::BmServerModule
 				}
 				for (auto *unit : tile->units()) {
 					if (unit != ghost) {
-						client->send(
-						    bmsg::SV_ghost_sees{pos.x, pos.y, static_cast<uint32_t>(unit->id())});
+						client->send(bmsg::SV_ghost_sees{pos.x, pos.y,
+						                                 static_cast<uint32_t>(unit->id()),
+						                                 static_cast<uint32_t>(unit->teamId())});
 					}
 				}
 			}
 		}
 	}
 };
-
-} // namespace
 
 extern "C" Mod *modlib_create(ModManager *)
 {

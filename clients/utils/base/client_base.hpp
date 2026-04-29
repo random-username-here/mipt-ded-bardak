@@ -8,8 +8,6 @@
 
 #include "libpan.h"
 #include "utils/tcp/tcp_connection.hpp"
-#include "role_proto.hpp"
-#include "srv_proto.hpp"
 
 #include <functional>
 #include <iostream>
@@ -43,14 +41,7 @@ class ClientBase
 	void registerOnPrefix(std::string_view prefix, PrefixCallback callback);
 
 	template <typename Msg>
-	bool sendMessage(const Msg &msg)
-	{
-		std::ostringstream out;
-		msg.encode(out, 0, 0);
-		const std::string raw = out.str();
-		logMessage(PAN_CLIENT, raw);
-		return m_conn.writeRaw(out.str()) == TcpConnection::IoStatus::OK;
-	}
+	bool sendMessage(const Msg &msg);
 
   private:
 	void logMessage(PAN_Side side, std::string_view raw);
@@ -66,3 +57,38 @@ class ClientBase
 	virtual bool handleRoleRejectType(bmsg::RawMessage msg);
 	virtual bool handleSrvFrame(const PanFrame &frame);
 };
+
+template <typename Msg>
+bool ClientBase::sendMessage(const Msg &msg)
+{
+	std::ostringstream out;
+	msg.encode(out, 0, 0);
+	const std::string raw = out.str();
+	logMessage(PAN_CLIENT, raw);
+	return m_conn.writeRaw(out.str()) == TcpConnection::IoStatus::OK;
+}
+
+template <typename KeepReading>
+bool ClientBase::readLoop(KeepReading keep_reading)
+{
+	while (keep_reading()) {
+		PanFrame frame;
+		switch (m_conn.readFrame(frame)) {
+		case TcpConnection::IoStatus::OK:
+			logMessage(PAN_SERVER, frame.rawMessage());
+			if (!dispatchFrame(frame)) {
+				return false;
+			}
+			break;
+		case TcpConnection::IoStatus::TIMEOUT:
+			break;
+		case TcpConnection::IoStatus::CLOSED:
+			std::cerr << "server closed connection\n";
+			return false;
+		case TcpConnection::IoStatus::ERROR:
+			std::cerr << "tcp read error\n";
+			return false;
+		}
+	}
+	return true;
+}

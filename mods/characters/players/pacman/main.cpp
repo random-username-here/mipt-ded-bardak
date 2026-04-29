@@ -9,7 +9,7 @@
 #include <unordered_map>
 
 constexpr uint64_t kPacmanType = 1;
-constexpr uint64_t kPacmanTeam = 1;
+constexpr uint64_t kPacmanTeam = 0;
 constexpr uint64_t kMoveCooldownTicks = 1;
 constexpr int kVisionRadius = 4;
 
@@ -118,6 +118,10 @@ class PacmanRole final : public modlib::BmServerModule
 
 		if (msg.header()->type == "move") {
 			handleMove(found->second, msg);
+		} else if (msg.header()->type == "where") {
+			handleWhere(client, msg);
+		} else if (msg.header()->type == "sees") {
+			sendVision(client, found->second);
 		}
 	}
 
@@ -150,7 +154,6 @@ class PacmanRole final : public modlib::BmServerModule
 			}
 
 			sendState(pacman->m_client, pacman);
-			sendVision(pacman->m_client, pacman);
 			++it;
 		}
 
@@ -178,6 +181,35 @@ class PacmanRole final : public modlib::BmServerModule
 
 		pacman->move(next);
 		pacman->m_nextMoveTick = tick_ + kMoveCooldownTicks;
+	}
+
+	void handleWhere(modlib::BmClient *client, bmsg::RawMessage msg) const
+	{
+		const auto where = bmsg::CL_pacman_where::decode(msg);
+		if (!where) {
+			return;
+		}
+		sendWhere(client, where->teamId);
+	}
+
+	void sendWhere(modlib::BmClient *client, uint32_t team_id) const
+	{
+		const auto size = map_->size();
+		for (int y = 0; y < size.y; ++y) {
+			for (int x = 0; x < size.x; ++x) {
+				auto *tile = map_->at({x, y});
+				if (tile == nullptr) {
+					continue;
+				}
+				for (auto *unit : tile->units()) {
+					if (unit != nullptr && unit->teamId() == team_id) {
+						client->send(bmsg::SV_pacman_where{unit->pos().x, unit->pos().y,
+						                                   static_cast<uint32_t>(unit->id()),
+						                                   static_cast<uint32_t>(unit->teamId())});
+					}
+				}
+			}
+		}
 	}
 
 	modlib::Vec2i findSpawn() const
@@ -227,8 +259,9 @@ class PacmanRole final : public modlib::BmServerModule
 				}
 				for (auto *unit : tile->units()) {
 					if (unit != pacman) {
-						client->send(
-						    bmsg::SV_pacman_sees{pos.x, pos.y, static_cast<uint32_t>(unit->id())});
+						client->send(bmsg::SV_pacman_sees{pos.x, pos.y,
+						                                  static_cast<uint32_t>(unit->id()),
+						                                  static_cast<uint32_t>(unit->teamId())});
 					}
 				}
 			}

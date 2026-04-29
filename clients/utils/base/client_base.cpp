@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 
+#include "role_proto.hpp"
+#include "srv_proto.hpp"
 #include "libpan.h"
 
 #define ESC_GRY "\x1b[90m"
@@ -202,31 +204,6 @@ bool ClientBase::handleSrvFrame(const PanFrame &frame)
 	}
 	if (type == "r.setLvl") {
 		return bmsg::SV_srv_r_setLvl::decode(msg).has_value();
-	}
-	return true;
-}
-
-template <typename KeepReading>
-bool ClientBase::readLoop(KeepReading keep_reading)
-{
-	while (keep_reading()) {
-		PanFrame frame;
-		switch (m_conn.readFrame(frame)) {
-		case TcpConnection::IoStatus::OK:
-			logMessage(PAN_SERVER, frame.rawMessage());
-			if (!dispatchFrame(frame)) {
-				return false;
-			}
-			break;
-		case TcpConnection::IoStatus::TIMEOUT:
-			break;
-		case TcpConnection::IoStatus::CLOSED:
-			std::cerr << "server closed connection\n";
-			return false;
-		case TcpConnection::IoStatus::ERROR:
-			std::cerr << "tcp read error\n";
-			return false;
-		}
 	}
 	return true;
 }

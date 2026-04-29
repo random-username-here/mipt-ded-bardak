@@ -42,6 +42,7 @@ class GhostClient : public ClientBase
 	{
 		Pos pos;
 		uint32_t id = 0;
+		uint32_t team_id = 0;
 	};
 
 	std::mt19937 m_rng{std::random_device{}()};
@@ -54,10 +55,10 @@ class GhostClient : public ClientBase
 	std::unordered_set<Pos, Pos::Hash> m_walls;
 
   public:
-	GhostClient(std::string_view ini) : ClientBase(ini
+	GhostClient(const std::string &ini) : ClientBase(ini)
 	{
-		registerOnPrefix("ghost", [this](const PanFrame &frame) { return handleGhostMsg(frame); });
-		registerOnPrefix("srv", [this](const PanFrame &frame) { return handleSrvMsg(frame); });
+		registerOnPrefix("ghost",
+		                 [this](const PanFrame &frame) { return handleGhostFrame(frame); });
 	}
 
   private:
@@ -71,7 +72,7 @@ class GhostClient : public ClientBase
 		return m_alive;
 	}
 
-	bool handleGhostMsg(const PanFrame &frame)
+	bool handleGhostFrame(const PanFrame &frame)
 	{
 		const std::string raw = frame.rawMessage();
 		bmsg::RawMessage msg(raw);
@@ -79,6 +80,9 @@ class GhostClient : public ClientBase
 
 		if (type == "tick") {
 			if (!bmsg::SV_ghost_tick::decode(msg)) {
+				return false;
+			}
+			if (!requestWorldInfo()) {
 				return false;
 			}
 			return act();
@@ -106,7 +110,19 @@ class GhostClient : public ClientBase
 			if (!sees) {
 				return false;
 			}
-			rememberVisible({sees->x, sees->y}, sees->who);
+			if (sees->teamId == kPacmanTeam) {
+				rememberTarget({sees->x, sees->y}, sees->who, sees->teamId);
+			}
+			return true;
+		}
+		if (type == "where") {
+			const auto where = bmsg::SV_ghost_where::decode(msg);
+			if (!where) {
+				return false;
+			}
+			if (where->teamId == kPacmanTeam) {
+				rememberTarget({where->x, where->y}, where->who, where->teamId);
+			}
 			return true;
 		}
 		if (type == "wall") {
@@ -120,40 +136,22 @@ class GhostClient : public ClientBase
 		return true;
 	}
 
-	bool handleSrvMsg(const PanFrame &frame)
+	bool requestWorldInfo()
 	{
-		const std::string raw = frame.rawMessage();
-		bmsg::RawMessage msg(raw);
-		const std::string_view type = frame.type();
-
-		if (type == "hasPref") {
-			return bmsg::SV_srv_hasPref::decode(msg).has_value();
-		}
-		if (type == "name") {
-			return bmsg::SV_srv_name::decode(msg).has_value();
-		}
-		if (type == "id") {
-			return bmsg::SV_srv_id::decode(msg).has_value();
-		}
-		if (type == "level") {
-			return bmsg::SV_srv_level::decode(msg).has_value();
-		}
-		if (type == "r.setLvl") {
-			return bmsg::SV_srv_r_setLvl::decode(msg).has_value();
-		}
-		return true;
+		return sendMessage(bmsg::CL_ghost_where{kPacmanTeam}) && sendMessage(bmsg::CL_ghost_sees{});
 	}
 
-	void rememberVisible(Pos pos, uint32_t id)
+	void rememberTarget(Pos pos, uint32_t id, uint32_t team_id)
 	{
 		const auto it = std::find_if(m_visible.begin(), m_visible.end(),
 		                             [id](const Seen &seen) { return seen.id == id; });
 
 		if (it != m_visible.end()) {
 			it->pos = pos;
+			it->team_id = team_id;
 			return;
 		}
-		m_visible.push_back({pos, id});
+		m_visible.push_back({pos, id, team_id});
 	}
 
 	bool act()
@@ -277,6 +275,8 @@ class GhostClient : public ClientBase
 		sendMoveIfUseful(static_cast<int8_t>(move.x), static_cast<int8_t>(move.y));
 		return m_alive;
 	}
+
+	static constexpr uint32_t kPacmanTeam = 0;
 };
 
 int main(int argc, char **argv)

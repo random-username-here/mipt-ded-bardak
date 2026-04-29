@@ -3,9 +3,12 @@
 // Contains:
 //  - server ghost:wall(...)
 //  - server ghost:sees(...)
+//  - server ghost:where(...)
 //  - server ghost:at(...)
 //  - server ghost:hp(...)
 //  - server ghost:tick(...)
+//  - client ghost:sees(...)
+//  - client ghost:where(...)
 //  - client ghost:attack(...)
 //  - client ghost:move(...)
 
@@ -35,21 +38,50 @@ PAN_GH_MSG(PAN_GH_SERVER, ghost, sees, "ghost", "sees",
     int32_t          x;
     int32_t          y;
     PAN_GH_ID        who;
+    PAN_GH_ID        teamId;
 )
 PAN_GH_DECODE(PAN_GH_SERVER, ghost, sees, "ghost", "sees",
     PAN_GH_READ(&self->x, sizeof(self->x));
     PAN_GH_READ(&self->y, sizeof(self->y));
     PAN_GH_READ(&self->who, sizeof(self->who));
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
 )
 PAN_GH_ENCODE(PAN_GH_SERVER, ghost, sees, "ghost", "sees",
     uint16_t len = 0;
     len += sizeof(self->x);
     len += sizeof(self->y);
     len += sizeof(self->who);
+    len += sizeof(self->teamId);
     PAN_GH_HEADER("ghost", "sees", len);
     PAN_GH_WRITE(&self->x, sizeof(self->x));
     PAN_GH_WRITE(&self->y, sizeof(self->y));
     PAN_GH_WRITE(&self->who, sizeof(self->who));
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
+)
+
+PAN_GH_MSG(PAN_GH_SERVER, ghost, where, "ghost", "where",
+    int32_t          x;
+    int32_t          y;
+    PAN_GH_ID        who;
+    PAN_GH_ID        teamId;
+)
+PAN_GH_DECODE(PAN_GH_SERVER, ghost, where, "ghost", "where",
+    PAN_GH_READ(&self->x, sizeof(self->x));
+    PAN_GH_READ(&self->y, sizeof(self->y));
+    PAN_GH_READ(&self->who, sizeof(self->who));
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
+)
+PAN_GH_ENCODE(PAN_GH_SERVER, ghost, where, "ghost", "where",
+    uint16_t len = 0;
+    len += sizeof(self->x);
+    len += sizeof(self->y);
+    len += sizeof(self->who);
+    len += sizeof(self->teamId);
+    PAN_GH_HEADER("ghost", "where", len);
+    PAN_GH_WRITE(&self->x, sizeof(self->x));
+    PAN_GH_WRITE(&self->y, sizeof(self->y));
+    PAN_GH_WRITE(&self->who, sizeof(self->who));
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
 )
 
 PAN_GH_MSG(PAN_GH_SERVER, ghost, at, "ghost", "at",
@@ -89,6 +121,28 @@ PAN_GH_DECODE(PAN_GH_SERVER, ghost, tick, "ghost", "tick",
 PAN_GH_ENCODE(PAN_GH_SERVER, ghost, tick, "ghost", "tick",
     uint16_t len = 0;
     PAN_GH_HEADER("ghost", "tick", len);
+)
+
+PAN_GH_MSG(PAN_GH_CLIENT, ghost, sees, "ghost", "sees",
+)
+PAN_GH_DECODE(PAN_GH_CLIENT, ghost, sees, "ghost", "sees",
+)
+PAN_GH_ENCODE(PAN_GH_CLIENT, ghost, sees, "ghost", "sees",
+    uint16_t len = 0;
+    PAN_GH_HEADER("ghost", "sees", len);
+)
+
+PAN_GH_MSG(PAN_GH_CLIENT, ghost, where, "ghost", "where",
+    PAN_GH_ID        teamId;
+)
+PAN_GH_DECODE(PAN_GH_CLIENT, ghost, where, "ghost", "where",
+    PAN_GH_READ(&self->teamId, sizeof(self->teamId));
+)
+PAN_GH_ENCODE(PAN_GH_CLIENT, ghost, where, "ghost", "where",
+    uint16_t len = 0;
+    len += sizeof(self->teamId);
+    PAN_GH_HEADER("ghost", "where", len);
+    PAN_GH_WRITE(&self->teamId, sizeof(self->teamId));
 )
 
 PAN_GH_MSG(PAN_GH_CLIENT, ghost, attack, "ghost", "attack",
