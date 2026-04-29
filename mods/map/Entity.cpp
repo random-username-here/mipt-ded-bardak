@@ -26,7 +26,7 @@ Entity::ID Entity::getID () const
 
 Entity::Type Entity::getType () const
 {
-    return m_type;
+    return Entity::Type (uint64_t (0));
 }
 
 Tile* Entity::getTile () const

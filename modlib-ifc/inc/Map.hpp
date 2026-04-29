@@ -27,8 +27,8 @@ public:
     ~Entity ();
 
 
-    ID    getID   () const;
-    Type  getType () const;
+            ID    getID   () const;
+    virtual Type  getType () const;
     
     Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
     Vec2D<>  getPosition () const;
