@@ -58,31 +58,12 @@ int rd_pan_string(const uint8_t *payload, uint16_t len, char *out, size_t out_ca
     return (int)slen;
 }
 
-int rd_pan_string_at(const uint8_t *payload, uint16_t len, uint16_t *off, char *out, size_t out_cap) {
-    if (*off + 2 > len || out_cap == 0) {
-        return -1;
-    }
-
-    uint16_t slen = rd_u16_le(payload + *off);
-    if ((uint32_t)(*off) + 2u + (uint32_t)slen > (uint32_t)len) {
-        return -1;
-    }
-
-    size_t copy_n = slen;
-    if (copy_n >= out_cap) {
-        copy_n = out_cap - 1;
-    }
-
-    memcpy(out, payload + *off + 2, copy_n);
-    out[copy_n] = '\0';
-    *off = (uint16_t)(*off + 2 + slen);
-    return (int)slen;
-}
-
 void fill_name8(uint8_t out[PAN_NAME_LEN], const char *s) {
     memset(out, 0, PAN_NAME_LEN);
     size_t n = 0;
-    while (n < PAN_NAME_LEN && s[n] != '\0') n++;
+    while (n < PAN_NAME_LEN && s[n] != '\0') {
+        n++;
+    }
     memcpy(out, s, n);
 }
 
