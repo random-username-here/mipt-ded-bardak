@@ -270,6 +270,7 @@ public:
     {
         m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
         m_motion.to = m_motion.from;
+        std::cerr << "VisualUnit assetID: " << m_assetId << "\n";
     }
 
     size_t id() const { return m_id; }
@@ -305,6 +306,8 @@ public:
         m_hp    = u.hp;
         m_maxHp = u.maxHp;
 
+        m_assetId = u.assetId;
+
         if (!old) {
             m_dir         = DIR_DOWN;
             m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
@@ -317,6 +320,7 @@ public:
         m_dir    = old->m_dir;
         m_motion = old->m_motion;
         m_attack = old->m_attack;
+
 
         const int dx = u.x - old->m_x;
         const int dy = u.y - old->m_y;
