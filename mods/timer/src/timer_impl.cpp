@@ -21,6 +21,11 @@ public:
             throw std::runtime_error ("invalid callback provided");
         }
 
+        if (delay == 0)
+        {
+            throw std::runtime_error ("timer delay must be greater than zero");
+        }
+
         Tick tickStamp = m_tickCounter + delay;
 
         TimerID id = {
@@ -34,8 +39,7 @@ public:
             .m_cycle    = type == Type::CYCLE ? delay : 0,
             .m_callback = callback
         };
-        
-        
+
         return id;
     }
 
@@ -155,7 +159,7 @@ private:
 };
 
 
-extern "C" Mod *modlib_create (ModManager *mm)
+extern "C" Mod *modlib_create (ModManager *)
 {
     return new Timer();
 }
