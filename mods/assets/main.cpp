@@ -1,5 +1,3 @@
-#include "AssetManager.hpp"
-
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -8,6 +6,9 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "modlib_mod.hpp"
+#include "AssetManager.hpp"
 
 namespace {
 
@@ -42,7 +43,7 @@ public:
 
     std::string_view id() const override { return "neilor.bardak.asset_manager"; }
     std::string_view brief() const override { return "Registers textures and serves bytes by assetId"; }
-    modlib::ModVersion version() const override { return modlib::ModVersion(0, 1, 0); }
+    ModVersion version() const override { return ModVersion(0, 1, 0); }
 
     // Register base texture by file path, return a new asset id.
     // If same file path is registered multiple times, returns the first id.

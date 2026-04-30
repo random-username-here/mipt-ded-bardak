@@ -7,6 +7,11 @@
 #include "binmsg.hpp"
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
+#include "AssetManager.hpp"
+#include "AssetConfig.hpp"
+#include <cstdlib>
+#include <iostream>
+#include <optional>
 #include "./person_proto.hpp"
 
 using namespace modlib;
