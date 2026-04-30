@@ -27,10 +27,10 @@ static std::string loadFileBytes(const std::filesystem::path &filePath) {
     return dataBytes;
 }
 
-static uint64_t transformedKey(modlib::AssetId baseId, modlib::AssetTransform transform) {
-    // Stable key: baseId + exact rotation milli-degrees.
-    return (uint64_t(baseId) << 32) ^ uint32_t(transform.rotationMilliDeg);
-}
+// static uint64_t transformedKey(modlib::AssetId baseId, modlib::AssetTransform transform) {
+//     // Stable key: baseId + exact rotation milli-degrees.
+//     return (uint64_t(baseId) << 32) ^ uint32_t(transform.rotationMilliDeg);
+// }
 
 } // namespace
 
@@ -47,7 +47,7 @@ public:
 
     // Register base texture by file path, return a new asset id.
     // If same file path is registered multiple times, returns the first id.
-    modlib::AssetId addTexture(modlib::AssetKind kind, std::string_view filePath) override {
+    modlib::AssetId addTexture(std::string_view filePath) override {
         std::string normalizedPath(filePath);
         // Normalize for cache key stability.
         std::filesystem::path fileSystemPath(normalizedPath);
@@ -64,7 +64,6 @@ public:
 
         modlib::AssetId id = (modlib::AssetId)m_assets.size();
         m_assets.push_back(AssetRecord{
-            kind,
             id,
             modlib::AssetTransform{},
             std::move(textureBytes),
@@ -86,29 +85,28 @@ public:
         return m_assets[id].transform;
     }
 
-    modlib::AssetId getTransformed(modlib::AssetId baseId, modlib::AssetTransform transform) override {
-        if (!isValidAssetId(baseId)) return modlib::kInvalidAssetId;
-        // Cache transformed "views" so we don't create up to 360 variants unless needed.
-        // We still avoid duplicating bytes: transformed ids reference the same baseId.
-        uint64_t key = transformedKey(baseId, transform);
-        auto cachedEntry = m_transformedCache.find(key);
-        if (cachedEntry != m_transformedCache.end()) return cachedEntry->second;
+    // modlib::AssetId getTransformed(modlib::AssetId baseId, modlib::AssetTransform transform) override {
+    //     if (!isValidAssetId(baseId)) return modlib::kInvalidAssetId;
+    //     // Cache transformed "views" so we don't create up to 360 variants unless needed.
+    //     // We still avoid duplicating bytes: transformed ids reference the same baseId.
+    //     uint64_t key = transformedKey(baseId, transform);
+    //     auto cachedEntry = m_transformedCache.find(key);
+    //     if (cachedEntry != m_transformedCache.end()) return cachedEntry->second;
 
-        modlib::AssetId id = (modlib::AssetId)m_assets.size();
-        m_assets.push_back(AssetRecord{
-            m_assets[baseId].kind,
-            baseId,
-            transform,
-            std::string{}, // no duplication of bytes
-            std::string{},
-        });
-        m_transformedCache.emplace(key, id);
-        return id;
-    }
+    //     modlib::AssetId id = (modlib::AssetId)m_assets.size();
+    //     m_assets.push_back(AssetRecord{
+    //         m_assets[baseId].kind,
+    //         baseId,
+    //         transform,
+    //         std::string{}, // no duplication of bytes
+    //         std::string{},
+    //     });
+    //     m_transformedCache.emplace(key, id);
+    //     return id;
+    // }
 
 private:
     struct AssetRecord {
-        modlib::AssetKind kind = modlib::AssetKind::Tile;
         modlib::AssetId baseId = 0;           // points to record which holds bytes
         modlib::AssetTransform transform{};  // metadata for visualization
         std::string bytes;                   // only filled for base textures

@@ -17,12 +17,24 @@
 using namespace modlib;
 
 class PersonCtl;
+class PersonCtlGfx;
+
+struct Person;
+// AssetId PersonCtlGfx::assetId(Person *person) {
+
 
 struct Person : public Unit {
-    const int max_hp = 200;
+    enum class rotationDir {
+        up,
+        down,
+        left, 
+        right,
+    };
 
+    const int max_hp = 200;
     BmClient *m_client;
     PersonCtl *m_ctl;
+    PersonCtlGfx *m_gfx;
     Map *m_map;
     Vec2i m_pos;
     uint64_t m_id;
@@ -30,7 +42,8 @@ struct Person : public Unit {
     bool m_actionDone = false;
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
-    AssetId m_assetId = 0;
+    rotationDir m_dir;
+    
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(max_hp) {}
@@ -41,7 +54,7 @@ struct Person : public Unit {
     uint64_t id() override { return m_id; }
     uint64_t type() const override { return 0; }
     uint64_t teamId() const override { return 0; }
-    AssetId getAssetId() const override { return m_assetId; }
+    AssetId assetId() const override { return 7; }
 
     int hp() const override { return m_hp; }
     int maxHp() const override { return max_hp; }
@@ -71,24 +84,88 @@ struct Person : public Unit {
     }
 };
 
-class PersonCtl : public BmServerModule {
+static Person::rotationDir convertMoveToDir(int dx, int dy) {
+    if (dx == 0 && dy == 0) return Person::rotationDir::down; 
 
-    std::string_view id() const override { return "isd.bardak.uctl.person"; };
-    std::string_view brief() const override { return "Unit controller for a simple man walking around"; };
-    ModVersion version() const override { return ModVersion(0, 0, 1); };
+    if (std::abs(dx) > std::abs(dy)) {
+        return (dx > 0) ? Person::rotationDir::right: Person::rotationDir::left;
+    } else {
+        // Vertical movement is dominant (or equal)
+        return (dy > 0) ? Person::rotationDir::down : Person::rotationDir::up;
+    }
+};
 
-    Timer *tm;
-    Map *map;
-    AssetManager *assets = nullptr;
-    std::unordered_map<BmClient *, Person*> m_people;
-    uint64_t m_tick = 0;
-    AssetId m_unitAssetId = 0;
+struct PersonCtlGfxTexturePackPathes {
+    std::string_view left;
+    std::string_view right;
+    std::string_view down;
+    std::string_view up;
+};
 
+class PersonCtlGfx {
+    AssetId left = 0;
+    AssetId right = 0;
+    AssetId down = 0;
+    AssetId up = 0;
+
+
+public:
+    PersonCtlGfx() = default; 
+
+    void load_assets(AssetManager *assets, PersonCtlGfxTexturePackPathes &texturePack) {
+        left = assets->addTexture(texturePack.left);
+        if (left == kInvalidAssetId) {
+            throw ModManager::Error("Failed to register unit left texture");
+        }
+
+        right = assets->addTexture(texturePack.right);
+        if (right == kInvalidAssetId) {
+            throw ModManager::Error("Failed to register unit right texture");
+        }
+
+        down = assets->addTexture(texturePack.down);
+        if (down == kInvalidAssetId) {
+            throw ModManager::Error("Failed to register unit down texture");
+        }
+
+        up = assets->addTexture(texturePack.up);
+        if (up == kInvalidAssetId) {
+            throw ModManager::Error("Failed to register unit up texture");
+        }
+    }
+
+    AssetId assetId(Person *person) {
+        switch (person->m_dir)
+        {
+            case Person::rotationDir::down: return down;
+            case Person::rotationDir::up: return up;
+            case Person::rotationDir::right: return right;
+            case Person::rotationDir::left: return left;
+            default: return down;
+        }
+    }
+};
+
+
+class PersonCtl : public BmServerModule {        
     static constexpr uint64_t kMoveCdTicks = 1;
     static constexpr uint64_t kAttackCdTicks = 2;
     static constexpr int kBaseAttackDamage = 10;
     static constexpr int kBerserkBonusDamage = 6; // when low hp
     static constexpr int kLowHpThreshold = 25;
+
+    Timer *tm;
+    Map *map;
+    AssetManager *assets = nullptr;
+
+    std::unordered_map<BmClient *, Person*> m_people;
+    uint64_t m_tick = 0;
+    AssetId m_unitAssetId = 0;
+    PersonCtlGfx gfx;
+
+    std::string_view id() const override { return "isd.bardak.uctl.person"; };
+    std::string_view brief() const override { return "Unit controller for a simple man walking around"; };
+    ModVersion version() const override { return ModVersion(0, 0, 1); };
 
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
@@ -134,10 +211,14 @@ class PersonCtl : public BmServerModule {
 
     void onDepsResolved(ModManager *mm) override {
         // Unit controller registers texture path on init and receives stable asset id.
-        m_unitAssetId = assets->addTexture(AssetKind::Unit, asset_config::kPersonUnitTexturePath);
-        if (m_unitAssetId == kInvalidAssetId) {
-            throw ModManager::Error("Failed to register unit texture in AssetManager");
-        }
+        PersonCtlGfxTexturePackPathes texturePack;
+        texturePack.down = asset_config::personUnitRotatedDownTexturePath;
+        texturePack.right = asset_config::personUnitRotatedRightTexturePath;
+        texturePack.left = asset_config::personUnitRotatedLeftTexturePath;
+        texturePack.up = asset_config::personUnitRotatedUpTexturePath;
+        gfx.load_assets(assets, texturePack);
+
+
         tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
@@ -170,6 +251,7 @@ class PersonCtl : public BmServerModule {
             if (abs(moveCmd->dx) > 1 || abs(moveCmd->dy) > 1) return;
             if (m_tick < pl->m_nextMoveTick) return;
             Vec2i pos = pl->pos();
+            pl->m_dir = convertMoveToDir(moveCmd->dx, moveCmd->dy);
             pos.x += moveCmd->dx; pos.y += moveCmd->dy;
             if (map->at(pos)->type() == Tile::BasicType::Wall) return;
             pl->move(pos);

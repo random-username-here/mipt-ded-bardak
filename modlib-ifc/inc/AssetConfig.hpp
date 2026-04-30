@@ -4,9 +4,10 @@
 
 namespace modlib::asset_config {
 
-// Default texture paths used by gameplay modules.
-// Projects can override usage at module level if needed.
-inline constexpr std::string_view kPersonUnitTexturePath = "assets/units/person.png";
+inline constexpr std::string_view personUnitRotatedRightTexturePath = "assets/units/person/RotatedRight.png";
+inline constexpr std::string_view personUnitRotatedLeftTexturePath  = "assets/units/person/RotatedLeft.png";
+inline constexpr std::string_view personUnitRotatedUpTexturePath    = "assets/units/person/RotatedUp.png";
+inline constexpr std::string_view personUnitRotatedDownTexturePath  = "assets/units/person/RotatedDown.png";
 
 } // namespace modlib::asset_config
 

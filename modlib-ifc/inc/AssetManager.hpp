@@ -26,15 +26,15 @@ struct AssetTransform {
 // Implemented by `mods/assets`.
 class AssetManager : public Mod {
 public:
-    virtual AssetId addTexture(AssetKind kind, std::string_view filePath) = 0;
+    virtual AssetId addTexture(std::string_view filePath) = 0;
 
     // Get raw bytes. For transformed assets, bytes are expected to reference
     // the base texture (no image processing required server-side).
     virtual std::string_view getTextureBytes(AssetId id) const = 0;
     virtual AssetTransform getTransform(AssetId id) const = 0;
 
-    // Create (and cache) a transformed "view" of `baseId` without duplicating bytes.
-    virtual AssetId getTransformed(AssetId baseId, AssetTransform transform) = 0;
+    // // Create (and cache) a transformed "view" of `baseId` without duplicating bytes.
+    // virtual AssetId getTransformed(AssetId baseId, AssetTransform transform) = 0;
 
     virtual ~AssetManager() = default;
 };

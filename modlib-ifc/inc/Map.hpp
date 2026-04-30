@@ -32,7 +32,7 @@ public:
     virtual Vec2i pos() const = 0;
 
     // Used by server-side visualization to fetch bytes from `AssetManager`.
-    virtual AssetId getAssetId() const = 0;
+    virtual AssetId assetId() const = 0;
 
     virtual void move(Vec2i to);
     virtual void destroy();

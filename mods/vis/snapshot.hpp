@@ -14,6 +14,7 @@ struct UnitSnap {
     int hp;
     int maxHp;
     size_t id;
+    modlib::AssetId assetId;
 
     UnitSnap()
         : x(0)
@@ -21,6 +22,7 @@ struct UnitSnap {
         , hp(0)
         , maxHp(0)
         , id(0)
+        , assetId(0)
     {}
 };
 
@@ -77,11 +79,12 @@ public:
                     if (!u) continue;
 
                     UnitSnap us;
-                    us.x     = x;
-                    us.y     = y;
-                    us.hp    = u->hp();
-                    us.maxHp = u->maxHp();
-                    us.id    = u->id();
+                    us.x       = x;
+                    us.y       = y;
+                    us.hp      = u->hp();
+                    us.maxHp   = u->maxHp();
+                    us.id      = u->id();
+                    us.assetId = u->assetId();
 
                     snap.units.push_back(us);
                 }

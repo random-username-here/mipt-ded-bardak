@@ -27,7 +27,7 @@ struct Ghost final : public PersonBase {
     uint64_t type() const override { return kGhostType; }
     uint64_t teamId() const override { return kGhostTeam; }
     int attackDamage() const override { return kAttackDamage; }
-    virtual uint64_t getAssetId() const override { return 0; }; 
+    virtual uint64_t assetId() const override { return 0; }; 
 };
 
 class GhostRole final : public modlib::BmServerModule {
