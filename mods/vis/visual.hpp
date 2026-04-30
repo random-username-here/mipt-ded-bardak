@@ -446,6 +446,8 @@ private:
             int bestScore = 999999;
             bool found    = false;
 
+            
+
             for (auto &unit : m_units) {
                 if (unit.first == d.targetId) continue;
 

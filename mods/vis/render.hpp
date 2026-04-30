@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <cassert>
 
 #ifndef VIS_TILESET_PATH
 #define VIS_TILESET_PATH "mods/vis/tilesheet.png"
@@ -128,7 +129,10 @@ public:
 };
 
 class Renderer {
+    modlib::AssetManager * m_assetManager=nullptr;
 public:
+    explicit Renderer(modlib::AssetManager *assetManager) : m_assetManager(assetManager) { assert(m_assetManager); }
+
     void draw(const WorldSnap &snap, const VisualWorld &world, const Atlas &atlas, double now) {
         Camera cam;
         cam.fit(GetScreenWidth(), GetScreenHeight(), snap.w, snap.h);
