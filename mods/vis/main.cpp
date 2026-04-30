@@ -18,6 +18,9 @@ class VisMod final : public Mod {
     modlib::Map   *m_map;
     modlib::Timer *m_timer;
 
+    modlib::Timer::TimerID m_snapshotTimer;
+    bool m_snapshotTimerSet;
+
     vis::Snapshotter m_snapshotter;
 
     std::mutex     m_snapLock;
@@ -31,6 +34,8 @@ public:
     VisMod()
         : m_map(NULL)
         , m_timer(NULL)
+        , m_snapshotTimer()
+        , m_snapshotTimerSet(false)
         , m_snapshotter()
         , m_snapLock()
         , m_snap()
@@ -79,22 +84,32 @@ public:
     }
 
     void onBeforeCleanup(ModManager *) override {
+        cancelSnapshotTimer();
         stopRenderer();
     }
 
 private:
     void scheduleSnapshot() {
-        if (!m_running || !m_timer) return;
+        if (!m_running || !m_timer || m_snapshotTimerSet) return;
 
-        m_timer->setTimer(
+        m_snapshotTimer = m_timer->setTimer(
             1,
             [this]() {
                 if (!m_running) return;
                 snapshot();
-                scheduleSnapshot();
             },
-            modlib::Timer::Stage::ON_UPDATE_DONE
+            modlib::Timer::Stage::ON_UPDATE_DONE,
+            modlib::Timer::Type::CYCLE
         );
+
+        m_snapshotTimerSet = true;
+    }
+
+    void cancelSnapshotTimer() {
+        if (m_timer && m_snapshotTimerSet) {
+            m_timer->cancelTimer(m_snapshotTimer);
+            m_snapshotTimerSet = false;
+        }
     }
 
     void snapshot() {
