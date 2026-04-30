@@ -293,7 +293,7 @@ private:
         pos.x += dv.x * nudge;
         pos.y += dv.y * nudge;
 
-        std::cerr << "Current unit assetId: " << u.assetId() << "\n";
+        // std::cerr << "Current unit assetId: " << u.assetId() << "\n";
 
         if (atlas.loaded()) {
             const int row = attacking ? 2 : 1;
