@@ -1,7 +1,6 @@
 #pragma once
 #include "modlib_mod.hpp"
 #include <functional>
-#include <utility>
 
 namespace modlib {
 
@@ -31,7 +30,7 @@ public:
         Tick     delay,
         Callback callback,
         Stage    stage = Stage::ON_UPDATE,
-        Type     type   = Type::COUNTDOWN
+        Type     type  = Type::COUNTDOWN
     ) = 0;
 
     virtual void cancelTimer (
