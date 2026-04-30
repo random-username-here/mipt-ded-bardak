@@ -1,6 +1,5 @@
 #include <stdexcept>
 #include <functional>
-#include <random>
 #include <map>
 #include <set>
 #include <cstring>
@@ -28,7 +27,7 @@ public:
         TimerID id = {
             .m_type = type,
             .m_tick = delay,
-            .m_ID = rand ()
+            .m_ID   = ++m_lastID
         };
 
         m_tickStamps[tickStamp][id.m_ID] = {
