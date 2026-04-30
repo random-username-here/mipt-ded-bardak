@@ -1,12 +1,20 @@
 #pragma once
 
-#include "person.hpp"
+
+#include "person_controller.hpp"
+#include "BmServerModule.hpp"
+#include "Timer.hpp"
+#include "binmsg.hpp"
+#include "modlib_mod.hpp"
+#include "modlib_manager.hpp"
+#include "./person_proto.hpp"
 
 class PersonManager {
     Timer        *timer_=nullptr;
     Map          *map_=nullptr;
     AssetManager *assetManager_=nullptr;
 
+    PersonAssetPack assetPack_;
     std::unordered_map<BmClient *, PersonCtl> people_;
     uint64_t m_tick = 0;
 public:
@@ -27,12 +35,13 @@ public:
     void resolve() {
         timer_->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
 
-        // PersonCtlGfxTexturePackPathes texturePack;
-        // texturePack.down = asset_config::personUnitRotatedDownTexturePath;
-        // texturePack.right = asset_config::personUnitRotatedRightTexturePath;
-        // texturePack.left = asset_config::personUnitRotatedLeftTexturePath;
-        // texturePack.up = asset_config::personUnitRotatedUpTexturePath;
-        // gfx.load_assets(assets, texturePack);
+        PersonTexturePackPathes texturePackPathes;
+        texturePackPathes.down = asset_config::personUnitRotatedDownTexturePath;
+        texturePackPathes.right = asset_config::personUnitRotatedRightTexturePath;
+        texturePackPathes.left = asset_config::personUnitRotatedLeftTexturePath;
+        texturePackPathes.up = asset_config::personUnitRotatedUpTexturePath;
+     
+        assetPack_.load_assets(assetManager_, texturePackPathes);
     }
 
     void receiveMoveCommand(BmClient *client, bmsg::CL_person_move moveCmd) {
@@ -58,7 +67,7 @@ public:
             std::cerr << "person with client `" << client->id() << "` was already spawned\n";
             return;
         }
-        people_.try_emplace(client, map_);
+        people_.try_emplace(client, map_, &assetPack_);
     }
 
     void sendState() {
