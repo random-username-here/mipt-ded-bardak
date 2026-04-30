@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <iostream>
+#include <cassert>
 
 #ifndef VIS_TILESET_PATH
 #define VIS_TILESET_PATH "mods/vis/tilesheet.png"
@@ -127,7 +129,10 @@ public:
 };
 
 class Renderer {
+    modlib::AssetManager * m_assetManager=nullptr;
 public:
+    explicit Renderer(modlib::AssetManager *assetManager) : m_assetManager(assetManager) { assert(m_assetManager); }
+
     void draw(const WorldSnap &snap, const VisualWorld &world, const Atlas &atlas, double now) {
         Camera cam;
         cam.fit(GetScreenWidth(), GetScreenHeight(), snap.w, snap.h);
@@ -287,6 +292,8 @@ private:
         Vector2 pos = cam.tileToScreen(rp.x, rp.y);
         pos.x += dv.x * nudge;
         pos.y += dv.y * nudge;
+
+        // std::cerr << "Current unit assetId: " << u.assetId() << "\n";
 
         if (atlas.loaded()) {
             const int row = attacking ? 2 : 1;

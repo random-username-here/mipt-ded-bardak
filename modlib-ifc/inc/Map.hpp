@@ -1,6 +1,8 @@
 #pragma once
 #include "modlib_mod.hpp"
+#include "AssetManager.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace modlib {
@@ -29,10 +31,11 @@ public:
 
     virtual Vec2i pos() const = 0;
 
+    // Used by server-side visualization to fetch bytes from `AssetManager`.
+    virtual AssetId assetId() const = 0;
+
     virtual void move(Vec2i to);
     virtual void destroy();
-    
-    virtual uint64_t getAssetId() const = 0; 
 
     virtual ~Unit() = default;
 };
