@@ -1,8 +1,8 @@
 #include <stdexcept>
 #include <functional>
-#include <map>
 #include <queue>
-#include <unordered_set>
+#include <unordered_map>
+#include <iostream>
 #include "Timer.hpp"
 
 
@@ -52,88 +52,70 @@ public:
             return;
         }
 
-        m_cancelledIDs.insert (id.m_ID);
+        Tick tickStamp = m_tickCounter + id.m_tick - (m_tickCounter % id.m_tick);
 
-        // remove scheduled timers
-        for (auto it = m_tickStamps.begin (); it != m_tickStamps.end ();)
-        {
-            it->second.erase (id.m_ID);
-
-            if (it->second.empty ())
-            {
-                it = m_tickStamps.erase (it);
-            }
-            else
-            {
-                ++it;
-            }
-        }
+        m_tickStamps[tickStamp].erase (id.m_ID);
 
         id = {
             .m_type = Type::COUNTDOWN,
             .m_tick = 0,
-            .m_ID   = 0
+            .m_ID   = 0,
         };
     }
 
-    void tick () override
+    size_t tick () override
     {
         m_tickCounter++;
 
-        auto tickCurrent = m_tickStamps.find (m_tickCounter);
-        if (tickCurrent == m_tickStamps.end ())
+        auto& callbacksEntries = m_tickStamps[m_tickCounter];
+
+        size_t emitted = callbacksEntries.size ();
+        std::queue<Callback> callbackQueue;
+
+        for (auto& [id, entry] : callbacksEntries)
         {
-            return;
-        }
-
-        auto callbacks = std::move (tickCurrent->second);
-        m_tickStamps.erase (tickCurrent);
-
-        std::queue<std::pair<uint64_t, CallbackEntry>> callbackbackQueue;
-
-        for (const auto &[id, entry] : callbacks)
-        {
-            if (m_cancelledIDs.count (id))
-            {
-                continue;
-            }
-
             if (entry.m_stage == Stage::ON_UPDATE)
             {
-                entry.m_callback ();
-
-                // cyclic timer could cancel itself
-
-                if (entry.m_cycle && !m_cancelledIDs.count(id))
+                try
                 {
-                    m_tickStamps[m_tickCounter + entry.m_cycle][id] = entry;
+                    entry.m_callback ();
+                }
+                catch (const std::exception& e)
+                {
+                    emitted--;
+
+                    auto time = std::chrono::system_clock::now ();
+                    std::cerr << "[Timer][TID" << id << "] Callback threw an exception: " << e.what () << std::endl;
                 }
             }
             else
             {
-                callbackbackQueue.push ({id, entry});
+                callbackQueue.push (entry.m_callback);
+            }
+
+            if (entry.m_cycle > 0)
+            {
+                Tick nextTick = m_tickCounter + entry.m_cycle;
+                m_tickStamps[nextTick][id] = entry;
             }
         }
 
-        while (callbackbackQueue.empty () == false)
+        while (!callbackQueue.empty ())
         {
-            uint64_t         id = callbackbackQueue.front().first;
-            CallbackEntry entry = callbackbackQueue.front().second;
-
-            callbackbackQueue.pop ();
-
-            if (m_cancelledIDs.count (id))
+            try
             {
-                continue;
+                callbackQueue.front () ();
             }
-
-            entry.m_callback ();
-
-            if (entry.m_cycle && !m_cancelledIDs.count (id))
+            catch (const std::exception& e)
             {
-                m_tickStamps[m_tickCounter + entry.m_cycle][id] = entry;
+                emitted--;
+                auto time = std::chrono::system_clock::now ();
+                std::cerr << "[Timer] Callback threw an exception: " << e.what () << std::endl;
             }
+            callbackQueue.pop ();
         }
+
+        return emitted;
     }
 
     Tick             getTicksSinceCreation ()       override { return m_tickCounter; }
@@ -154,8 +136,7 @@ private:
     Tick m_tickCounter = 0;
     uint64_t m_lastID  = 0;
 
-    std::map<Tick, std::map<uint64_t, CallbackEntry>> m_tickStamps;
-    std::unordered_set<uint64_t> m_cancelledIDs;
+    std::unordered_map<Tick, std::unordered_map<uint64_t, CallbackEntry>> m_tickStamps;
 };
 
 
