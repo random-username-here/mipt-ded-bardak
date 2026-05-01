@@ -37,9 +37,11 @@ public:
         TimerID& id
     ) = 0;
 
-    virtual void tick () = 0;
+    virtual size_t tick () = 0;
 
     virtual Tick getTicksSinceCreation () = 0;
+
+    virtual ~Timer () = default;
 };
 
 };
