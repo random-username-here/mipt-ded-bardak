@@ -2,6 +2,7 @@
 #include <functional>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <iostream>
 #include "Timer.hpp"
 
@@ -27,19 +28,16 @@ public:
         }
 
         Tick tickStamp = m_tickCounter + delay;
+        TimerID id = ++m_lastID;
 
-        TimerID id = {
-            .m_type = type,
-            .m_tick = delay,
-            .m_ID   = ++m_lastID
-        };
-
-        m_tickStamps[tickStamp][id.m_ID] = {
+        m_callbacksEntries[id] = {
             .m_stage    = stage,
-            .m_cycle    = type == Type::CYCLE ? delay : 0,
+            .m_base     = tickStamp,
+            .m_cycle    = (type == Type::CYCLE) ? delay : 0,
             .m_callback = callback
         };
-
+    
+        m_tickStamps[tickStamp].emplace (id);
         return id;
     }
 
@@ -47,33 +45,40 @@ public:
         TimerID& id
     ) override
     {
-        if (id.m_ID == 0)
+        if (id == 0)
         {
             return;
         }
 
-        Tick tickStamp = m_tickCounter + id.m_tick - (m_tickCounter % id.m_tick);
+        CallbackEntry& entry = m_callbacksEntries[id];
 
-        m_tickStamps[tickStamp].erase (id.m_ID);
+        if (entry.m_cycle == 0)
+        {
+            m_tickStamps[entry.m_base].erase (id);
+        }
+        else
+        {
+            Tick tickStamp = ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
+            m_tickStamps[tickStamp].erase (id);
+        }
 
-        id = {
-            .m_type = Type::COUNTDOWN,
-            .m_tick = 0,
-            .m_ID   = 0,
-        };
+        m_callbacksEntries.erase (id);
+        id = 0;
     }
 
     size_t tick () override
     {
         m_tickCounter++;
 
-        auto& callbacksEntries = m_tickStamps[m_tickCounter];
+        auto& indexes = m_tickStamps[m_tickCounter];
 
-        size_t emitted = callbacksEntries.size ();
+        size_t emitted = indexes.size ();
         std::queue<Callback> callbackQueue;
 
-        for (auto& [id, entry] : callbacksEntries)
+        for (TimerID id : indexes)
         {
+            const auto& entry = m_callbacksEntries[id];
+
             if (entry.m_stage == Stage::ON_UPDATE)
             {
                 try
@@ -84,7 +89,6 @@ public:
                 {
                     emitted--;
 
-                    auto time = std::chrono::system_clock::now ();
                     std::cerr << "[Timer][TID" << id << "] Callback threw an exception: " << e.what () << std::endl;
                 }
             }
@@ -96,7 +100,7 @@ public:
             if (entry.m_cycle > 0)
             {
                 Tick nextTick = m_tickCounter + entry.m_cycle;
-                m_tickStamps[nextTick][id] = entry;
+                m_tickStamps[nextTick].emplace (id);
             }
         }
 
@@ -109,7 +113,6 @@ public:
             catch (const std::exception& e)
             {
                 emitted--;
-                auto time = std::chrono::system_clock::now ();
                 std::cerr << "[Timer] Callback threw an exception: " << e.what () << std::endl;
             }
             callbackQueue.pop ();
@@ -128,15 +131,17 @@ private:
     struct CallbackEntry
     {
         Stage    m_stage;
+        Tick     m_base;
         Tick     m_cycle;
         Callback m_callback;
     };
 
 
     Tick m_tickCounter = 0;
-    uint64_t m_lastID  = 0;
+    TimerID m_lastID = 0;
 
-    std::unordered_map<Tick, std::unordered_map<uint64_t, CallbackEntry>> m_tickStamps;
+    std::unordered_map<TimerID, CallbackEntry>            m_callbacksEntries;
+    std::unordered_map<Tick, std::unordered_set<TimerID>> m_tickStamps;
 };
 
 

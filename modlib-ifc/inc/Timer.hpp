@@ -19,12 +19,7 @@ public:
     };
     using Tick     = size_t;
     using Callback = std::function<void(void)>;
-    struct TimerID
-    {
-        Type m_type;
-        Tick m_tick;
-        uint64_t m_ID;
-    };
+    using TimerID = uint64_t;
 
     virtual TimerID setTimer (
         Tick     delay,
