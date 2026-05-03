@@ -2,10 +2,8 @@
 #include <random>
 #include <stdexcept>
 
-Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
+Entity::Entity (Tile* tile)
 {
-    m_ID = rand ();
-
     if (tile)
     {
         tile->addEntity (this);
@@ -15,18 +13,7 @@ Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
 
 Entity::~Entity ()
 {
-    if (m_tile) m_tile->getLevel ().removeEntity (m_ID);
-}
-
-
-Entity::ID Entity::getID () const
-{
-    return m_ID;
-}
-
-Entity::Type Entity::getType () const
-{
-    return Entity::Type (uint64_t (0));
+    if (m_tile) m_tile->getLevel ().removeEntity (getID ());
 }
 
 Tile* Entity::getTile () const
@@ -44,7 +31,7 @@ void Entity::setTile (Tile* tile)
 {
     Vec2D<> oldPosition = m_tile->getPos ();
 
-    m_tile->removeEntity (m_ID);
+    m_tile->removeEntity (getID ());
     
     m_tile = tile;
     if (m_tile)
@@ -61,7 +48,7 @@ void Entity::setPosition (Vec2D<> position)
     {
         Vec2D<> oldPosition = m_tile->getPos ();
 
-        m_tile->removeEntity (m_ID);
+        m_tile->removeEntity (getID ());
 
         m_tile = &(m_tile->getLevel ().getTile (position));
         m_tile->addEntity (this);

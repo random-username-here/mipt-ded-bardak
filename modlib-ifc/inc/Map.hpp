@@ -6,6 +6,8 @@
 #include "binmsg.hpp"
 #include "Event.hpp"
 
+#include "ECbasis.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -16,19 +18,12 @@
 
 class Tile;
 
-class Entity
+class Entity : virtual public EC::EntityBase
 {
 public:
-    using ID = uint64_t;
-    using Type = bmsg::Char64;
-
-    Entity (Type type, Tile* tile);
+    Entity (Tile* tile);
 
     ~Entity ();
-
-
-            ID    getID   () const;
-    virtual Type  getType () const;
     
     Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
     Vec2D<>  getPosition () const;
@@ -38,8 +33,6 @@ public:
     Event<Vec2D<>> EvEntityMoved;
 
 private:
-    Type  m_type;
-    ID    m_ID;
     Tile* m_tile;
 };
 
