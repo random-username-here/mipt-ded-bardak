@@ -35,6 +35,7 @@ public:
     virtual size_t tick () = 0;
 
     virtual Tick getTicksSinceCreation () = 0;
+    virtual Tick getNextEmission (TimerID id) = 0;
 
     virtual ~Timer () = default;
 };
