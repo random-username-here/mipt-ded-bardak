@@ -60,7 +60,7 @@ public:
 
         Tick tickStamp = entry.m_cycle == 0 ? 
             entry.m_base :
-            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
+            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle + 1;
 
         m_tickStamps[tickStamp].erase (id);
         m_callbacksEntries.erase (id);
@@ -101,7 +101,7 @@ public:
                 {
                     emitted--;
 
-                    std::cerr << "[Timer][TID" << id << "] Callback threw an exception: " << e.what () << std::endl;
+                    std::cerr << "[T" << m_tickCounter << "][Timer][TID" << id << "] Callback threw an exception: " << e.what () << std::endl;
                 }
             }
             else
