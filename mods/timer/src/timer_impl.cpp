@@ -13,8 +13,8 @@ public:
     TimerID setTimer (
         Tick     delay,
         Callback callback,
-        Stage    stage,
-        Type     type
+        Stage    stage = Stage::ON_UPDATE,
+        Type     type  = Type::COUNTDOWN
     ) override
     {
         if (callback == nullptr)
@@ -28,6 +28,7 @@ public:
         }
 
         Tick tickStamp = m_tickCounter + delay;
+
         TimerID id = ++m_lastID;
 
         m_callbacksEntries[id] = {
@@ -45,24 +46,11 @@ public:
         TimerID& id
     ) override
     {
-        if (id == 0)
+        Tick tickStamp = getNextEmission (id);
+        if (tickStamp == 0)
         {
             return;
         }
-
-        auto entryIterator =  m_callbacksEntries.find (id);
-        if ( entryIterator == m_callbacksEntries.end ())
-        {
-            return;
-        }
-
-        CallbackEntry& entry = entryIterator->second;
-
-        Tick tickStamp = entry.m_cycle == 0 ? 
-            entry.m_base :
-            m_tickCounter < entry.m_base ?
-                entry.m_base :
-                entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle + 1;
 
         m_tickStamps[tickStamp].erase (id);
         m_callbacksEntries.erase (id);
@@ -130,7 +118,29 @@ public:
         return emitted;
     }
 
-    Tick             getTicksSinceCreation ()       override { return m_tickCounter; }
+    Tick getTicksSinceCreation () override { return m_tickCounter; }
+
+    Tick getNextEmission (TimerID id) override
+    {
+        if (id == 0)
+        {
+            return 0;
+        }
+
+        auto entryIterator =  m_callbacksEntries.find (id);
+        if ( entryIterator == m_callbacksEntries.end ())
+        {
+            return 0;
+        }
+
+        CallbackEntry& entry = entryIterator->second;
+
+        Tick tickStamp = entry.m_cycle == 0 || (entry.m_cycle && m_tickCounter < entry.m_base) ? 
+            entry.m_base :
+            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
+
+        return tickStamp;
+    }
 
     std::string_view id                    () const override { return "DoDoeb.timer_mngr"; }
     std::string_view brief                 () const override { return "Singleton timer module by DoDoeb"; }
