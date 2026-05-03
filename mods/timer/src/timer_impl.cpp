@@ -50,18 +50,19 @@ public:
             return;
         }
 
-        CallbackEntry& entry = m_callbacksEntries[id];
-
-        if (entry.m_cycle == 0)
+        auto entryIterator =  m_callbacksEntries.find (id);
+        if ( entryIterator == m_callbacksEntries.end ())
         {
-            m_tickStamps[entry.m_base].erase (id);
-        }
-        else
-        {
-            Tick tickStamp = ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
-            m_tickStamps[tickStamp].erase (id);
+            return;
         }
 
+        CallbackEntry& entry = entryIterator->second;
+
+        Tick tickStamp = entry.m_cycle == 0 ? 
+            entry.m_base :
+            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
+
+        m_tickStamps[tickStamp].erase (id);
         m_callbacksEntries.erase (id);
         id = 0;
     }
@@ -70,14 +71,25 @@ public:
     {
         m_tickCounter++;
 
-        auto& indexes = m_tickStamps[m_tickCounter];
+        auto bucketIterator = m_tickStamps.find (m_tickCounter);
+        if (bucketIterator == m_tickStamps.end ())
+        {
+            return 0;
+        }
+        auto& bucket = bucketIterator->second;
 
-        size_t emitted = indexes.size ();
+        size_t emitted = bucket.size ();
         std::queue<Callback> callbackQueue;
 
-        for (TimerID id : indexes)
+        for (TimerID id : bucket)
         {
-            const auto& entry = m_callbacksEntries[id];
+            const auto& entry = m_callbacksEntries[id]; // An entry with this ID always exists in m_callbacksEntries
+
+            if (entry.m_cycle > 0)
+            {
+                Tick nextTick = m_tickCounter + entry.m_cycle;
+                m_tickStamps[nextTick].emplace (id);
+            }
 
             if (entry.m_stage == Stage::ON_UPDATE)
             {
@@ -95,14 +107,9 @@ public:
             else
             {
                 callbackQueue.push (entry.m_callback);
-            }
-
-            if (entry.m_cycle > 0)
-            {
-                Tick nextTick = m_tickCounter + entry.m_cycle;
-                m_tickStamps[nextTick].emplace (id);
-            }
+            }   
         }
+        m_tickStamps.erase (bucketIterator);
 
         while (!callbackQueue.empty ())
         {
