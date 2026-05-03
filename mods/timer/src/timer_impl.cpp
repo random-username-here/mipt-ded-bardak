@@ -60,7 +60,9 @@ public:
 
         Tick tickStamp = entry.m_cycle == 0 ? 
             entry.m_base :
-            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle + 1;
+            m_tickCounter < entry.m_base ?
+                entry.m_base :
+                entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle + 1;
 
         m_tickStamps[tickStamp].erase (id);
         m_callbacksEntries.erase (id);
