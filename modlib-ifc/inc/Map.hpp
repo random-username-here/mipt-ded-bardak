@@ -19,7 +19,6 @@
 namespace Map
 {
 
-
 class Tile;
 
 class Entity : virtual public EC::Entity

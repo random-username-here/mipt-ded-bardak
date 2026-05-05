@@ -8,13 +8,17 @@
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
 #include "AssetManager.hpp"
-#include "AssetConfig.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <string_view>
 #include "./person_proto.hpp"
 
 using namespace modlib;
+
+namespace {
+inline constexpr std::string_view kPersonUnitTexturePath = "assets/units/person.png";
+}
 
 class PersonCtl;
 
@@ -30,7 +34,7 @@ struct Person : public Unit {
     bool m_actionDone = false;
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
-    AssetId m_assetId = 0;
+    AssetId m_assetId{};
 
     Person(Map *map, Vec2i pos, size_t id, PersonCtl *ctl, BmClient *cl)
         :m_map(map), m_pos(pos), m_id(id), m_ctl(ctl), m_client(cl), m_hp(max_hp) {}
@@ -82,7 +86,7 @@ class PersonCtl : public BmServerModule {
     AssetManager *assets = nullptr;
     std::unordered_map<BmClient *, Person*> m_people;
     uint64_t m_tick = 0;
-    AssetId m_unitAssetId = 0;
+    AssetId m_unitAssetId{};
 
     static constexpr uint64_t kMoveCdTicks = 1;
     static constexpr uint64_t kAttackCdTicks = 2;
@@ -133,10 +137,29 @@ class PersonCtl : public BmServerModule {
     }
 
     void onDepsResolved(ModManager *mm) override {
-        // Unit controller registers texture path on init and receives stable asset id.
-        m_unitAssetId = assets->addTexture(AssetKind::Unit, asset_config::kPersonUnitTexturePath);
-        if (m_unitAssetId == kInvalidAssetId) {
-            throw ModManager::Error("Failed to register unit texture in AssetManager");
+        const SpriteID personSpriteId{"person"};
+        m_unitAssetId = personSpriteId;
+
+        if (!assets->sprite(personSpriteId).has_value()) {
+            SpriteAsset personSprite{};
+            personSprite.id = personSpriteId;
+            personSprite.file = kPersonUnitTexturePath;
+            personSprite.source = Recti{0, 0, 16, 16};
+            personSprite.size = Vec2i{16, 16};
+            if (!assets->registerSprite(personSprite)) {
+                throw ModManager::Error("Failed to register person sprite in AssetManager");
+            }
+        }
+
+        const AssetKey idleKey{AssetKeyKind{"state"}, 0, bmsg::Char64{"idle"}};
+        if (!assets->binding(personSpriteId, idleKey).has_value()) {
+            VisualBinding idleBinding{};
+            idleBinding.id = personSpriteId;
+            idleBinding.key = idleKey;
+            idleBinding.sprite = personSpriteId;
+            if (!assets->bind(idleBinding)) {
+                throw ModManager::Error("Failed to bind person idle visual in AssetManager");
+            }
         }
         tm->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
