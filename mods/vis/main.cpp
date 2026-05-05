@@ -15,8 +15,12 @@
 #include <thread>
 
 class VisMod final : public Mod {
-    modlib::Map   *m_map;
-    modlib::Timer *m_timer;
+    modlib::Level *m_map=nullptr;
+    modlib::Timer *m_timer=nullptr;
+    modlib::AssetManager *m_assetManager=nullptr;
+
+    modlib::Timer::TimerID m_snapshotTimer;
+    bool m_snapshotTimerSet;
 
     modlib::Timer::TimerID m_snapshotTimer;
     bool m_snapshotTimerSet;
@@ -61,8 +65,9 @@ public:
     }
 
     void onResolveDeps(ModManager *mm) override {
-        m_map   = mm->anyOfType<modlib::Map>();
+        m_map   = mm->anyOfType<modlib::Level>();
         m_timer = mm->anyOfType<modlib::Timer>();
+        m_assetManager = mm->anyOfType<modlib::AssetManager>();
 
         if (!m_map) {
             throw ModManager::Error("ashww.bardak.vis.raylib: Map module not found");
@@ -70,6 +75,10 @@ public:
 
         if (!m_timer) {
             throw ModManager::Error("ashww.bardak.vis.raylib: Timer module not found");
+        }
+
+        if (!m_assetManager) {
+            throw ModManager::Error("ashww.bardak.vis.raylib: AssetManager module not found");
         }
     }
 
@@ -148,7 +157,7 @@ private:
         atlas.load();
 
         vis::VisualWorld world;
-        vis::Renderer renderer;
+        vis::Renderer renderer(m_assetManager);
 
         uint64_t lastAppliedTick = 0;
         double   lastSnapTime    = GetTime();

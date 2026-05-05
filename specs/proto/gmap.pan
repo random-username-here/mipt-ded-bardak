@@ -13,6 +13,6 @@ server gmap:map(int16 width, int16 height, blob data);
 client gmap:move(int8 dx, int8 dy);
 server gmap:r.move(id req, bool ok);
 
-# Get information about visible units
+# Get information about visible entities
 client gmap:getVis();
 server gmap:r.vis(id unitId, char64 unitType, int8 dx, int8 dy);

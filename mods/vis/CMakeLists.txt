@@ -30,4 +30,5 @@ target_link_libraries(vis PRIVATE
     Threads::Threads
     modlib
     modlib-ifc
+    map-core
 )

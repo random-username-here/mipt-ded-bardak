@@ -21,7 +21,7 @@ struct Pacman final : public PersonBase {
     uint64_t type() const override { return kPacmanType; }
     uint64_t teamId() const override { return kPacmanTeam; }
     int attackDamage() const override { return 0; }
-    virtual uint64_t getAssetId() const override { return 0; }; 
+    virtual uint64_t assetId() const override { return 0; }; 
 };
 
 class PacmanRole final : public modlib::BmServerModule {
@@ -185,7 +185,7 @@ private:
                 if (tile->type() == modlib::Tile::BasicType::Wall) {
                     client->send(bmsg::SV_pacman_wall { pos.x, pos.y });
                 }
-                for (auto* unit : tile->units()) {
+                for (auto* unit : tile->entities()) {
                     if (unit != pacman) {
                         client->send(bmsg::SV_pacman_sees { pos.x, pos.y, static_cast<uint32_t>(unit->id()) });
                     }

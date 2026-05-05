@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <iostream>
 
 namespace vis {
 
@@ -31,7 +32,7 @@ struct WorldSnap {
     bool valid;
 
     std::vector<bool> walkable;
-    std::vector<UnitSnap> units;
+    std::vector<UnitSnap> entities;
 
     WorldSnap()
         : w(0)
@@ -43,12 +44,12 @@ struct WorldSnap {
 
 class Snapshotter {
 public:
-    WorldSnap capture(modlib::Map *map) const {
+    WorldSnap capture(modlib::Level *map) const {
         WorldSnap snap;
 
         if (!map) return snap;
 
-        modlib::Vec2i sz = map->size();
+        modlib::Vec2i sz = map->getSize();
 
         snap.w = sz.x;
         snap.h = sz.y;
@@ -60,7 +61,7 @@ public:
 
         for (int y = 0; y < snap.h; ++y) {
             for (int x = 0; x < snap.w; ++x) {
-                modlib::Tile *tile = map->at(modlib::Vec2i{x, y});
+                modlib::Tile *tile = map->getTile(modlib::Vec2i{x, y});
                 const size_t idx = static_cast<size_t>(y * snap.w + x);
 
                 if (!tile) {
@@ -68,22 +69,29 @@ public:
                     continue;
                 }
 
-                snap.walkable[idx] = tile->type() != modlib::Tile::BasicType::Wall;
+                snap.walkable[idx] = tile->getType() != modlib::Tile::BasicTypes::WALL;
 
-                const std::vector<modlib::Unit *> &units = tile->units();
-
-                for (size_t i = 0; i < units.size(); ++i) {
-                    modlib::Unit *u = units[i];
-                    if (!u) continue;
+                const auto &entities = tile->getEntityList();
+                
+                for (auto &[id, entity] : entities) {
+                    if (!entity) continue;
 
                     UnitSnap us;
-                    us.x     = x;
-                    us.y     = y;
-                    us.hp    = u->hp();
-                    us.maxHp = u->maxHp();
-                    us.id    = u->id();
+                    us.x       = x;
+                    us.y       = y;
 
-                    snap.units.push_back(us);
+                    int hp = 100;
+                    int maxHp = 100;
+                    auto *health = dynamic_cast<EC::Stats::Health *>(entity);
+                    if (health) {
+                        hp = static_cast<int>(health->getCurrentHP());
+                        maxHp = static_cast<int>(health->getMaxHP());
+                    }
+                    us.hp      = hp; 
+                    us.maxHp   = maxHp;
+                    us.id      = entity->getID();
+
+                    snap.entities.push_back(us);
                 }
             }
         }
