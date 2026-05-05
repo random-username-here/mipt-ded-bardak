@@ -4,6 +4,7 @@ add_library(map MODULE
     Entity.cpp
     Tile.cpp
     Level.cpp
+    Loader.cpp
 )
 
 target_link_libraries(map PRIVATE modlib modlib-ifc binmsg)
