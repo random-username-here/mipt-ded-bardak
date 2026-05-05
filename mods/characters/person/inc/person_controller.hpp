@@ -1,5 +1,6 @@
 #pragma once
-#include "person_gfx.hpp"
+
+#include "person.hpp"
 
 inline RotationDir convertMoveToDir(int dx, int dy) {
     if (dx == 0 && dy == 0) return RotationDir::down; 
@@ -28,20 +29,19 @@ class PersonCtl {
 public:
     PersonCtl() = default;
 
-    PersonCtl(Map *map, PersonAssetPack *assetPack): 
+    PersonCtl(Map *map): 
         map_(map)
     {
         assert(map);
 
         auto sz = map_->size(); 
         assert(sz.x > 2 && sz.y > 2);
-        person_ = map_->spawn<PersonGfx>
+        person_ = map_->spawn<Person>
             (
             Vec2i {
                 1 + rand() % (sz.x - 2),
                 1 + rand() % (sz.y - 2)
-            },
-            assetPack
+            }
         );
     }
 

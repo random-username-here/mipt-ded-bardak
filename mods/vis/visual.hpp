@@ -270,7 +270,6 @@ public:
     {
         m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
         m_motion.to = m_motion.from;
-        std::cerr << "VisualUnit assetID: " << m_assetId << "\n";
     }
 
     size_t id() const { return m_id; }

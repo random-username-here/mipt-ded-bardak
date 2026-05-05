@@ -1,4 +1,5 @@
-#include "Map.hpp"
+#include <iostream>
+#include <optional>
 #include <cstdlib>
 #include <optional>
 
@@ -8,12 +9,7 @@
 #include "binmsg.hpp"
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
-#include "AssetManager.hpp"
 #include "AssetConfig.hpp"
-#include <cstdlib>
-#include <iostream>
-#include <optional>
-
 #include "person_manager.hpp"
 
 using namespace modlib;
@@ -21,8 +17,6 @@ using namespace modlib;
 class PersonModule : public BmServerModule {   
     Timer        *tm=nullptr;
     Map          *map=nullptr;
-    AssetManager *assetManager=nullptr;
-
     PersonManager manager;
 
 public:
@@ -33,12 +27,10 @@ public:
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
         map = mm->anyOfType<Map>();
-        assetManager = mm->anyOfType<AssetManager>();
         if (!tm) throw ModManager::Error("Timer module not found");
         if (!map) throw ModManager::Error("Map module not found");
-        if (!assetManager) throw ModManager::Error("AssetManager module not found");
 
-        manager.setModules(tm, map, assetManager);
+        manager.setModules(tm, map);
     }   
 
     void onDepsResolved(ModManager *mm) override {

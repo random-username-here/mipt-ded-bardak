@@ -14,6 +14,7 @@ enum class RotationDir {
 // Container 
 class Person : public Unit {
 public:
+    static const int ASSET_ID_STUB = 0;
     static const int MAX_HP = 200;
     static const int TYPE = 0;
     static const int TEAM_ID = 0;
@@ -50,6 +51,8 @@ public:
     void setWeight(const int weight) override {}
 
     Vec2i pos() const override { return pos_; }
+    AssetId assetId() const override { return ASSET_ID_STUB;}
+    
 
     void move(Vec2i to) override {
         Unit::move(to);
