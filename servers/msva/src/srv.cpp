@@ -101,13 +101,13 @@ void ServerImpl::m_processMessage(ClientImpl *cl, bmsg::RawMessage msg) {
         i->onMessage(cl, msg);
 }
 
-void ServerImpl::m_srvMessage(ClientImpl *cl, bmsg::RawMessage msg) {
+void ServerImpl::m_srvMessage(ClientImpl *, bmsg::RawMessage msg) {
     assert(msg.isCorrect());
-    // TODO
+    std::cerr << "ServerImpl::m_srvMessage is not implemented\n";
     return;
 }
 
-void ServerImpl::m_onConnect(ClientImpl *cl) {
+void ServerImpl::m_onConnect(ClientImpl * cl) {
     cl->send(bmsg::SV_srv_name {m_name});
     cl->send(bmsg::SV_srv_id {(uint32_t) cl->m_id});
     cl->send(bmsg::SV_srv_level { "player" });

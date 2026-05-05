@@ -5,4 +5,7 @@ local/
 
 .cache/
 
+#metadirs
+.vscode
+.DS_Store
 *.log

@@ -49,6 +49,7 @@ public:
 class Client : public modlib::BmClient {
 public:
     virtual sockaddr_in addr() const = 0;
+    virtual ~Client() = default;
 };
 
 };

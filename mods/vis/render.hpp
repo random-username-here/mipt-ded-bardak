@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <iostream>
+#include <cassert>
 
 #ifndef VIS_TILESET_PATH
 #define VIS_TILESET_PATH "mods/vis/tilesheet.png"
@@ -127,7 +129,10 @@ public:
 };
 
 class Renderer {
+    modlib::AssetManager * m_assetManager=nullptr;
 public:
+    explicit Renderer(modlib::AssetManager *assetManager) : m_assetManager(assetManager) { assert(m_assetManager); }
+
     void draw(const WorldSnap &snap, const VisualWorld &world, const Atlas &atlas, double now) {
         Camera cam;
         cam.fit(GetScreenWidth(), GetScreenHeight(), snap.w, snap.h);
@@ -138,10 +143,10 @@ public:
         std::snprintf(
             info,
             sizeof(info),
-            "%dx%d  units:%zu  bodies:%zu  tick:%llu",
+            "%dx%d  entities:%zu  bodies:%zu  tick:%llu",
             snap.w,
             snap.h,
-            world.units()  .size(),
+            world.entities()  .size(),
             world.corpses().size(),
             static_cast<unsigned long long>(snap.tick)
         );
@@ -161,9 +166,9 @@ public:
         drawTiles  (snap,            cam, atlas);
         drawCorpses(world.corpses(), cam, atlas);
 
-        const std::unordered_map<size_t, VisualUnit> &units = world.units();
+        const std::unordered_map<size_t, VisualUnit> &entities = world.entities();
 
-        for (auto unit : units) {
+        for (auto unit : entities) {
             drawUnit(unit.second, cam, atlas, now);
         }
 
@@ -287,6 +292,8 @@ private:
         Vector2 pos = cam.tileToScreen(rp.x, rp.y);
         pos.x += dv.x * nudge;
         pos.y += dv.y * nudge;
+
+        // std::cerr << "Current unit assetId: " << u.assetId() << "\n";
 
         if (atlas.loaded()) {
             const int row = attacking ? 2 : 1;

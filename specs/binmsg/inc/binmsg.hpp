@@ -18,42 +18,47 @@ namespace bmsg {
  * \brief Short string of 8 characters
  */
 union Char64 {
-    char as_chars[8];
     uint64_t as_u64;
+    char as_chars[8];
 
-    Char64() = default;
-    Char64(uint64_t v) :as_u64(v) {}
+    constexpr Char64() : as_u64(0) {}
+    constexpr Char64(uint64_t v) : as_u64(v) {}
 
-    Char64(const std::string_view &s) {
-        assert(s.size() <= 8);
-        as_u64 = 0;
-        memcpy(as_chars, s.data(), s.size());
+    constexpr Char64(std::string_view s) : as_chars{0,0,0,0,0,0,0,0} { 
+        if (s.size() > 8) { 
+            throw "s.size() should be <= 8"; 
+        }
+        
+        for (size_t i = 0; i < s.size(); ++i) {
+            as_chars[i] = s[i]; 
+        }
     }
 
-    Char64(const char *c) :Char64(std::string_view(c)) {}
+    constexpr Char64(const char* c) : Char64(std::string_view(c)) {}
 
-    Char64 &operator=(const std::string_view &s) {
-        (*this) = Char64(s);
-        return *this;
-    }
-
-    size_t size() const {
+    constexpr size_t size() const {
         size_t s = 0;
         while (s < 8 && as_chars[s] != '\0') ++s;
         return s;
     }
 
-    operator uint64_t() { return as_u64; }
-    operator std::string_view() { return std::string_view(as_chars, size()); }
+    constexpr Char64 &operator=(const std::string_view &s) {
+        *this = Char64(s);
+        return *this;
+    }
+
+    constexpr operator uint64_t() const { return as_u64; }
+    constexpr operator std::string_view() const { return std::string_view(as_chars, size()); }
 };
 
-inline bool operator==(Char64 c, std::string_view s) {
-    if (s.size() > 8) return false;
-    return strncmp(c.as_chars, s.data(), s.size()) == 0;
-}
-inline bool operator==(std::string_view s, Char64 c) { return c == s; }
-inline bool operator!=(Char64 c, std::string_view s) { return !(c == s); }
-inline bool operator!=(std::string_view s, Char64 c) { return !(c == s); }
+struct Char64Hasher {
+    size_t operator()(const bmsg::Char64& c) const {
+        return std::hash<uint64_t>{}(c.as_u64);
+    }
+};
+
+constexpr inline bool operator==(Char64 lhs, Char64 rhs) { return lhs.as_u64 == rhs.as_u64; }
+constexpr inline bool operator!=(Char64 lhs, Char64 rhs) { return !(lhs == rhs); }
 
 /** 
  * \brief Message ID type

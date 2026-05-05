@@ -15,10 +15,10 @@ public:
         friend class Entry;
 
     public:
-        SID (std::list<Callback>::iterator subscriptionIterator) : it(subscriptionIterator) {}
+        SID (typename std::list<Callback>::iterator subscriptionIterator) : it(subscriptionIterator) {}
 
     private:
-        std::list<Callback>::iterator it;
+        typename std::list<Callback>::iterator it;
     };
 
     SID subscribe (Callback callback)

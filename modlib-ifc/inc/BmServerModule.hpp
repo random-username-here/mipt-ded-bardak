@@ -39,6 +39,7 @@ public:
 
     /** Client's ID */
     virtual size_t id() const = 0;
+    virtual ~BmClient() = default;
 
     //virtual void kick() = 0;
     //virtual std::string_view username() = 0;
@@ -95,16 +96,16 @@ public:
     void setServer(BmServer *server) { m_server = server; }
 
     /** Server is starting, register prefixes. */
-    virtual void onSetup(BmServer *server) {};
+    virtual void onSetup(BmServer *) {};
 
     /** New client connected. */
-    virtual void onConnect(BmClient *client) {};
+    virtual void onConnect(BmClient *) {};
 
     /** Someone disconnected. */
-    virtual void onDisconnect(BmClient *client) {};
+    virtual void onDisconnect(BmClient *) {};
 
     /** That client sent that message. */
-    virtual void onMessage(BmClient *client, bmsg::RawMessage msg) {};
+    virtual void onMessage(BmClient *, bmsg::RawMessage) {};
 
     virtual ~BmServerModule() {};
 };

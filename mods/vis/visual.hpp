@@ -1,7 +1,7 @@
 #pragma once
 
 #include "snapshot.hpp"
-
+#include "AssetManager.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -242,6 +242,8 @@ class VisualUnit {
     Motion    m_motion;
     Timeline  m_attack;
 
+    modlib::AssetId m_assetId;
+
 public:
     VisualUnit()
         : m_id(0)
@@ -252,6 +254,7 @@ public:
         , m_dir(DIR_DOWN)
         , m_motion()
         , m_attack()
+        , m_assetId(0)
     {}
 
     explicit VisualUnit(const UnitSnap &u)
@@ -271,11 +274,13 @@ public:
     size_t id() const { return m_id; }
     int     x() const { return m_x;  }
     int     y() const { return m_y;  }
-
+    
     int    hp() const { return m_hp;    }
     int maxHp() const { return m_maxHp; }
 
     Direction dir() const { return m_dir; }
+    
+    modlib::AssetId assetId() const { return m_assetId; }
 
     bool attacking(double now) const {
         return m_attack.active(now);
@@ -299,6 +304,7 @@ public:
         m_hp    = u.hp;
         m_maxHp = u.maxHp;
 
+
         if (!old) {
             m_dir         = DIR_DOWN;
             m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
@@ -311,6 +317,7 @@ public:
         m_dir    = old->m_dir;
         m_motion = old->m_motion;
         m_attack = old->m_attack;
+
 
         const int dx = u.x - old->m_x;
         const int dy = u.y - old->m_y;
@@ -345,7 +352,7 @@ class VisualWorld {
     std::vector<SlashParticle> m_slashes;
 
 public:
-    const std::unordered_map<size_t, VisualUnit> &units() const { return m_units;   }
+    const std::unordered_map<size_t, VisualUnit> &entities() const { return m_units;   }
     const std::vector<Corpse>                  &corpses() const { return m_corpses; }
     const std::vector<SlashParticle>           &slashes() const { return m_slashes; }
 
@@ -366,8 +373,8 @@ public:
         std::unordered_set<size_t> present;
         std::vector<DamageEvent>   damage;
 
-        for (size_t i = 0; i < snap.units.size(); ++i) {
-            const UnitSnap &u = snap.units[i];
+        for (size_t i = 0; i < snap.entities.size(); ++i) {
+            const UnitSnap &u = snap.entities[i];
 
             if (u.hp <= 0) {
                 addCorpseOnce(u.x, u.y, u.id);
@@ -435,6 +442,8 @@ private:
             size_t bestId = 0;
             int bestScore = 999999;
             bool found    = false;
+
+            
 
             for (auto &unit : m_units) {
                 if (unit.first == d.targetId) continue;

@@ -1,10 +1,11 @@
 project(map)
 
-add_library(map MODULE main.cpp)
+add_library(map MODULE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+)
 
-target_link_libraries(map PRIVATE modlib modlib-ifc binmsg)
+target_link_libraries(map PRIVATE modlib modlib-ifc map-core binmsg)
 
-set_target_properties(map PROPERTIES OUTPUT_NAME "ida.bardak.map")
+set_target_properties(map PROPERTIES OUTPUT_NAME "dodo6b.bardak.map")
 set_target_properties(map PROPERTIES PREFIX "")
 set_target_properties(map PROPERTIES SUFFIX ".mod")
-
