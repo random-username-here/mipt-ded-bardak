@@ -32,7 +32,7 @@ namespace EC
         class Armor : virtual public Entity
         {
         public:
-            using AP = int32_t;
+            using AP = int;
 
             virtual float calculateResist (AP armor) const;
 
