@@ -103,7 +103,7 @@ public:
     Event<Entity::Type> EvEntityTypeNew;
     Event<Entity::Type> EvEntityTypeExpired;
 private:
-    ID      m_levelID;
+    ID m_levelID;
 
     std::vector       <std::vector<Tile>             > m_tileMap;
     std::unordered_map<            Tile::Type, size_t> m_tileTypes;
