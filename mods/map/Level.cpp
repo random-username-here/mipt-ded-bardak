@@ -1,4 +1,5 @@
 #include "Map.hpp"
+using namespace Map;
 
 
 Level::ID Level::getLevelID () const

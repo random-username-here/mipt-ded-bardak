@@ -1,1 +1,1 @@
-#include "ECbasis.hpp"
+#include "../inc/ECbasis.hpp"

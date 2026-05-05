@@ -1,27 +1,27 @@
-#include "ECbasis.hpp"
+#include "../inc/ECbasis.hpp"
 #include "random"
 
 
 using namespace EC;
 
-EntityBase::EntityBase ()
+Entity::Entity ()
 {
     m_id = rand ();
 }
 
-EntityBase::~EntityBase ()
+Entity::~Entity ()
 {
     EvEntityDeconstructed.emit ();
 }
 
-EntityBase::ID
-EntityBase::getID () const
+Entity::ID
+Entity::getID () const
 {
     return m_id;
 }
 
-EntityBase::Type
-EntityBase::getType () const
+Entity::Type
+Entity::getType () const
 {
-    return EntityBase::Type ("NONE");
+    return Entity::Type ("NONE");
 }

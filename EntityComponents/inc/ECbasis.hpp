@@ -6,15 +6,15 @@
 namespace EC
 {
     
-    class EntityBase
+    class Entity    // TODO: Rename
     {
     public:
 
         using ID = uint64_t;
         using Type = bmsg::Char64;
 
-        EntityBase  ();
-        ~EntityBase ();
+        Entity  ();
+        ~Entity ();
 
                 ID   getID   () const;
         virtual Type getType () const;
@@ -29,7 +29,7 @@ namespace EC
 
     namespace Stats
     {
-        class Health : virtual public EntityBase
+        class Health : virtual public Entity
         {
         public:
             using HP = size_t;
@@ -55,7 +55,7 @@ namespace EC
 
     namespace Actions
     {
-        class Combat : virtual public EntityBase
+        class Combat : virtual public Entity
         {
         public:
 

@@ -1,5 +1,6 @@
-#include "Map.hpp"
 #include <algorithm>
+#include "Map.hpp"
+using namespace Map;
 
 
 Tile::Tile (Level& level, Vec2D<> position, Type type) : m_level (level), m_position (position), m_type (type) 

@@ -14,11 +14,13 @@
 #include <unordered_map>
 
 // namespace modlib is forbidden here. DONT UNCOMMENT, ILL FIND U :)
+namespace Map
+{
 
 
 class Tile;
 
-class Entity : virtual public EC::EntityBase
+class Entity : virtual public EC::Entity
 {
 public:
     Entity (Tile* tile);
@@ -109,3 +111,6 @@ private:
     std::unordered_map<Entity::ID,   Entity*> m_entityList;
     std::unordered_map<Entity::Type, size_t > m_entityTypes;
 };
+
+
+}

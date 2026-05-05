@@ -1,4 +1,4 @@
-#include "ECbasis.hpp"
+#include "../inc/ECbasis.hpp"
 using namespace EC;
 
 Stats::Health::Health (

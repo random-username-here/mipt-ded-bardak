@@ -1,6 +1,7 @@
-#include "Map.hpp"
 #include <random>
 #include <stdexcept>
+#include "Map.hpp"
+using namespace Map;
 
 Entity::Entity (Tile* tile)
 {
