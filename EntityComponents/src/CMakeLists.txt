@@ -4,6 +4,7 @@ add_library(map MODULE
     EntityBase.cpp
     Group.cpp
     Health.cpp
+    Armor.cpp
 )
 
 target_link_libraries(map PRIVATE EntityComponents-ifc)

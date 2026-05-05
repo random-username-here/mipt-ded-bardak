@@ -29,6 +29,25 @@ namespace EC
 
     namespace Stats
     {
+        class Armor : virtual public Entity
+        {
+        public:
+            using AP = int32_t;
+
+            virtual float calculateResist (AP armor) const;
+
+            float setArmor  (AP armor);
+
+            AP    getArmor  () const;
+            float getResist () const;
+
+            Event<AP> EvArmorChanged;
+
+        private:
+            AP    m_armor;
+            float m_resistance;
+        };
+
         class Health : virtual public Entity
         {
         public:
