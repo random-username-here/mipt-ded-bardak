@@ -11,8 +11,7 @@
 #include <vector>
 #include <unordered_map>
 
-// namespace modlib is forbidden here. DONT UNCOMMENT, ILL FIND U :)
-
+namespace modlib {
 
 class Tile;
 
@@ -85,14 +84,14 @@ public:
     
                                          Tile               & getTile      (Vec2D<> position);
     const std::vector       <std::vector<Tile>             >& getTileMap   ();
-    const std::unordered_map<            Tile::Type, size_t>& getTileTypes ()                 const;
+    const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& getTileTypes ()                 const;
     
     Entity::ID                                      newEntity       (Entity* entity, Vec2D<>  position);
     Entity::ID                                      newEntity       (Entity* entity, Tile   & tile    );
     void                                         removeEntity       (Entity::ID id                    );
                              Entity*                 getEntity      (Entity::ID id                    );        // Please refrain from using this method for safety reasons
     const std::unordered_map<Entity::ID,   Entity*>& getEntityList  ();                                         // Please refrain from using this method for safety reasons
-    const std::unordered_map<Entity::Type, size_t >& getEntityTypes ()                                  const;
+    const std::unordered_map<Entity::Type, size_t, bmsg::Char64Hasher>& getEntityTypes ()                                  const;
 
     void loadLevel (std::string_view path2level);
 
@@ -110,9 +109,11 @@ public:
 private:
     ID      m_levelID;
 
-    std::vector       <std::vector<Tile>             > m_tileMap;
-    std::unordered_map<            Tile::Type, size_t> m_tileTypes;
+    std::vector<std::vector<Tile>             > m_tileMap;
+    std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher> m_tileTypes;
 
     std::unordered_map<Entity::ID,   Entity*> m_entityList;
-    std::unordered_map<Entity::Type, size_t > m_entityTypes;
+    std::unordered_map<Entity::Type, size_t, bmsg::Char64Hasher> m_entityTypes;
 };
+
+} // namespace modlib

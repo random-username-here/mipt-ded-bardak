@@ -2,6 +2,8 @@
 #include <random>
 #include <stdexcept>
 
+namespace modlib {
+
 Entity::Entity (Entity::Type type, Tile* tile) : m_type (type)
 {
     m_ID = rand ();
@@ -73,3 +75,5 @@ void Entity::setPosition (Vec2D<> position)
         throw std::runtime_error ("Entity must be added to the Level");
     }
 }
+
+} // namespace modlib

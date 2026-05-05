@@ -26,15 +26,15 @@ class ServerImpl;
 
 class ClientImpl : public Client {
     friend class ServerImpl;
-    int m_fd;
     std::string m_partialMsg;
+    int m_fd;
     ServerImpl *m_server;
     size_t m_id;
     sockaddr_in m_addr;
     size_t m_seq = 1;
 
 
-    ClientImpl(ServerImpl *s, int fd, size_t id, sockaddr_in addr) :m_server(s), m_fd(fd), m_id(id), m_addr(addr) {}
+    ClientImpl(ServerImpl *s, int fd, size_t id, sockaddr_in addr) : m_fd(fd), m_server(s),  m_id(id), m_addr(addr) {}
 
 public:
 

@@ -30,7 +30,9 @@ union Char64 {
         memcpy(as_chars, s.data(), s.size());
     }
 
-    Char64(const char *c) :Char64(std::string_view(c)) {}
+    Char64(const char *c) : Char64(std::string_view(c)) {
+        assert(std::strlen(c) < 8);
+    }
 
     Char64 &operator=(const std::string_view &s) {
         (*this) = Char64(s);
@@ -47,13 +49,14 @@ union Char64 {
     operator std::string_view() { return std::string_view(as_chars, size()); }
 };
 
-inline bool operator==(Char64 c, std::string_view s) {
-    if (s.size() > 8) return false;
-    return strncmp(c.as_chars, s.data(), s.size()) == 0;
-}
-inline bool operator==(std::string_view s, Char64 c) { return c == s; }
-inline bool operator!=(Char64 c, std::string_view s) { return !(c == s); }
-inline bool operator!=(std::string_view s, Char64 c) { return !(c == s); }
+struct Char64Hasher {
+    size_t operator()(const bmsg::Char64& c) const {
+        return std::hash<uint64_t>{}(c.as_u64);
+    }
+};
+
+inline bool operator==(Char64 lhs, Char64 rhs) { return lhs.as_u64 == rhs.as_u64; }
+inline bool operator!=(Char64 lhs, Char64 rhs) { return !(lhs == rhs); }
 
 /** 
  * \brief Message ID type

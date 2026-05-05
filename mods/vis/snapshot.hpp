@@ -15,7 +15,6 @@ struct UnitSnap {
     int hp;
     int maxHp;
     size_t id;
-    modlib::AssetId assetId;
 
     UnitSnap()
         : x(0)
@@ -23,7 +22,6 @@ struct UnitSnap {
         , hp(0)
         , maxHp(0)
         , id(0)
-        , assetId(0)
     {}
 };
 

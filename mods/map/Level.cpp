@@ -1,5 +1,6 @@
 #include "Map.hpp"
 
+namespace modlib {
 
 Level::ID Level::getLevelID () const
 {
@@ -22,7 +23,7 @@ const std::vector<std::vector<Tile>>& Level::getTileMap ()
     return m_tileMap;
 }
 
-const std::unordered_map<Tile::Type, size_t>& Level::getTileTypes () const
+const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& Level::getTileTypes () const
 {
     return m_tileTypes;
 }
@@ -58,7 +59,7 @@ Entity::ID Level::newEntity (Entity* entity, Tile& tile)
 
 void Level::removeEntity (Entity::ID id)
 {
-    if (m_entityList.contains (id) == false)
+    if (m_entityList.find(id) == m_entityList.end())
     {
         return;
     }
@@ -88,7 +89,9 @@ const std::unordered_map<Entity::ID, Entity*>& Level::getEntityList ()
     return m_entityList;
 }
 
-const std::unordered_map<Entity::Type, size_t>& Level::getEntityTypes () const
+const std::unordered_map<Entity::Type, size_t, bmsg::Char64Hasher>& Level::getEntityTypes () const
 {
     return m_entityTypes;
 }
+
+}; // namepsace modlib

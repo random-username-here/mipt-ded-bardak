@@ -1,6 +1,7 @@
 #include "Map.hpp"
 #include <algorithm>
 
+namespace modlib {
 
 Tile::Tile (Level& level, Vec2D<> position, Type type) : m_level (level), m_position (position), m_type (type) 
 {
@@ -54,7 +55,7 @@ const std::unordered_map<Entity::ID, Entity*>& Tile::getEntityList () const
 
 void Tile::removeEntity (Entity::ID id)
 {
-    if (m_EntityList.contains (id))
+    if (m_EntityList.find(id) != m_EntityList.end())
     {
         m_EntityList[id]->setTile (nullptr);
         m_EntityList.erase (id);
@@ -69,3 +70,5 @@ void Tile::addEntity (Entity* entity)
 
     EvEntityHasCome.emit (entity->getID ());
 }
+
+}; // namespace modlib
