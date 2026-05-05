@@ -1,15 +1,15 @@
 project(EntityComponents)
 
-add_library(map MODULE 
+add_library(EntityComponents MODULE 
     EntityBase.cpp
     Group.cpp
     Health.cpp
     Armor.cpp
 )
 
-target_link_libraries(map PRIVATE EntityComponents-ifc)
+target_link_libraries(EntityComponents PRIVATE EntityComponents-ifc)
 
-set_target_properties(map PROPERTIES OUTPUT_NAME "ida.bardak.map")
-set_target_properties(map PROPERTIES PREFIX "")
-set_target_properties(map PROPERTIES SUFFIX ".mod")
+set_target_properties(EntityComponents PROPERTIES OUTPUT_NAME "dodo6be.EC")
+set_target_properties(EntityComponents PROPERTIES PREFIX "")
+set_target_properties(EntityComponents PROPERTIES SUFFIX ".mod")
 
