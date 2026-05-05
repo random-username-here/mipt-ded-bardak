@@ -1,100 +1,118 @@
 #pragma once
+
+#include "Vec2.hpp"
 #include "modlib_mod.hpp"
-#include "AssetManager.hpp"
+#include "binmsg.hpp"
+#include "Event.hpp"
+
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
-namespace modlib {
+// namespace modlib is forbidden here. DONT UNCOMMENT, ILL FIND U :)
 
-struct Vec2i { int x = 0, y = 0; };
 
-class Map;
 class Tile;
 
-class Unit {
+class Entity
+{
 public:
-    virtual Map *map() = 0;
-    virtual Tile *tile() = 0; 
+    using ID = uint64_t;
+    using Type = bmsg::Char64;
 
-    virtual uint64_t id() = 0;
-    virtual uint64_t type() const = 0;
-    virtual uint64_t teamId() const = 0;
+    Entity (Type type, Tile* tile);
 
-    virtual int hp() const = 0;
-    virtual int maxHp() const = 0;
-    virtual void takeDamage(int d) = 0;
+    ~Entity ();
+
+
+            ID    getID   () const;
+    virtual Type  getType () const;
     
-    virtual void pickUp() = 0;
-    virtual int weight() const = 0;
-    virtual void setWeight(const int weight) = 0;
+    Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
+    Vec2D<>  getPosition () const;
+    void     setTile     (Tile*   tile);
+    void     setPosition (Vec2D<> position);
 
-    virtual Vec2i pos() const = 0;
+    Event<Vec2D<>> EvEntityMoved;
 
-    // Used by server-side visualization to fetch bytes from `AssetManager`.
-    virtual AssetId assetId() const = 0;
-
-    virtual void move(Vec2i to);
-    virtual void destroy();
-
-    virtual ~Unit() = default;
+private:
+    Type  m_type;
+    ID    m_ID;
+    Tile* m_tile;
 };
 
-class Tile {
+class Level;
+
+class Tile
+{
 public:
-    enum class BasicType : uint64_t {
-        Ground = 0,
-        Wall = 1
-    };
+    using Type = bmsg::Char64;
 
-    virtual Vec2i pos() const = 0;
-    virtual const std::vector<Unit*> &units() = 0;
-    virtual uint64_t type() const = 0;
+     Tile (Level& level, Vec2D<> position, Type type);
+    ~Tile ();
 
-    ~Tile() = default;
+    Level&   getLevel () const;
+    Vec2D<>  getPos   () const;
+    Type     getType  () const;
+    void     setType  (Type type);
+
+    void    addEntity (Entity*     entity);
+    void removeEntity (Entity::ID  id);
+
+    const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;                                      // Please refrain from using this method for safety reasons
+
+    Event<Type>       EvTileTypeChanged;
+    Event<Entity::ID> EvEntityHasCome;
+    Event<Entity::ID> EvEntityHasGone;
+private:
+    Level&  m_level;
+    Vec2D<> m_position;
+    Type    m_type;
+
+    std::unordered_map<Entity::ID, Entity*> m_EntityList;
 };
 
-class Map : public Mod {
-    friend class Unit;
-    virtual Unit *addUnit(Vec2i pos, std::unique_ptr<Unit> &&u) = 0;
-    virtual void moveUnit(Unit *u, Vec2i pos) = 0;
-    virtual void removeUnit(Unit *u) = 0;
-    uint64_t lastId = 0;
+class Level : public Mod 
+{
+    friend void Tile::setType (Tile::Type type);
 public:
-    virtual ~Map() = default;
+    using ID = uint64_t;
 
-    template<typename T, typename ...Args>
-    T* spawn(Vec2i pos, Args... args) {
-        return static_cast<T*>(addUnit(pos, std::make_unique<T>(this, pos, lastId++, args...)));
-    }
+    ID      getLevelID () const;
+    Vec2D<> getSize    () const;
+    
+                                         Tile               & getTile      (Vec2D<> position);
+    const std::vector       <std::vector<Tile>             >& getTileMap   ();
+    const std::unordered_map<            Tile::Type, size_t>& getTileTypes ()                 const;
+    
+    Entity::ID                                      newEntity       (Entity* entity, Vec2D<>  position);
+    Entity::ID                                      newEntity       (Entity* entity, Tile   & tile    );
+    void                                         removeEntity       (Entity::ID id                    );
+                             Entity*                 getEntity      (Entity::ID id                    );        // Please refrain from using this method for safety reasons
+    const std::unordered_map<Entity::ID,   Entity*>& getEntityList  ();                                         // Please refrain from using this method for safety reasons
+    const std::unordered_map<Entity::Type, size_t >& getEntityTypes ()                                  const;
 
-    virtual void setTileType(Vec2i pos, const uint64_t type) = 0;
-    virtual bool loadFromFile(const std::string& path) = 0;
-
-    virtual Unit *byId(uint64_t id) = 0;
-
-    virtual Vec2i size() const = 0;
-    virtual Tile *at(Vec2i pos) = 0;
-};
+    void loadLevel (std::string_view path2level);
 
 
-inline void Unit::move(Vec2i to) { map()->moveUnit(this, to); }
-inline void Unit::destroy() { map()->removeUnit(this); }
+    Event<>             EvLevelLoaded;
 
-inline bool operator==(uint64_t lhs, modlib::Tile::BasicType rhs) {
-    return lhs == static_cast<uint64_t>(rhs);
-}
+    Event<Tile::Type>   EvTileTypeNew;
+    Event<Tile::Type>   EvTileTypeExpired;
 
-inline bool operator==(modlib::Tile::BasicType lhs, uint64_t rhs) {
-    return static_cast<uint64_t>(lhs) == rhs;
-}
+    Event<Entity::ID>   EvEntitySpawned;
+    Event<Entity*>      EvEntityDespawned;
 
-inline bool operator!=(uint64_t lhs, modlib::Tile::BasicType rhs) {
-    return !(lhs == rhs);
-}
+    Event<Entity::Type> EvEntityTypeNew;
+    Event<Entity::Type> EvEntityTypeExpired;
+private:
+    ID      m_levelID;
 
-inline bool operator!=(modlib::Tile::BasicType lhs, uint64_t rhs) {
-    return !(lhs == rhs);
-}
+    std::vector       <std::vector<Tile>             > m_tileMap;
+    std::unordered_map<            Tile::Type, size_t> m_tileTypes;
 
+    std::unordered_map<Entity::ID,   Entity*> m_entityList;
+    std::unordered_map<Entity::Type, size_t > m_entityTypes;
 };

@@ -6,3 +6,7 @@ local/
 .cache/
 
 *.log
+
+#metadirs
+.vscode/
+.DS_Store/
