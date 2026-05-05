@@ -1,8 +1,7 @@
-#include "../inc/ECbasis.hpp"
 #include "random"
-
-
+#include "../inc/ECbasis.hpp"
 using namespace EC;
+
 
 Entity::Entity ()
 {

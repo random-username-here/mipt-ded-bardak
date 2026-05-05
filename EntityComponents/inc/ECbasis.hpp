@@ -6,7 +6,7 @@
 namespace EC
 {
     
-    class Entity    // TODO: Rename
+    class Entity
     {
     public:
 
@@ -53,14 +53,21 @@ namespace EC
         };
     }
 
-    namespace Actions
+    namespace Social
     {
-        class Combat : virtual public Entity
+        class Group : virtual public Entity
         {
         public:
-
-        private:
+            using GID = uint64_t;
             
+            void setGroupID (GID          gid);
+            void setGroupID (bmsg::Char64 group);
+
+            GID  getGroupID () const;
+
+            Event<> EvGroupChanged;
+        private:
+            GID m_groupID = 0;
         };
     }
 }
