@@ -19,6 +19,7 @@ else()
 endif()
 
 
+add_subdirectory(boilerplates)
 add_subdirectory(modlib)
 add_subdirectory(specs/binmsg)
 add_subdirectory(modlib-ifc)
