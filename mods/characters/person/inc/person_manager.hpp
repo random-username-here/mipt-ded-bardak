@@ -79,7 +79,7 @@ public:
                     if (tile->type() == modlib::Tile::BasicType::Wall)
                         cl->send(bmsg::SV_person_wall { x, y });
 
-                    for (auto i : tile->units()) {
+                    for (auto i : tile->entities()) {
                         if (i != ps.person())
                             cl->send(bmsg::SV_person_sees { x, y, (uint32_t)i->id() });
                     }

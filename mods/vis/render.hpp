@@ -143,10 +143,10 @@ public:
         std::snprintf(
             info,
             sizeof(info),
-            "%dx%d  units:%zu  bodies:%zu  tick:%llu",
+            "%dx%d  entities:%zu  bodies:%zu  tick:%llu",
             snap.w,
             snap.h,
-            world.units()  .size(),
+            world.entities()  .size(),
             world.corpses().size(),
             static_cast<unsigned long long>(snap.tick)
         );
@@ -166,9 +166,9 @@ public:
         drawTiles  (snap,            cam, atlas);
         drawCorpses(world.corpses(), cam, atlas);
 
-        const std::unordered_map<size_t, VisualUnit> &units = world.units();
+        const std::unordered_map<size_t, VisualUnit> &entities = world.entities();
 
-        for (auto unit : units) {
+        for (auto unit : entities) {
             drawUnit(unit.second, cam, atlas, now);
         }
 

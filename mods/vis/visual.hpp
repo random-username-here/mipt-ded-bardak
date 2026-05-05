@@ -354,7 +354,7 @@ class VisualWorld {
     std::vector<SlashParticle> m_slashes;
 
 public:
-    const std::unordered_map<size_t, VisualUnit> &units() const { return m_units;   }
+    const std::unordered_map<size_t, VisualUnit> &entities() const { return m_units;   }
     const std::vector<Corpse>                  &corpses() const { return m_corpses; }
     const std::vector<SlashParticle>           &slashes() const { return m_slashes; }
 
@@ -375,8 +375,8 @@ public:
         std::unordered_set<size_t> present;
         std::vector<DamageEvent>   damage;
 
-        for (size_t i = 0; i < snap.units.size(); ++i) {
-            const UnitSnap &u = snap.units[i];
+        for (size_t i = 0; i < snap.entities.size(); ++i) {
+            const UnitSnap &u = snap.entities[i];
 
             if (u.hp <= 0) {
                 addCorpseOnce(u.x, u.y, u.id);

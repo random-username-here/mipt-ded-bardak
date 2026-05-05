@@ -185,7 +185,7 @@ private:
                 if (tile->type() == modlib::Tile::BasicType::Wall) {
                     client->send(bmsg::SV_pacman_wall { pos.x, pos.y });
                 }
-                for (auto* unit : tile->units()) {
+                for (auto* unit : tile->entities()) {
                     if (unit != pacman) {
                         client->send(bmsg::SV_pacman_sees { pos.x, pos.y, static_cast<uint32_t>(unit->id()) });
                     }

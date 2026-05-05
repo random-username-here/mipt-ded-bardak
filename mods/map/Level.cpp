@@ -7,15 +7,23 @@ Level::ID Level::getLevelID () const
     return m_levelID;
 }
 
-Vec2D<> Level::getSize () const
+Vec2i Level::getSize () const
 {
     return Vec2D<> (m_tileMap.size (), m_tileMap[0].size ());
 }
 
 
-Tile& Level::getTile (Vec2D<> position)
+Tile *Level::getTile(Vec2i position)
 {
-    return m_tileMap[position.m_x][position.m_y]; 
+    Vec2i size = getSize();
+
+    if (position.x < 0 || position.x >= size.x || 
+        position.y < 0 || position.y >= size.y) 
+    {
+        return nullptr;
+    }
+
+    return &m_tileMap[position.x][position.y];
 }
 
 const std::vector<std::vector<Tile>>& Level::getTileMap ()
@@ -29,7 +37,7 @@ const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& Level::getTile
 }
 
 
-Entity::ID Level::newEntity (Entity* entity, Vec2D<> position)
+Entity::ID Level::newEntity (Entity* entity, Vec2i position)
 {
     m_entityList [entity->getID   ()] = entity;
 
@@ -39,7 +47,7 @@ Entity::ID Level::newEntity (Entity* entity, Vec2D<> position)
         EvEntityTypeNew.emit (entity->getType ());
     }
 
-    m_tileMap[position.m_x][position.m_y].addEntity (entity);
+    m_tileMap[position.x][position.y].addEntity (entity);
     EvEntitySpawned.emit (entity->getID ());
 }
 

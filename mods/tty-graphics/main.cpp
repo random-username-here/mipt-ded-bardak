@@ -103,7 +103,7 @@ class TTYgraph : public BmServerModule {
             for (int j = 0; j < m_map->size().x; ++j) {
                 const char *clr = "", *chr = "?";
                 auto tile = m_map->at({j, i});
-                if (!tile->units().empty())
+                if (!tile->entities().empty())
                     clr = ESC_RED, chr = "@";
                 else if (tile->type() == modlib::Tile::BasicType::Wall)
                     clr = ESC_RST, chr = "#";

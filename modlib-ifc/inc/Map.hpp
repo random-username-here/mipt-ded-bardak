@@ -27,7 +27,7 @@ public:
 
 
             ID    getID   () const;
-    virtual Type  getType () const;
+            Type  getType () const;
     
     Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
     Vec2D<>  getPosition () const;
@@ -48,6 +48,11 @@ class Tile
 {
 public:
     using Type = bmsg::Char64;
+    
+    struct BasicTypes {
+       static const inline Type WALL = Type("wall");
+       static const inline Type EMPTY = Type("empty");    
+    };
 
      Tile (Level& level, Vec2D<> position, Type type);
     ~Tile ();
@@ -73,16 +78,18 @@ private:
     std::unordered_map<Entity::ID, Entity*> m_EntityList;
 };
 
+
+
 class Level : public Mod 
 {
     friend void Tile::setType (Tile::Type type);
 public:
     using ID = uint64_t;
 
-    ID      getLevelID () const;
-    Vec2D<> getSize    () const;
+    ID    getLevelID () const;
+    Vec2i getSize    () const;
     
-                                         Tile               & getTile      (Vec2D<> position);
+                                         Tile               * getTile      (Vec2i position);
     const std::vector       <std::vector<Tile>             >& getTileMap   ();
     const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& getTileTypes ()                 const;
     
