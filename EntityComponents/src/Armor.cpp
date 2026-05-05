@@ -3,13 +3,15 @@
 using namespace EC;
 
 
-float Stats::Armor::calculateResist (AP armor) const
+float
+Stats::Armor::calculateResist (AP armor) const
 {
     float armorCoeff = .06 * armor;
     return (1 - armorCoeff) / (1 + abs (armorCoeff));
 }
 
-float Stats::Armor::setArmor (AP armor)
+float
+Stats::Armor::setArmor (AP armor)
 {
     AP dif = armor - m_armor;
     
@@ -21,12 +23,14 @@ float Stats::Armor::setArmor (AP armor)
     return m_resistance;
 }
 
-float Stats::Armor::getResist () const
+float
+Stats::Armor::getResist () const
 {
     return m_resistance;
 }
 
-Stats::Armor::AP Stats::Armor::getArmor () const
+Stats::Armor::AP
+Stats::Armor::getArmor () const
 {
     return m_armor;
 }
