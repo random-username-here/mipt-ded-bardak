@@ -27,7 +27,8 @@ public:
 
     ~Entity ();
     
-    Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
+    /* Please refrain from using this method for safety reasons */
+    Tile*    getTile     () const;
     Vec2D<>  getPosition () const;
     void     setTile     (Tile*   tile);
     void     setPosition (Vec2D<> position);
@@ -56,7 +57,8 @@ public:
     void    addEntity (Entity*     entity);
     void removeEntity (Entity::ID  id);
 
-    const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;                                      // Please refrain from using this method for safety reasons
+    /* Please refrain from using this method for safety reasons */
+    const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;
 
     Event<Type>       EvTileTypeChanged;
     Event<Entity::ID> EvEntityHasCome;
@@ -85,9 +87,13 @@ public:
     Entity::ID                                      newEntity       (Entity* entity, Vec2D<>  position);
     Entity::ID                                      newEntity       (Entity* entity, Tile   & tile    );
     void                                         removeEntity       (Entity::ID id                    );
-                             Entity*                 getEntity      (Entity::ID id                    );        // Please refrain from using this method for safety reasons
-    const std::unordered_map<Entity::ID,   Entity*>& getEntityList  ();                                         // Please refrain from using this method for safety reasons
-    const std::unordered_map<Entity::Type, size_t >& getEntityTypes ()                                  const;
+
+    /* Please refrain from using this method for safety reasons */
+    Entity* getEntity(Entity::ID id);
+
+    /* Please refrain from using this method for safety reasons */
+    const std::unordered_map<Entity::ID,   Entity*>& getEntityList  ();
+    const std::unordered_map<Entity::Type, size_t >& getEntityTypes () const;
 
     void loadLevel (std::string_view path2level);
 
