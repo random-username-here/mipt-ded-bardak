@@ -65,7 +65,7 @@ void Entity::setPosition (Vec2D<> position)
 
         m_tile->removeEntity (m_ID);
 
-        m_tile = &(m_tile->getLevel ().getTile (position));
+        m_tile = m_tile->getLevel().getTile(position);
         m_tile->addEntity (this);
 
         EvEntityMoved.emit (m_tile->getPos () - oldPosition);

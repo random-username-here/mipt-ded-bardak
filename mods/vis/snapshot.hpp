@@ -79,10 +79,9 @@ public:
                     UnitSnap us;
                     us.x       = x;
                     us.y       = y;
-                    us.hp      = entity->hp();
-                    us.maxHp   = entity->maxHp();
-                    us.id      = entity->id();
-                    us.assetId = entity->assetId();
+                    us.hp      = 100; // entity->hp(); FIXME!!!
+                    us.maxHp   = 100; // entity->maxHp();
+                    us.id      = entity->getID();
 
                     snap.entities.push_back(us);
                 }

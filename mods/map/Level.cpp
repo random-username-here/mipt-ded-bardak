@@ -49,6 +49,8 @@ Entity::ID Level::newEntity (Entity* entity, Vec2i position)
 
     m_tileMap[position.x][position.y].addEntity (entity);
     EvEntitySpawned.emit (entity->getID ());
+
+    return entity->getID();
 }
 
 Entity::ID Level::newEntity (Entity* entity, Tile& tile)
@@ -63,6 +65,8 @@ Entity::ID Level::newEntity (Entity* entity, Tile& tile)
 
     tile.addEntity (entity);
     EvEntitySpawned.emit (entity->getID ());
+
+    return entity->getID();
 }
 
 void Level::removeEntity (Entity::ID id)
