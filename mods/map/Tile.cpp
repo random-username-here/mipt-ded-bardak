@@ -1,4 +1,3 @@
-#include <algorithm>
 #include "Map.hpp"
 using namespace Map;
 
@@ -55,7 +54,7 @@ const std::unordered_map<Entity::ID, Entity*>& Tile::getEntityList () const
 
 void Tile::removeEntity (Entity::ID id)
 {
-    if (m_EntityList.contains (id))
+    if (m_EntityList.find (id) != m_EntityList.end ())
     {
         m_EntityList[id]->setTile (nullptr);
         m_EntityList.erase (id);
