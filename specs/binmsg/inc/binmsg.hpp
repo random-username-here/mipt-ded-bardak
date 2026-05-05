@@ -21,8 +21,8 @@ union Char64 {
     char as_chars[8];
     uint64_t as_u64;
 
-    Char64() = default;
-    Char64(uint64_t v) :as_u64(v) {}
+    constexpr Char64() :as_u64(0) {}
+    constexpr Char64(uint64_t v) :as_u64(v) {}
 
     Char64(const std::string_view &s) {
         assert(s.size() <= 8);
@@ -43,17 +43,40 @@ union Char64 {
         return s;
     }
 
-    operator uint64_t() { return as_u64; }
+    constexpr operator uint64_t() { return as_u64; }
     operator std::string_view() { return std::string_view(as_chars, size()); }
 };
 
+inline bool operator==(Char64 a, Char64 b) {
+    return a.as_u64 == b.as_u64;
+}
+
+inline bool operator!=(Char64 a, Char64 b) {
+    return !(a == b);
+}
+
 inline bool operator==(Char64 c, std::string_view s) {
-    if (s.size() > 8) return false;
+    if (s.size() != c.size()) return false;
     return strncmp(c.as_chars, s.data(), s.size()) == 0;
 }
 inline bool operator==(std::string_view s, Char64 c) { return c == s; }
 inline bool operator!=(Char64 c, std::string_view s) { return !(c == s); }
 inline bool operator!=(std::string_view s, Char64 c) { return !(c == s); }
+
+}
+
+namespace std {
+
+template<>
+struct hash<bmsg::Char64> {
+    size_t operator()(const bmsg::Char64 &value) const noexcept {
+        return std::hash<uint64_t>{}(value.as_u64);
+    }
+};
+
+} // namespace std
+
+namespace bmsg {
 
 /** 
  * \brief Message ID type
