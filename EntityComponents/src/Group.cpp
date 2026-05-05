@@ -1,4 +1,4 @@
-#include "../inc/ECbasis.hpp"
+#include "ECbasis.hpp"
 using namespace EC;
 
 
