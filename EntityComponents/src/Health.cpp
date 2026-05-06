@@ -29,14 +29,14 @@ Stats::Health::setMaxHP (
     if (m_currentHP > maxHP)
     {
         HP dmg = m_currentHP - maxHP;
-        inflictDmg (dmg);
+        reduceHP (dmg);
     }
 
     m_maxHP = maxHP;
 }
 
 Stats::Health::HP
-Stats::Health::inflictDmg (
+Stats::Health::reduceHP (
     Stats::Health::HP damage
 )
 {

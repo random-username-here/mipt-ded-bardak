@@ -1,7 +1,10 @@
 #pragma once
 
+#include <unordered_map>
+#include <memory>
 #include "binmsg.hpp"
 #include "Event.hpp"
+#include "Map.hpp"
 
 namespace EC
 {
@@ -29,7 +32,7 @@ namespace EC
 
     namespace Stats
     {
-        class Armor : virtual public Entity
+        class Armor
         {
         public:
             using AP = int;
@@ -48,7 +51,7 @@ namespace EC
             float m_resistance;
         };
 
-        class Health : virtual public Entity
+        class Health
         {
         public:
             using HP = size_t;
@@ -58,9 +61,9 @@ namespace EC
             HP getCurrentHP () const;
             HP getMaxHP     () const;
 
-            void setMaxHP   (HP maxHP);
-            HP   inflictDmg (HP damage);
-            HP   heal       (HP healed);
+            void setMaxHP (HP maxHP);
+            HP   reduceHP (HP damage);
+            HP   heal     (HP healed);
 
             Event<HP> EvDamaged;
             Event<HP> EvHealed;
@@ -72,9 +75,80 @@ namespace EC
         };
     }
 
+    namespace Items
+    {
+        using Type = bmsg::Char64;
+
+        class Item
+        {
+        public:
+            virtual Type   getType      () const = 0;
+            virtual size_t getStackSize () const = 0;
+        };
+
+        class DroppedItem
+        : public Map::Entity
+        {
+            DroppedItem (std::unique_ptr<Item> item, Map::Tile* tile);
+
+            std::unique_ptr<Item> pickup ();
+
+            const Item* getBindedItem () const;
+        private:
+            std::unique_ptr<Item> m_item;
+        };
+
+
+        class Droppable
+        {
+        public:
+            DroppedItem* drop (Map::Tile* where);
+
+            Event<DroppedItem*> EvDropped;
+        };
+
+        class Durability
+        {
+        public:
+            size_t getDurability (                 ) const;
+            void   setDurability (size_t durability);
+
+            Event<size_t>  EvRepaired;
+            Event<>        EvBroken;
+        private:
+            size_t m_durability;
+        };
+
+        template<typename RV>
+        class Interactive
+        {
+        public:
+            virtual RV useOn (Entity* target) = 0;
+
+            Event<Entity*> EvUsed;
+        };
+
+        class Inventory
+        {
+        public:
+            void    addItem (Item* item);
+            void removeItem (std::unordered_map<Item, size_t>::iterator iterator);
+            void removeItem (Type                                       type);  // O(N)
+
+            Event<Item&> EvAddedItem;
+            Event<Item&> EvRemovedItem;
+
+            const std::unordered_map<Item, size_t>& getInventory () const;
+        private:
+                  std::unordered_map<Item, size_t>  m_inventory;
+        };
+
+        
+    }
+
     namespace Social
     {
-        class Group : virtual public Entity
+        class Group
         {
         public:
             using GID = uint64_t;
