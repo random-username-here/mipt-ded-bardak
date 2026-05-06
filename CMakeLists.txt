@@ -18,6 +18,13 @@ else()
     )
 endif()
 
+option(BUILD_GRAPHICS "Build graphical modules" ON)
+
+if(BUILD_GRAPHICS)
+    add_subdirectory(mods/vis)
+    add_subdirectory(mods/tty-graphics)
+endif()
+
 
 add_subdirectory(modlib)
 add_subdirectory(specs/binmsg)
@@ -28,6 +35,4 @@ add_subdirectory(mods/characters)
 add_subdirectory(mods/role_manager)
 add_subdirectory(mods/timer)
 add_subdirectory(mods/map)
-add_subdirectory(mods/vis)
-add_subdirectory(mods/tty-graphics)
 add_subdirectory(clients/random)

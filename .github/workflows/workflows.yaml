@@ -19,7 +19,10 @@ jobs:
           sudo apt-get install -y build-essential cmake libinih-dev
       - name: build
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake -S . -B build 
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} 
+          -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          -DBUILD_GRAPHICS=OFF
           cmake --build build
   tests:
     needs: build-cmake
@@ -41,7 +44,10 @@ jobs:
           sudo apt-get install -y build-essential cmake libinih-dev
       - name: build
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake -S . -B build 
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} 
+          -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          -DBUILD_GRAPHICS=OFF
           cmake --build build
       - name: move_mod_dirs
         run: |
