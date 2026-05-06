@@ -69,8 +69,8 @@ jobs:
         run: |
           mkdir ./CItest
           cp -r ./build/* ./CItest
-          rm -r ./CItest/mods/tty-graphics
-          rm -r ./CItest/mods/vis
+          rm -r -f ./CItest/mods/tty-graphics
+          rm -r -f ./CItest/mods/vis
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
