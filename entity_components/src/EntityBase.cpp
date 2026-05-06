@@ -2,8 +2,7 @@
 #include "ECbasis.hpp"
 using namespace EC;
 
-
-Entity::Entity (Type type): m_id(rand()), m_type(type) {};
+Entity::Entity (Type type): m_id (rand ()), m_type(type) {};
 
 Entity::~Entity ()
 {
@@ -19,5 +18,5 @@ Entity::getID () const
 Entity::Type
 Entity::getType () const
 {
-    return Entity::Type ("NONE");
+    return m_type;
 }

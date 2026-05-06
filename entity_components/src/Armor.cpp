@@ -1,7 +1,10 @@
 #include <cmath>
 #include "ECbasis.hpp"
+
 using namespace EC;
 
+Stats::Armor::Armor (AP armor, AP resistance)
+    : m_armor (armor), m_resistance (resistance) {}
 
 float
 Stats::Armor::calculateResist (AP armor) const
@@ -14,7 +17,7 @@ float
 Stats::Armor::setArmor (AP armor)
 {
     AP dif = armor - m_armor;
-    
+
     m_armor      = armor;
     m_resistance = calculateResist (m_armor);
 
