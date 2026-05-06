@@ -56,7 +56,7 @@ class TTYgraph : public BmServerModule {
         h = wsz.ws_row;
         std::cout << "\x1b[2J"; // clear screen
     }
-    
+
     void frameEnd() {
     }
 
