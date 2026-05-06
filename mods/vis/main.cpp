@@ -10,6 +10,7 @@
 #include <raylib.h>
 
 #include <atomic>
+#include <algorithm>
 #include <mutex>
 #include <string_view>
 #include <thread>
@@ -27,7 +28,8 @@ class VisMod final : public Mod {
 
     vis::Snapshotter m_snapshotter;
 
-    std::vector<vis::DamageEvent> damage;
+    std::vector<EC::Entity::ID>   m_subscribed;
+    std::vector<vis::DamageEvent> m_damage;
 
     std::mutex     m_snapLock;
     vis::WorldSnap m_snap;
@@ -125,11 +127,18 @@ private:
 
     void subscribeOnEvents(vis::WorldSnap &snap) {
         for (auto &entity : snap.entities) {
+            auto it = std::find(m_subscribed.begin(), m_subscribed.end(), entity.id);
+            if (it != m_subscribed.end()) {
+                continue;
+            }
+
             auto *person = entity.person;
             person->EvDamaged.subscribe(
                 [person, this] (EC::Entity::ID) {
-                    damage.push_back(vis::DamageEvent(person->getID(), person->getPosition().x, person->getPosition().y));
+                    m_damage.push_back(vis::DamageEvent(person->getID(), person->getPosition().x, person->getPosition().y));
                 });
+
+            m_subscribed.push_back(entity.id);
         }
     }
 
