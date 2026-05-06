@@ -10,10 +10,6 @@ set_target_properties(vis PROPERTIES
     CXX_STANDARD_REQUIRED YES
 )
 
-target_compile_definitions(vis PRIVATE
-    VIS_TILESET_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tilesheet.png"
-)
-
 find_package(Threads REQUIRED)
 
 find_package(raylib QUIET)

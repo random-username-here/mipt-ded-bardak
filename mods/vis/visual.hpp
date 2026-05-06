@@ -2,8 +2,6 @@
 
 #include "snapshot.hpp"
 #include "AssetManager.hpp"
-#include "person_base.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -192,39 +190,18 @@ struct Corpse {
     {}
 };
 
-struct DamageEvent {
-    size_t targetID;
-    size_t attackerID;
+struct AssetChangeEvent {
+    size_t entityID;
+    modlib::AssetId assetId;
 
-    DamageEvent()
-        : targetID(0)
-        , attackerID(0)
+    AssetChangeEvent()
+        : entityID(0)
+        , assetId(modlib::kInvalidAssetId)
     {}
 
-    DamageEvent(size_t tid, size_t aid)
-        : targetID(tid)
-        , attackerID(aid)
-    {}
-};
-
-struct SlashParticle {
-    float x;
-    float y;
-    Direction dir;
-    Timeline time;
-
-    SlashParticle()
-        : x(0.0f)
-        , y(0.0f)
-        , dir(DIR_DOWN)
-        , time()
-    {}
-
-    SlashParticle(float xx, float yy, Direction d, double start, double end)
-        : x(xx)
-        , y(yy)
-        , dir(d)
-        , time(start, end)
+    AssetChangeEvent(size_t eid, modlib::AssetId aid)
+        : entityID(eid)
+        , assetId(aid)
     {}
 };
 
@@ -239,7 +216,6 @@ class VisualUnit {
 
     Direction m_dir;
     Motion    m_motion;
-    Timeline  m_attack;
 
     modlib::AssetId m_assetId;
 
@@ -252,7 +228,7 @@ public:
         , m_maxHp(0)
         , m_dir(DIR_DOWN)
         , m_motion()
-        , m_attack()
+        , m_assetId(modlib::kInvalidAssetId)
     {}
 
     explicit VisualUnit(const UnitSnap &u)
@@ -263,7 +239,7 @@ public:
         , m_maxHp(u.maxHp)
         , m_dir(DIR_DOWN)
         , m_motion()
-        , m_attack()
+        , m_assetId(u.assetId)
     {
         m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
         m_motion.to = m_motion.from;
@@ -280,17 +256,8 @@ public:
 
     modlib::AssetId assetId() const { return m_assetId; }
 
-    bool attacking(double now) const {
-        return m_attack.active(now);
-    }
-
     Vec2f renderPos(double now) const {
         return m_motion.pos(now);
-    }
-
-    float attackNudge(double now, float tile) const {
-        if (!m_attack.active(now)) return 0.0f;
-        return m_attack.pulse(now) * tile * 0.18f;
     }
 
     void applySnapshot(const UnitSnap &u, const VisualUnit *old, double now, double tickSeconds) {
@@ -301,6 +268,7 @@ public:
 
         m_hp    = u.hp;
         m_maxHp = u.maxHp;
+        m_assetId = u.assetId;
 
 
         if (!old) {
@@ -308,13 +276,14 @@ public:
             m_motion.from = Vec2f(static_cast<float>(u.x), static_cast<float>(u.y));
             m_motion.to   = m_motion.from;
             m_motion.time = Timeline();
-            m_attack      = Timeline();
             return;
         }
 
         m_dir    = old->m_dir;
         m_motion = old->m_motion;
-        m_attack = old->m_attack;
+        if (m_assetId == modlib::kInvalidAssetId) {
+            m_assetId = old->m_assetId;
+        }
 
 
         const int dx = u.x - old->m_x;
@@ -331,39 +300,30 @@ public:
         }
     }
 
-    void triggerAttack(Direction dir, double now, double tickSeconds) {
-        m_dir    = dir;
-        m_attack = Timeline(now, now + 0.6 * tickSeconds);
+    void setAssetId(modlib::AssetId assetId) {
+        if (assetId != modlib::kInvalidAssetId) {
+            m_assetId = assetId;
+        }
     }
-
-    double attackStart() const { return m_attack.start(); }
-    double attackEnd()   const { return m_attack.end();   }
 };
 
 class VisualWorld {
     std::unordered_map<size_t, VisualUnit> m_units;
     std::vector<Corpse> m_corpses;
-    std::vector<SlashParticle> m_slashes;
 
 public:
     const std::unordered_map<size_t, VisualUnit> &entities() const { return m_units;   }
     const std::vector<Corpse>                  &corpses() const { return m_corpses; }
-    const std::vector<SlashParticle>           &slashes() const { return m_slashes; }
 
-    void update(double now) {
-        m_slashes.erase(
-            std::remove_if(
-                m_slashes.begin(),
-                m_slashes.end(),
-                [now](const SlashParticle &p) {
-                    return now >= p.time.end();
-                }
-            ),
-            m_slashes.end()
-        );
+    void update(double) {
     }
 
-    void applySnapshot(const WorldSnap &snap, double now, double tickSeconds, std::vector<DamageEvent> &damage) {
+    void applySnapshot(
+        const WorldSnap &snap,
+        double now,
+        double tickSeconds,
+        const std::vector<AssetChangeEvent> &assetChanges
+    ) {
         std::unordered_set<size_t> present;
 
         for (size_t i = 0; i < snap.entities.size(); ++i) {
@@ -390,7 +350,7 @@ public:
         }
 
         eraseMissingUnits(present);
-        inferAttacks(damage, now, tickSeconds);
+        applyAssetChanges(assetChanges);
     }
 
 private:
@@ -428,31 +388,12 @@ private:
         }
     }
 
-    void inferAttacks(const std::vector<DamageEvent> &damage, double now, double tickSeconds) {
-        for (size_t i = 0; i < damage.size(); ++i) {
-            const DamageEvent &d = damage[i];
+    void applyAssetChanges(const std::vector<AssetChangeEvent> &assetChanges) {
+        for (const AssetChangeEvent &change : assetChanges) {
+            auto it = m_units.find(change.entityID);
+            if (it == m_units.end()) continue;
 
-            VisualUnit &target = m_units[d.targetID];
-            VisualUnit &attacker = m_units[d.attackerID];
-            const Direction dir = DirectionUtil::toward(
-                attacker.x(),
-                attacker.y(),
-                target.x(),
-                target.y(),
-                attacker.dir()
-            );
-
-            attacker.triggerAttack(dir, now, tickSeconds);
-
-            const Vec2f attackerPos = attacker.renderPos(now);
-
-            m_slashes.push_back(SlashParticle(
-                attackerPos.x,
-                attackerPos.y,
-                attacker.dir(),
-                attacker.attackStart(),
-                attacker.attackEnd()
-            ));
+            it->second.setAssetId(change.assetId);
         }
     }
 };

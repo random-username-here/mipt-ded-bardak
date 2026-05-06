@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetManager.hpp"
 #include "Map.hpp"
 #include "person_base.hpp"
 
@@ -10,6 +11,28 @@
 
 namespace vis {
 
+inline modlib::AssetKey visualEventKey(modlib::VisualID event) {
+    modlib::AssetKey key;
+    key.kind = modlib::AssetKeyKind("event");
+    key.symbolic = event;
+    return key;
+}
+
+inline modlib::AssetId spriteForEvent(
+    const modlib::AssetManager *assets,
+    modlib::BindingID bindingId,
+    modlib::VisualID event
+) {
+    if (!assets) return modlib::kInvalidAssetId;
+
+    const auto binding = assets->binding(bindingId, visualEventKey(event));
+    if (!binding || binding->sprite == modlib::kInvalidAssetId) {
+        return modlib::kInvalidAssetId;
+    }
+
+    return binding->sprite;
+}
+
 struct UnitSnap {
     modlib::Entity *person;
 
@@ -18,13 +41,16 @@ struct UnitSnap {
     int hp;
     int maxHp;
     size_t id;
+    modlib::AssetId assetId;
 
     UnitSnap()
-        : x(0)
+        : person(nullptr)
+        , x(0)
         , y(0)
         , hp(0)
         , maxHp(0)
         , id(0)
+        , assetId(modlib::kInvalidAssetId)
     {}
 };
 
@@ -47,7 +73,7 @@ struct WorldSnap {
 
 class Snapshotter {
 public:
-    WorldSnap capture(modlib::Level *map) const {
+    WorldSnap capture(modlib::Level *map, const modlib::AssetManager *assets) const {
         WorldSnap snap;
 
         if (!map) return snap;
@@ -95,6 +121,7 @@ public:
                     us.id      = entity->getID();
 
                     us.person = dynamic_cast<modlib::Entity *>(entity);
+                    us.assetId = spriteForEvent(assets, entity->getType(), modlib::VisualID("idle"));
 
                     snap.entities.push_back(us);
                 }

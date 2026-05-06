@@ -7,83 +7,14 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <iostream>
 #include <cassert>
-
-#ifndef VIS_TILESET_PATH
-#define VIS_TILESET_PATH "mods/vis/tilesheet.png"
-#endif
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace vis {
 
 static const int SPRITE_SIZE  = 16;
-static const int SLASH_FRAMES = 4;
-static const int SLASH_SIZE   = 32;
-
-class Atlas {
-    Texture2D m_tex;
-
-public:
-    Atlas() {
-        m_tex.id      = 0;
-        m_tex.width   = 0;
-        m_tex.height  = 0;
-        m_tex.mipmaps = 0;
-        m_tex.format  = 0;
-    }
-
-    ~Atlas() {
-        unload();
-    }
-
-    bool loaded() const {
-        return m_tex.id != 0;
-    }
-
-    Texture2D texture() const {
-        return m_tex;
-    }
-
-    void load() {
-        const char *path = VIS_TILESET_PATH;
-
-        if (!FileExists(path)) return;
-
-        Texture2D tex = LoadTexture(path);
-        if (tex.id != 0) {
-            m_tex = tex;
-            SetTextureFilter(m_tex, TEXTURE_FILTER_POINT);
-            return;
-        }
-    }
-
-    void unload() {
-        if (m_tex.id != 0) {
-            UnloadTexture(m_tex);
-            m_tex.id = 0;
-        }
-    }
-
-    Rectangle spriteRect(int row, int col) const {
-        Rectangle r;
-        r.x      = static_cast<float>(col * SPRITE_SIZE);
-        r.y      = static_cast<float>(row * SPRITE_SIZE);
-        r.width  = static_cast<float>(      SPRITE_SIZE);
-        r.height = static_cast<float>(      SPRITE_SIZE);
-        return r;
-    }
-
-    Rectangle slashRect(int frame) const {
-        frame = std::max(0, std::min(SLASH_FRAMES - 1, frame));
-
-        Rectangle r;
-        r.x      = static_cast<float>((frame * 2) * SPRITE_SIZE);
-        r.y      = static_cast<float>(         3  * SPRITE_SIZE);
-        r.width  = static_cast<float>(SLASH_SIZE);
-        r.height = static_cast<float>(SLASH_SIZE);
-        return r;
-    }
-};
 
 class Camera {
     float m_ox;
@@ -130,10 +61,16 @@ public:
 
 class Renderer {
     modlib::AssetManager * m_assetManager=nullptr;
+    std::unordered_map<uint64_t, Texture2D> m_assetTextures;
+    std::unordered_set<uint64_t> m_failedAssetTextures;
 public:
     explicit Renderer(modlib::AssetManager *assetManager) : m_assetManager(assetManager) { assert(m_assetManager); }
 
-    void draw(const WorldSnap &snap, const VisualWorld &world, const Atlas &atlas, double now) {
+    ~Renderer() {
+        unloadAssetTextures();
+    }
+
+    void draw(const WorldSnap &snap, const VisualWorld &world, double now) {
         Camera cam;
         cam.fit(GetScreenWidth(), GetScreenHeight(), snap.w, snap.h);
 
@@ -153,29 +90,100 @@ public:
 
         DrawText(info, 180, 24, 16, Color{170, 170, 170, 255});
 
-        if (!atlas.loaded()) {
-            DrawText(
-                "tilesheet missing",
-                20,
-                GetScreenHeight() - 28,
-                16,
-                Color{230, 120, 120, 255}
-            );
-        }
-
-        drawTiles  (snap,            cam, atlas);
-        drawCorpses(world.corpses(), cam, atlas);
+        drawTiles  (snap,            cam);
+        drawCorpses(world.corpses(), cam);
 
         const std::unordered_map<size_t, VisualUnit> &entities = world.entities();
 
         for (auto unit : entities) {
-            drawUnit(unit.second, cam, atlas, now);
+            drawUnit(unit.second, cam, now);
         }
-
-        drawSlashes(world.slashes(), cam, atlas, now);
     }
 
 private:
+    void unloadAssetTextures() {
+        for (auto &entry : m_assetTextures) {
+            if (entry.second.id != 0) {
+                UnloadTexture(entry.second);
+            }
+        }
+
+        m_assetTextures.clear();
+        m_failedAssetTextures.clear();
+    }
+
+    Texture2D *textureFor(const modlib::SpriteAsset &sprite) {
+        const uint64_t key = sprite.id.as_u64;
+
+        auto loaded = m_assetTextures.find(key);
+        if (loaded != m_assetTextures.end()) {
+            return &loaded->second;
+        }
+
+        if (m_failedAssetTextures.find(key) != m_failedAssetTextures.end()) {
+            return nullptr;
+        }
+
+        const std::string path(sprite.file);
+        if (path.empty() || !FileExists(path.c_str())) {
+            m_failedAssetTextures.insert(key);
+            return nullptr;
+        }
+
+        Texture2D texture = LoadTexture(path.c_str());
+        if (texture.id == 0) {
+            m_failedAssetTextures.insert(key);
+            return nullptr;
+        }
+
+        SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+
+        auto inserted = m_assetTextures.emplace(key, texture);
+        return &inserted.first->second;
+    }
+
+    bool drawAssetSprite(modlib::AssetId assetId, float x, float y, float size) {
+        if (!m_assetManager || assetId == modlib::kInvalidAssetId) {
+            return false;
+        }
+
+        const auto sprite = m_assetManager->sprite(assetId);
+        if (!sprite) {
+            return false;
+        }
+
+        Texture2D *texture = textureFor(*sprite);
+        if (!texture || texture->id == 0) {
+            return false;
+        }
+
+        Rectangle src;
+        src.x = static_cast<float>(sprite->source.x);
+        src.y = static_cast<float>(sprite->source.y);
+        src.width = static_cast<float>(sprite->source.w > 0 ? sprite->source.w : sprite->size.x);
+        src.height = static_cast<float>(sprite->source.h > 0 ? sprite->source.h : sprite->size.y);
+
+        if (src.width <= 0.0f) src.width = static_cast<float>(SPRITE_SIZE);
+        if (src.height <= 0.0f) src.height = static_cast<float>(SPRITE_SIZE);
+
+        Rectangle dst;
+        dst.x = x + static_cast<float>(sprite->offset.x);
+        dst.y = y + static_cast<float>(sprite->offset.y);
+        dst.width = size;
+        dst.height = size;
+
+        DrawTexturePro(
+            *texture,
+            src,
+            dst,
+            Vector2{0.0f, 0.0f},
+            0.0f,
+            WHITE
+        );
+
+        return true;
+    }
+
     static Color hpColor(float frac) {
         frac = std::max(0.0f, std::min(1.0f, frac));
 
@@ -186,57 +194,7 @@ private:
         return Color{r, g, b, 255};
     }
 
-    static void drawSprite(const Atlas &atlas, int row, int col, float x, float y, float size) {
-        Rectangle src = atlas.spriteRect(row, col);
-        Rectangle dst = Rectangle{x, y, size, size};
-
-        DrawTexturePro(
-            atlas.texture(),
-            src,
-            dst,
-            Vector2{0.0f, 0.0f},
-            0.0f,
-            WHITE
-        );
-    }
-
-    static void drawSlashSprite(
-        const Atlas &atlas,
-        int frame,
-        Direction dir,
-        float unitX,
-        float unitY,
-        float tile)
-    {
-        Rectangle src = atlas.slashRect(frame);
-
-        Vec2f dv = DirectionUtil::vector(dir);
-
-        const float unitCx = unitX + tile * 0.5f;
-        const float unitCy = unitY + tile * 0.5f;
-
-        const float size = tile * 2.0f;
-        const float cx = unitCx + dv.x * tile * 0.55f;
-        const float cy = unitCy + dv.y * tile * 0.55f;
-
-        Rectangle dst = Rectangle{
-            cx,
-            cy,
-            size,
-            size
-        };
-
-        DrawTexturePro(
-            atlas.texture(),
-            src,
-            dst,
-            Vector2{size * 0.5f, size * 0.5f},
-            DirectionUtil::rotation(dir),
-            WHITE
-        );
-    }
-
-    void drawTiles(const WorldSnap &snap, const Camera &cam, const Atlas &atlas) {
+    void drawTiles(const WorldSnap &snap, const Camera &cam) {
         for (int y = 0; y < snap.h; ++y) {
             for (int x = 0; x < snap.w; ++x) {
                 const size_t idx = static_cast<size_t>(y * snap.w + x);
@@ -244,63 +202,41 @@ private:
 
                 Vector2 pos = cam.tileToScreen(static_cast<float>(x), static_cast<float>(y));
 
-                if (atlas.loaded()) {
-                    drawSprite(atlas, 0, walk ? 0 : 1, pos.x, pos.y, cam.tile());
-                } else {
-                    Color fill = walk
-                        ? Color{52, 58, 52, 255}
-                        : Color{30, 30, 34, 255};
+                Color fill = walk
+                    ? Color{52, 58, 52, 255}
+                    : Color{30, 30, 34, 255};
 
-                    DrawRectangleV(pos, Vector2{cam.tile(), cam.tile()}, fill);
-                    DrawRectangleLines(
-                        static_cast<int>(pos.x),
-                        static_cast<int>(pos.y),
-                        static_cast<int>(cam.tile()),
-                        static_cast<int>(cam.tile()),
-                        Color{75, 75, 80, 255}
-                    );
-                }
-            }
-        }
-    }
-
-    void drawCorpses(const std::vector<Corpse> &corpses, const Camera &cam, const Atlas &atlas) {
-        for (size_t i = 0; i < corpses.size(); ++i) {
-            const Corpse &c = corpses[i];
-            Vector2 pos = cam.tileToScreen(static_cast<float>(c.x), static_cast<float>(c.y));
-
-            if (atlas.loaded()) {
-                drawSprite(atlas, 0, 2, pos.x, pos.y, cam.tile());
-            } else {
-                DrawCircleV(
-                    Vector2{pos.x + cam.tile() * 0.5f, pos.y + cam.tile() * 0.5f},
-                    std::max(3.0f, cam.tile() * 0.25f),
-                    Color{110, 30, 30, 255}
+                DrawRectangleV(pos, Vector2{cam.tile(), cam.tile()}, fill);
+                DrawRectangleLines(
+                    static_cast<int>(pos.x),
+                    static_cast<int>(pos.y),
+                    static_cast<int>(cam.tile()),
+                    static_cast<int>(cam.tile()),
+                    Color{75, 75, 80, 255}
                 );
             }
         }
     }
 
-    void drawUnit(const VisualUnit &u, const Camera &cam, const Atlas &atlas, double now) {
-        const bool attacking = u.attacking(now);
+    void drawCorpses(const std::vector<Corpse> &corpses, const Camera &cam) {
+        for (size_t i = 0; i < corpses.size(); ++i) {
+            const Corpse &c = corpses[i];
+            Vector2 pos = cam.tileToScreen(static_cast<float>(c.x), static_cast<float>(c.y));
 
+            DrawCircleV(
+                Vector2{pos.x + cam.tile() * 0.5f, pos.y + cam.tile() * 0.5f},
+                std::max(3.0f, cam.tile() * 0.25f),
+                Color{110, 30, 30, 255}
+            );
+        }
+    }
+
+    void drawUnit(const VisualUnit &u, const Camera &cam, double now) {
         Vec2f rp = u.renderPos(now);
-        Vec2f dv = DirectionUtil::vector(u.dir());
-
-        const float nudge = attacking ? u.attackNudge(now, cam.tile()) : 0.0f;
 
         Vector2 pos = cam.tileToScreen(rp.x, rp.y);
-        pos.x += dv.x * nudge;
-        pos.y += dv.y * nudge;
 
-        // std::cerr << "Current unit assetId: " << u.assetId() << "\n";
-
-        if (atlas.loaded()) {
-            const int row = attacking ? 2 : 1;
-            const int col = static_cast<int>(u.dir());
-
-            drawSprite(atlas, row, col, pos.x, pos.y, cam.tile());
-        } else {
+        if (!drawAssetSprite(u.assetId(), pos.x, pos.y, cam.tile())) {
             const float cx = pos.x + cam.tile() * 0.5f;
             const float cy = pos.y + cam.tile() * 0.5f;
             const float radius = std::max(3.0f, cam.tile() * 0.28f);
@@ -308,7 +244,7 @@ private:
             DrawCircleV(
                 Vector2{cx, cy},
                 radius,
-                attacking ? Color{255, 160, 80, 255} : Color{90, 170, 255, 255}
+                Color{90, 170, 255, 255}
             );
 
             DrawCircleLines(
@@ -320,41 +256,6 @@ private:
         }
 
         drawHpBar(u, pos.x, pos.y, cam.tile());
-    }
-
-    void drawSlashes(
-        const std::vector<SlashParticle> &slashes,
-        const Camera &cam,
-        const Atlas &atlas,
-        double now)
-    {
-        for (size_t i = 0; i < slashes.size(); ++i) {
-            const SlashParticle &p = slashes[i];
-
-            if (!p.time.active(now)) continue;
-
-            const float t = p.time.linear(now);
-            int frame = static_cast<int>(std::floor(t * SLASH_FRAMES));
-            frame = std::max(0, std::min(SLASH_FRAMES - 1, frame));
-
-            Vector2 pos = cam.tileToScreen(p.x, p.y);
-
-            if (atlas.loaded()) {
-                drawSlashSprite(atlas, frame, p.dir, pos.x, pos.y, cam.tile());
-            } else {
-                Vec2f dv = DirectionUtil::vector(p.dir);
-
-                const float cx = pos.x + cam.tile() * 0.5f + dv.x * cam.tile() * 0.55f;
-                const float cy = pos.y + cam.tile() * 0.5f + dv.y * cam.tile() * 0.55f;
-
-                DrawCircleLines(
-                    static_cast<int>(cx),
-                    static_cast<int>(cy),
-                    cam.tile() * (0.35f + 0.25f * t),
-                    Color{255, 210, 100, 255}
-                );
-            }
-        }
     }
 
     void drawHpBar(const VisualUnit &u, float rx, float ry, float tile)

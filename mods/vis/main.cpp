@@ -26,7 +26,8 @@ class VisMod final : public Mod {
     vis::Snapshotter m_snapshotter;
 
     std::vector<EC::Entity::ID>   m_subscribed;
-    std::vector<vis::DamageEvent> m_damage;
+    std::mutex m_eventLock;
+    std::vector<vis::AssetChangeEvent> m_assetChanges;
 
     std::mutex     m_snapLock;
     vis::WorldSnap m_snap;
@@ -129,11 +130,20 @@ private:
                 continue;
             }
 
-            if (auto *person = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
-                person->EvAttack.subscribe(
-                [this, entity] (EC::Entity::ID tid) {
-                    m_damage.push_back(vis::DamageEvent(tid, entity.person->getID()));
-                });
+            if (auto *attack = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
+                attack->EvAttack.subscribe(
+                    [this, id = entity.id, bindingId = entity.person->getType()] (EC::Stats::Attack::Damage) {
+                        const modlib::AssetId assetId = vis::spriteForEvent(
+                            m_assetManager,
+                            bindingId,
+                            modlib::VisualID("attack")
+                        );
+                        if (assetId == modlib::kInvalidAssetId) return;
+
+                        std::lock_guard<std::mutex> lock(m_eventLock);
+                        m_assetChanges.push_back(vis::AssetChangeEvent(id, assetId));
+                    }
+                );
             }
             
             m_subscribed.push_back(entity.id);
@@ -141,7 +151,7 @@ private:
     }
 
     void snapshot() {
-        vis::WorldSnap next = m_snapshotter.capture(m_map);
+        vis::WorldSnap next = m_snapshotter.capture(m_map, m_assetManager);
 
         subscribeOnEvents(next);
 
@@ -159,6 +169,13 @@ private:
         return m_snap;
     }
 
+    std::vector<vis::AssetChangeEvent> takeAssetChanges() {
+        std::lock_guard<std::mutex> lock(m_eventLock);
+        std::vector<vis::AssetChangeEvent> changes;
+        changes.swap(m_assetChanges);
+        return changes;
+    }
+
     void stopRenderer() {
         m_running = false;
 
@@ -173,9 +190,6 @@ private:
         SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
         InitWindow(1000, 800, "bardak / map");
         SetTargetFPS(60);
-
-        vis::Atlas atlas;
-        atlas.load();
 
         vis::VisualWorld world;
         vis::Renderer renderer(m_assetManager);
@@ -198,8 +212,8 @@ private:
                     }
                 }
 
-                world.applySnapshot(snap, now, tickSeconds, m_damage);
-                m_damage.clear();
+                std::vector<vis::AssetChangeEvent> assetChanges = takeAssetChanges();
+                world.applySnapshot(snap, now, tickSeconds, assetChanges);
 
                 lastAppliedTick = snap.tick;
                 lastSnapTime = now;
@@ -216,12 +230,10 @@ private:
                 continue;
             }
 
-            renderer.draw(snap, world, atlas, now);
+            renderer.draw(snap, world, now);
 
             EndDrawing();
         }
-
-        atlas.unload();
 
         if (IsWindowReady()) {
             CloseWindow();

@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "BmServerModule.hpp"
+#include "AssetManager.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
@@ -19,6 +20,7 @@ using namespace modlib;
 class PersonModule : public BmServerModule {   
     Timer *tm=nullptr;
     Level *map=nullptr;
+    AssetManager *assets=nullptr;
     PersonManager manager;
 
 public:
@@ -29,10 +31,12 @@ public:
     void onResolveDeps(ModManager *mm) override {
         tm = mm->anyOfType<Timer>();
         map = mm->anyOfType<Level>();
+        assets = mm->anyOfType<AssetManager>();
         if (!tm) throw ModManager::Error("Timer module not found");
         if (!map) throw ModManager::Error("Map module not found");
+        if (!assets) throw ModManager::Error("AssetManager module not found");
 
-        manager.setModules(tm, map);
+        manager.setModules(tm, map, assets);
     }   
 
     void onDepsResolved(ModManager *mm) override {

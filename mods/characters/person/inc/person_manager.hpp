@@ -7,17 +7,20 @@
 #include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
 #include "person_proto.hpp"
+#include <iostream>
 
 class PersonManager {
     Timer        *timer_=nullptr;
     Level        *map_=nullptr;
+    AssetManager *assets_=nullptr;
 
     std::unordered_map<BmClient *, PersonCtl> people_;
     uint64_t m_tick = 0;
 public:
-    void setModules(Timer *timer, Level *map) {
+    void setModules(Timer *timer, Level *map, AssetManager *assets) {
         timer_ = timer;
         map_ = map;
+        assets_ = assets;
     }
 
     void destroy(BmClient *client) {
@@ -55,7 +58,7 @@ public:
             std::cerr << "person with client `" << client->id() << "` was already spawned\n";
             return;
         }
-        people_.try_emplace(client, PersonCtl{map_, client});
+        people_.try_emplace(client, PersonCtl{map_, client, assets_});
     }
 
     void sendState() {
