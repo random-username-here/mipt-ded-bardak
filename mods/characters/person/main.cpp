@@ -135,7 +135,6 @@ class PersonCtl : public BmServerModule {
     };
 
     void onConnect(BmClient *client) override {
-<<<<<<< HEAD:mods/characters/person/main.cpp
         auto sz = map->size();
         assert(sz.x > 2 && sz.y > 2);
         m_people[client] = map->spawn<Person>(
@@ -146,12 +145,6 @@ class PersonCtl : public BmServerModule {
             this,
             client
         );
-=======
-    again:
-        Vec2i pos = { rand() % map->size().x, rand() % map->size().y };
-        if (map->at(pos)->type() == modlib::Tile::BasicType::Wall) goto again;
-        m_people[client] = map->spawn<Person>(pos, this, client);
->>>>>>> CI:mods/person/main.cpp
     }
 
     void onMessage(BmClient *cl, bmsg::RawMessage m) override {
