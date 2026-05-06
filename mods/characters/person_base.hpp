@@ -7,47 +7,38 @@
 #include <algorithm>
 #include <cstdint>
 
-struct PersonBase : public modlib::Entity, public EC::Stats::Armor,
-                    public EC::Stats::Health, public EC::Stats::Attack,
-                    public EC::Social::Group {
-    const int MAX_HP = 100;
+// struct PersonBase : virtual public modlib::Entity {
+//     modlib::BmClient* m_client = nullptr;
 
-    modlib::BmClient* m_client = nullptr;
+//     bool m_destroyed = false;
 
-    uint64_t m_nextMoveTick = 0;
-    uint64_t m_nextAttackTick = 0;
-    bool m_destroyed = false;
+//     PersonBase(EC::Entity::Type type, modlib::Tile* tile, modlib::BmClient* client)
+//         : modlib::Entity(type, tile), m_client(client)
+//     {}
 
-    PersonBase(EC::Entity::Type type, modlib::Tile* tile, EC::Stats::Armor&& armor,
-               EC::Stats::Health&& health, EC::Stats::Attack&& attack,
-               EC::Social::Group&& group, modlib::BmClient* client)
-        : modlib::Entity(type, tile), EC::Stats::Armor(armor), EC::Stats::Health(health),
-          EC::Stats::Attack(attack), EC::Social::Group(group), m_client(client)
-    {}
+//     virtual ~PersonBase() {}
 
-    virtual ~PersonBase() {}
+//     virtual void pickUp() {}
 
-    virtual void pickUp() {}
+//     bool isDestroyed() const { return m_destroyed; }
 
-    bool isDestroyed() const { return m_destroyed; }
+//     virtual int attackDamage() const { return 10; }
 
-    virtual int attackDamage() const { return 10; }
+//     virtual bool canEnter(modlib::Tile* tile) const {
+//         return tile != nullptr && !(tile->getType() == modlib::Tile::BasicTypes::WALL);
+//     }
 
-    virtual bool canEnter(modlib::Tile* tile) const {
-        return tile != nullptr && !(tile->getType() == modlib::Tile::BasicTypes::WALL);
-    }
+//     virtual void move(modlib::Vec2i to) {
+//         modlib::Entity::setPosition(to);
+//     }
 
-    virtual void move(modlib::Vec2i to) {
-        modlib::Entity::setPosition(to);
-    }
+//     virtual void destroy() {
+//         if (m_destroyed) {
+//             return;
+//         }
 
-    virtual void destroy() {
-        if (m_destroyed) {
-            return;
-        }
-
-        m_destroyed = true;
-        EC::Stats::Health::EvDeath.emit();
-        modlib::Entity::EvEntityDeconstructed.emit();
-    }
-};
+//         m_destroyed = true;
+//         EC::Stats::Health::EvDeath.emit();
+//         modlib::Entity::EvEntityDeconstructed.emit();
+//     }
+// };
