@@ -1,42 +1,45 @@
 #pragma once
 
 #include "modlib_mod.hpp"
-#include <cstdint>
+#include "binmsg.hpp"
+#include "Vec2.hpp"
+
+#include <optional>
 #include <string_view>
+#include <string>
 
 namespace modlib {
 
-using AssetId = uint32_t;
-static constexpr AssetId kInvalidAssetId = 0;
-
-enum class AssetKind : uint8_t {
-    Tile = 0,
-    Unit = 1,
+struct Recti {
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
 };
 
-// Transformation metadata that visualization can apply on top of raw bytes.
-// This is intentionally "lightweight": we avoid creating 360 rotated copies.
-struct AssetTransform {
-    // Rotation in milli-degrees (deg * 1000).
-    // Example: 90 deg => 90000.
-    int32_t rotationMilliDeg = 0;
+using SpriteID = bmsg::Char64;
+using SpriteIDHash = bmsg::Char64Hasher;
+
+struct SpriteAsset {
+    SpriteID id{};
+
+    std::string file{};
+    Recti source{};
+
+    Vec2i size{};
+    Vec2i origin{};
+    Vec2i offset{};
+
+    int z = 0;
 };
 
-// Asset manager "interface" for other server-side modules.
-// Implemented by `mods/assets`.
 class AssetManager : public Mod {
 public:
-    virtual AssetId addTexture(std::string_view filePath) = 0;
+    virtual bool registerSprite(const SpriteAsset &sprite) = 0;
+	virtual std::optional<modlib::SpriteAsset> sprite(modlib::SpriteID id) const = 0;
+    virtual std::string_view spriteBytes(SpriteID id) const = 0;
 
-    // Get raw bytes. For transformed assets, bytes are expected to reference
-    // the base texture (no image processing required server-side).
-    virtual std::string_view getTextureBytes(AssetId id) const = 0;
-    virtual AssetTransform getTransform(AssetId id) const = 0;
-
-    // // Create (and cache) a transformed "view" of `baseId` without duplicating bytes.
-    // virtual AssetId getTransformed(AssetId baseId, AssetTransform transform) = 0;
-
-    virtual ~AssetManager() = default;
+    ~AssetManager() override = default;
 };
 
 } // namespace modlib
