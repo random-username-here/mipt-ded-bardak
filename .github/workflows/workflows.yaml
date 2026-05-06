@@ -30,7 +30,10 @@ jobs:
           submodules: recursive
       - name: build
         run: |
-          cmake -S . -B build -D CMAKE_BUILD_TYPE=${{matrix.build_type}} -D CMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake -S . -B build 
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} 
+          -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          -DBUILD_GRAPHICS=OFF
           cmake --build build
   tests:
     needs: build-cmake
@@ -63,7 +66,10 @@ jobs:
           submodules: recursive
       - name: build
         run: |
-          cmake -S . -B build -D CMAKE_BUILD_TYPE=${{matrix.build_type}} -D CMAKE_CXX_COMPILER=${{matrix.compiler}}
+          cmake -S . -B build 
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} 
+          -DCMAKE_CXX_COMPILER=${{matrix.compiler}} 
+          -DBUILD_GRAPHICS=OFF
           cmake --build build
       - name: move mod dirs
         run: |
