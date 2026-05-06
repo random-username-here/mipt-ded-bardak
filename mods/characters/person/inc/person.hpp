@@ -12,15 +12,15 @@ enum class RotationDir {
     right,
 };
 
-class Person : public PersonBase {
+class Person : 
+    virtual public modlib::Entity, 
+    virtual public EC::Stats::Health,
+    virtual public EC::Stats::Attack    
+{
 public:
-    static constexpr int ASSET_ID_STUB = 0;
-    static constexpr int ARMOR = 0;
-    static constexpr int RESIST = 0;
     static constexpr int MAX_HP = 200;
-    static constexpr int CURRENT_HP = 200;
+    static constexpr int CURRENT_HP = 100;
     static constexpr int STRENGTH = 10;
-    static constexpr int TEAM_ID = 0;
     static constexpr Type PERSON_TYPE = "person";
 private:
     Level *map_;
@@ -28,10 +28,10 @@ private:
 public:
 
     Person(Level *map, Tile *tile, modlib::BmClient* client):
-        PersonBase(PERSON_TYPE, tile, {ARMOR, RESIST}, {MAX_HP, CURRENT_HP}, {STRENGTH}, {TEAM_ID},  client),
+        Entity(PERSON_TYPE, tile),
+        Health(MAX_HP, CURRENT_HP),
+        Attack(STRENGTH),
         map_(map) {}
-
-    // AssetId assetId() const override { return ASSET_ID_STUB;}
 
     void rotate(RotationDir dir) {
         dir_ = dir;

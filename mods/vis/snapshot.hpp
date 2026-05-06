@@ -11,7 +11,7 @@
 namespace vis {
 
 struct UnitSnap {
-    PersonBase *person;
+    modlib::Entity *person;
 
     int x;
     int y;
@@ -94,7 +94,7 @@ public:
                     us.maxHp   = maxHp;
                     us.id      = entity->getID();
 
-                    us.person = dynamic_cast<PersonBase *>(entity);
+                    us.person = dynamic_cast<modlib::Entity *>(entity);
 
                     snap.entities.push_back(us);
                 }

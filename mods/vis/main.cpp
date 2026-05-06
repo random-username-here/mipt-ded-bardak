@@ -129,12 +129,13 @@ private:
                 continue;
             }
 
-            auto *person = entity.person;
-            person->EvAttack.subscribe(
-                [person, this] (EC::Entity::ID tid) {
-                    m_damage.push_back(vis::DamageEvent(tid, person->getID()));
+            if (auto *person = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
+                person->EvAttack.subscribe(
+                [this, entity] (EC::Entity::ID tid) {
+                    m_damage.push_back(vis::DamageEvent(tid, entity.person->getID()));
                 });
-
+            }
+            
             m_subscribed.push_back(entity.id);
         }
     }
