@@ -8,7 +8,8 @@
 #include <cstdint>
 
 struct PersonBase : public modlib::Entity, public EC::Stats::Armor,
-                    public EC::Stats::Health, public EC::Social::Group {
+                    public EC::Stats::Health, public EC::Stats::Attack,
+                    public EC::Social::Group {
     const int MAX_HP = 100;
 
     modlib::BmClient* m_client = nullptr;
@@ -18,9 +19,10 @@ struct PersonBase : public modlib::Entity, public EC::Stats::Armor,
     bool m_destroyed = false;
 
     PersonBase(EC::Entity::Type type, modlib::Tile* tile, EC::Stats::Armor&& armor,
-               EC::Stats::Health&& health, EC::Social::Group&& group, modlib::BmClient* client)
+               EC::Stats::Health&& health, EC::Stats::Attack&& attack,
+               EC::Social::Group&& group, modlib::BmClient* client)
         : modlib::Entity(type, tile), EC::Stats::Armor(armor), EC::Stats::Health(health),
-          EC::Social::Group(group), m_client(client)
+          EC::Stats::Attack(attack), EC::Social::Group(group), m_client(client)
     {}
 
     virtual ~PersonBase() {}

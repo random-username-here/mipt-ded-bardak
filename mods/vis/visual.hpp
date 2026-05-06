@@ -193,20 +193,17 @@ struct Corpse {
 };
 
 struct DamageEvent {
-    size_t targetId;
-    int x;
-    int y;
+    size_t targetID;
+    size_t attackerID;
 
     DamageEvent()
-        : targetId(0)
-        , x(0)
-        , y(0)
+        : targetID(0)
+        , attackerID(0)
     {}
 
-    DamageEvent(size_t tid, int xx, int yy)
-        : targetId(tid)
-        , x(xx)
-        , y(yy)
+    DamageEvent(size_t tid, size_t aid)
+        : targetID(tid)
+        , attackerID(aid)
     {}
 };
 
@@ -297,7 +294,7 @@ public:
         return m_attack.pulse(now) * tile * 0.18f;
     }
 
-    void applySnapshot(const UnitSnap &u, const VisualUnit *old, double now, double tickSeconds, std::vector<DamageEvent> &damage) {
+    void applySnapshot(const UnitSnap &u, const VisualUnit *old, double now, double tickSeconds) {
         m_id = u.id;
 
         m_x = u.x;
@@ -385,9 +382,9 @@ public:
             auto old = m_units.find(u.id);
 
             if (old == m_units.end()) {
-                next.applySnapshot(u, NULL, now, tickSeconds, damage);
+                next.applySnapshot(u, NULL, now, tickSeconds);
             } else {
-                next.applySnapshot(u, &old->second, now, tickSeconds, damage);
+                next.applySnapshot(u, &old->second, now, tickSeconds);
             }
 
             m_units[u.id] = next;
@@ -436,40 +433,13 @@ private:
         for (size_t i = 0; i < damage.size(); ++i) {
             const DamageEvent &d = damage[i];
 
-            size_t bestId = 0;
-            int bestScore = 999999;
-            bool found    = false;
-
-
-
-            for (auto &unit : m_units) {
-                if (unit.first == d.targetId) continue;
-
-                VisualUnit &candidate = unit.second;
-
-                const int dx    = std::abs(candidate.x() - d.x);
-                const int dy    = std::abs(candidate.y() - d.y);
-                const int shift = std::max(dx, dy);
-
-                if (shift > 1) continue;
-
-                const int score = dx + dy;
-
-                if (!found || score < bestScore) {
-                    found = true;
-                    bestScore = score;
-                    bestId = unit.first;
-                }
-            }
-
-            if (!found) continue;
-
-            VisualUnit &attacker = m_units[bestId];
+            VisualUnit &target = m_units[d.targetID];
+            VisualUnit &attacker = m_units[d.attackerID];
             const Direction dir = DirectionUtil::toward(
                 attacker.x(),
                 attacker.y(),
-                d.x,
-                d.y,
+                target.x(),
+                target.y(),
                 attacker.dir()
             );
 

@@ -1,8 +1,9 @@
 project(entity-components-ifc)
 
-add_library(entity-components-ifc STATIC 
+add_library(entity-components-ifc STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/EntityBase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Armor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Attack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Health.cpp
 )
