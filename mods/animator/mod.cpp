@@ -1,5 +1,6 @@
 #include "Animator.hpp"
 #include "Vec2.hpp"
+#include <deque>
 #include <stdexcept>
 
 class Animator : public anim::AnimationManager {
@@ -8,7 +9,7 @@ class Animator : public anim::AnimationManager {
     std::string_view brief() const override { return "Animation manager module"; }
     ModVersion version() const override { return ModVersion(0, 0, 1); }
 
-    std::vector<anim::Animation> m_anims;
+    std::deque<anim::Animation> m_anims;
 
     anim::Animation *newAnimation() override {
         m_anims.push_back(constructAnimation(m_anims.size()));

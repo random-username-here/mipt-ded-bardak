@@ -1,16 +1,19 @@
 #include "Animator.hpp"
+#include "AssetManager.hpp"
 #include "BmServerModule.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "Vec2.hpp"
 #include "modlib_manager.hpp"
 #include "raylib.h"
+#include <algorithm>
 #include <cmath>
 #include <ctime>
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 using modlib::Vec2f;
 
@@ -46,9 +49,11 @@ class AnimatedVisualization : public modlib::BmServerModule {
     modlib::Level *m_map;
     modlib::Timer *m_timer;
     anim::AnimationManager *m_anim;
+    modlib::AssetManager *m_assets;
     std::thread m_winThread;
     std::unordered_map<anim::AnimatedObjectID, AnimatedObject> m_objs;
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
+    std::unordered_map<uint64_t, Texture2D> m_textures;
     std::mutex m_lock;
 
     float m_startTime = 0;
@@ -60,13 +65,89 @@ class AnimatedVisualization : public modlib::BmServerModule {
     }
 
     void drawSprites(const AnimatedObject &obj) {
-        for (auto &[id, s] : obj.sprites) {
-            Vec2f pos = obj.pos + s.pos;
-            Vec2f d = { std::cos(s.rotation), std::sin(s.rotation) };
-            DrawLineV(v2v(pos), v2v(pos + d * 40), RED);
-            DrawLineV(v2v(pos), v2v(pos + Vec2f(d.y, -d.x) * 40), GREEN);
-            DrawCircleV(v2v(pos), 5, WHITE);
+        std::vector<anim::SpriteID> spriteOrder;
+        spriteOrder.reserve(obj.sprites.size());
+        for (const auto &[id, _] : obj.sprites) {
+            spriteOrder.push_back(id);
         }
+        std::sort(spriteOrder.begin(), spriteOrder.end());
+
+        for (anim::SpriteID id : spriteOrder) {
+            const Sprite &s = obj.sprites.at(id);
+            if (!drawTextureSprite(obj, s)) {
+                drawDebugSprite(obj, s);
+            }
+        }
+    }
+
+    bool drawTextureSprite(const AnimatedObject &obj, const Sprite &s) {
+        if (!m_assets || s.tex.empty()) {
+            return false;
+        }
+
+        const auto sprite = m_assets->sprite(modlib::SpriteID(s.tex));
+        if (!sprite) {
+            return false;
+        }
+
+        Texture2D *texture = textureFor(*sprite);
+        if (!texture || texture->id == 0) {
+            return false;
+        }
+
+        Rectangle src;
+        src.x = static_cast<float>(sprite->source.x);
+        src.y = static_cast<float>(sprite->source.y);
+        src.width = static_cast<float>(sprite->source.w > 0 ? sprite->source.w : texture->width);
+        src.height = static_cast<float>(sprite->source.h > 0 ? sprite->source.h : texture->height);
+
+        Rectangle dst;
+        const Vec2f pos = obj.pos + s.pos;
+        dst.x = pos.x + static_cast<float>(sprite->offset.x);
+        dst.y = pos.y + static_cast<float>(sprite->offset.y);
+        dst.width = static_cast<float>(sprite->size.x > 0 ? sprite->size.x : static_cast<int>(src.width));
+        dst.height = static_cast<float>(sprite->size.y > 0 ? sprite->size.y : static_cast<int>(src.height));
+
+        DrawTexturePro(
+            *texture,
+            src,
+            dst,
+            Vector2{
+                static_cast<float>(sprite->origin.x),
+                static_cast<float>(sprite->origin.y)
+            },
+            s.rotation,
+            WHITE
+        );
+
+        return true;
+    }
+
+    void drawDebugSprite(const AnimatedObject &obj, const Sprite &s) {
+        Vec2f pos = obj.pos + s.pos;
+        Vec2f d = { std::cos(s.rotation), std::sin(s.rotation) };
+        DrawLineV(v2v(pos), v2v(pos + d * 40), RED);
+        DrawLineV(v2v(pos), v2v(pos + Vec2f(d.y, -d.x) * 40), GREEN);
+        DrawCircleV(v2v(pos), 5, WHITE);
+    }
+
+    Texture2D *textureFor(const modlib::SpriteAsset &sprite) {
+        const uint64_t key = sprite.id.as_u64;
+
+        auto loaded = m_textures.find(key);
+        if (loaded != m_textures.end()) {
+            return &loaded->second;
+        }
+
+        Texture2D texture = LoadTexture(sprite.file.c_str());
+        if (texture.id == 0) {
+            return nullptr;
+        }
+
+        SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+
+        auto inserted = m_textures.emplace(key, texture);
+        return &inserted.first->second;
     }
 
     float lerp(float a, float b, float fac) {
@@ -105,6 +186,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     void processSteps(AnimatedObject &obj) {
         float now = curTime();
         auto anim = m_anims[obj.anim];
+        if (!anim) return;
 
         std::vector<const anim::Step*> toDelete;
         for (auto [step, startTime] : obj.runningSteps) {
@@ -150,6 +232,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
         m_map = mm->requireAnyOfType<modlib::Level>("Visualization needs a Level");
         m_timer = mm->requireAnyOfType<modlib::Timer>("Visualization needs a Timer");
         m_anim = mm->requireAnyOfType<anim::AnimationManager>("Visualization needs Animator");
+        m_assets = mm->requireAnyOfType<modlib::AssetManager>("Visualization needs AssetManager");
         m_startTime = curTime();
     }
 
@@ -177,17 +260,6 @@ class AnimatedVisualization : public modlib::BmServerModule {
             std::cerr << "play animation " << an << "\n";
             playAnimation(obj, off, lyr, an);
         });
-
-        // FIXME: remove this from here, this is for debugging purposes
-        auto an = m_anim->newAnimation();
-        an->addStep<anim::SetImageStep>(0, "img");
-        an->addStep<anim::PosStep>(0, 0, 0, Vec2f(100, 100));
-        an->addStep<anim::PosStep>(5, 0, 0, Vec2f(600, 600));
-        an->addStep<anim::RotationStep>(5, 5, 0, M_PI * 20);
-        an->addStep<anim::PosStep>(5, 5, 0, Vec2f(100, 100), anim::easing::easeInOutQuart);
-        an->finishBuild();
-
-        m_anim->play(0, Vec2f(0, 0), 0, an->id());
     }
 };
 

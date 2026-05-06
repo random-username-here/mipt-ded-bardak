@@ -104,4 +104,8 @@ public:
     Person *person() {
         return person_.get();
     }
+
+    Level *map() {
+        return map_;
+    }
 };
