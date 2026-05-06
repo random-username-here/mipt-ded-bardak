@@ -2,6 +2,7 @@
 
 #include "binmsg.hpp"
 #include "Event.hpp"
+#include "Map.hpp"
 
 namespace EC
 {
@@ -13,7 +14,7 @@ namespace EC
         using ID = uint64_t;
         using Type = bmsg::Char64;
 
-        Entity  (Type);
+                 Entity (Type);
         virtual ~Entity ();
 
         ID   getID   () const;
@@ -88,6 +89,75 @@ namespace EC
 
         private:
             Damage m_strength;
+        };
+    }
+
+    namespace Items
+    {
+        using Type = bmsg::Char64;
+
+        class Item
+        {
+        public:
+            virtual Type   getType      () const = 0;
+            virtual size_t getStackSize () const = 0;
+        };
+
+        class DroppedItem
+        : public modlib::Entity
+        {
+            DroppedItem (std::unique_ptr<Item> item, modlib::Tile* tile);
+
+            std::unique_ptr<Item> pickup ();
+
+            const Item* getBindedItem () const;
+        private:
+            std::unique_ptr<Item> m_item;
+        };
+
+
+        class Droppable
+        {
+        public:
+            DroppedItem* drop (modlib::Tile* where);
+
+            Event<DroppedItem*> EvDropped;
+        };
+
+        class Durability
+        {
+        public:
+            size_t getDurability (                 ) const;
+            void   setDurability (size_t durability);
+
+            Event<size_t>  EvRepaired;
+            Event<>        EvBroken;
+        private:
+            size_t m_durability;
+        };
+
+        template<typename RV>
+        class Interactive
+        {
+        public:
+            virtual RV useOn (Entity* target) = 0;
+
+            Event<Entity*> EvUsed;
+        };
+
+        class Inventory
+        {
+        public:
+            void    addItem (                   std::unique_ptr<Item>                    item);
+            void removeItem (std::unordered_map<std::unique_ptr<Item>, size_t>::iterator iterator);
+            Item&   getItem (std::unordered_map<std::unique_ptr<Item>, size_t>::iterator iterator);
+
+            Event<Item&> EvAddedItem;
+            Event<Item&> EvRemovedItem;
+
+            const std::unordered_map<std::unique_ptr<Item>, size_t>& getInventory () const;
+        private:
+                  std::unordered_map<std::unique_ptr<Item>, size_t> m_inventory;
         };
     }
 
