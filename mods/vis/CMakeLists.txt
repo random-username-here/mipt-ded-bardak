@@ -32,3 +32,5 @@ target_link_libraries(vis PRIVATE
     modlib-ifc
     map-core
 )
+
+target_include_directories(vis PRIVATE ../characters)

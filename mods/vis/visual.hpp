@@ -2,6 +2,8 @@
 
 #include "snapshot.hpp"
 #include "AssetManager.hpp"
+#include "person_base.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -274,12 +276,12 @@ public:
     size_t id() const { return m_id; }
     int     x() const { return m_x;  }
     int     y() const { return m_y;  }
-    
+
     int    hp() const { return m_hp;    }
     int maxHp() const { return m_maxHp; }
 
     Direction dir() const { return m_dir; }
-    
+
     modlib::AssetId assetId() const { return m_assetId; }
 
     bool attacking(double now) const {
@@ -331,10 +333,6 @@ public:
 
             m_dir = DirectionUtil::fromDelta(dx, dy, old->m_dir);
         }
-
-        if (u.hp < old->m_hp) {
-            damage.push_back(DamageEvent(u.id, u.x, u.y));
-        }
     }
 
     void triggerAttack(Direction dir, double now, double tickSeconds) {
@@ -369,9 +367,8 @@ public:
         );
     }
 
-    void applySnapshot(const WorldSnap &snap, double now, double tickSeconds) {
+    void applySnapshot(const WorldSnap &snap, double now, double tickSeconds, std::vector<DamageEvent> &damage) {
         std::unordered_set<size_t> present;
-        std::vector<DamageEvent>   damage;
 
         for (size_t i = 0; i < snap.entities.size(); ++i) {
             const UnitSnap &u = snap.entities[i];
@@ -443,7 +440,7 @@ private:
             int bestScore = 999999;
             bool found    = false;
 
-            
+
 
             for (auto &unit : m_units) {
                 if (unit.first == d.targetId) continue;

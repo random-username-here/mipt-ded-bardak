@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Map.hpp"
+#include "person_base.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -10,6 +11,8 @@
 namespace vis {
 
 struct UnitSnap {
+    PersonBase *person;
+
     int x;
     int y;
     int hp;
@@ -72,7 +75,7 @@ public:
                 snap.walkable[idx] = tile->getType() != modlib::Tile::BasicTypes::WALL;
 
                 const auto &entities = tile->getEntityList();
-                
+
                 for (auto &[id, entity] : entities) {
                     if (!entity) continue;
 
@@ -87,9 +90,11 @@ public:
                         hp = static_cast<int>(health->getCurrentHP());
                         maxHp = static_cast<int>(health->getMaxHP());
                     }
-                    us.hp      = hp; 
+                    us.hp      = hp;
                     us.maxHp   = maxHp;
                     us.id      = entity->getID();
+
+                    us.person = dynamic_cast<PersonBase *>(entity);
 
                     snap.entities.push_back(us);
                 }
