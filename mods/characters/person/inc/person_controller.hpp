@@ -78,6 +78,7 @@ public:
         if (person_->getCurrentHP() <= kLowHpThreshold) dmg += kBerserkBonusDamage;
         if (auto *entity = dynamic_cast<EC::Stats::Health *>(u)) {
             entity->inflictDmg(dmg);
+            person_.get()->EvAttack.emit(u->getID());
         }
 
         m_nextAttackTick = curTick + kAttackCdTicks;

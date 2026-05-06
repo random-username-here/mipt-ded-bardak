@@ -133,9 +133,9 @@ private:
             }
 
             auto *person = entity.person;
-            person->EvDamaged.subscribe(
-                [person, this] (EC::Entity::ID) {
-                    m_damage.push_back(vis::DamageEvent(person->getID(), person->getPosition().x, person->getPosition().y));
+            person->EvAttack.subscribe(
+                [person, this] (EC::Entity::ID tid) {
+                    m_damage.push_back(vis::DamageEvent(tid, person->getID()));
                 });
 
             m_subscribed.push_back(entity.id);
@@ -200,8 +200,8 @@ private:
                     }
                 }
 
-                world.applySnapshot(snap, now, tickSeconds, damage);
-                damage.clear();
+                world.applySnapshot(snap, now, tickSeconds, m_damage);
+                m_damage.clear();
 
                 lastAppliedTick = snap.tick;
                 lastSnapTime = now;

@@ -72,6 +72,23 @@ namespace EC
             HP m_currentHP;
             HP m_maxHP;
         };
+
+        class Attack
+        {
+        public:
+            using Damage = size_t;
+
+            Attack (Damage strength);
+
+            Damage getStrength () const;
+
+            void setStrength (Damage strength);
+
+            Event<Damage> EvAttack;
+
+        private:
+            Damage m_strength;
+        };
     }
 
     namespace Social
