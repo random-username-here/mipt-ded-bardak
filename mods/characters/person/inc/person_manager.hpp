@@ -44,7 +44,7 @@ public:
 
     void receiveAcionDone(BmClient *client) {
         if (!people_.count(client)) return;
-        auto *person = &people_[client]; 
+        auto *person = &people_[client];
 
         person->setActionDoneState(true);
         timer_->setTimer(1, [person](){ person->setActionDoneState(false); }, modlib::Timer::Stage::ON_UPDATE);
@@ -55,7 +55,7 @@ public:
             std::cerr << "person with client `" << client->id() << "` was already spawned\n";
             return;
         }
-        people_.try_emplace(client, map_);
+        people_.try_emplace(client, PersonCtl{map_, client});
     }
 
     void sendState() {
@@ -91,4 +91,4 @@ public:
         }
         timer_->setTimer(1, [this](){ sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
-};  
+};

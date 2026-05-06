@@ -19,11 +19,6 @@ Entity::~Entity ()
     if (m_tile) m_tile->getLevel ().removeEntity (getID ());
 }
 
-Entity::ID Entity::getID () const
-{
-    return EC::Entity::getID ();
-}
-
 Tile* Entity::getTile () const
 {
     return m_tile;
@@ -34,13 +29,12 @@ Vec2i Entity::getPosition () const
     return m_tile->getPos ();
 }
 
-
 void Entity::setTile (Tile* tile)
 {
     Vec2i oldPosition = m_tile->getPos ();
 
     m_tile->removeEntity (getID ());
-    
+
     m_tile = tile;
     if (m_tile)
     {

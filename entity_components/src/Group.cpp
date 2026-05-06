@@ -1,8 +1,9 @@
 #include "ECbasis.hpp"
 using namespace EC;
 
+Social::Group::Group(GID groupID): m_groupID (groupID) {}
 
-void 
+void
 Social::Group::setGroupID (Social::Group::GID gid)
 {
     m_groupID = gid;
@@ -10,7 +11,7 @@ Social::Group::setGroupID (Social::Group::GID gid)
     EvGroupChanged.emit ();
 }
 
-void 
+void
 Social::Group::setGroupID (bmsg::Char64 group)
 {
     m_groupID = group.as_u64;
@@ -19,7 +20,7 @@ Social::Group::setGroupID (bmsg::Char64 group)
 }
 
 
-Social::Group::GID 
+Social::Group::GID
 Social::Group::getGroupID () const
 {
     return m_groupID;

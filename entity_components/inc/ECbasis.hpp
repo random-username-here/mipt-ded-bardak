@@ -5,7 +5,7 @@
 
 namespace EC
 {
-    
+
     class Entity
     {
     public:
@@ -16,8 +16,8 @@ namespace EC
         Entity  (Type);
         virtual ~Entity ();
 
-                ID   getID   () const;
-        virtual Type getType () const = 0;
+        ID   getID   () const;
+        Type getType () const;
 
         Event<> EvEntityDeconstructed;
 
@@ -33,6 +33,8 @@ namespace EC
         {
         public:
             using AP = int;
+
+            Armor (AP armor, AP resistance);
 
             virtual float calculateResist (AP armor) const;
 
@@ -78,7 +80,9 @@ namespace EC
         {
         public:
             using GID = uint64_t;
-            
+
+            Group (GID groupID);
+
             void setGroupID (GID          gid);
             void setGroupID (bmsg::Char64 group);
 
