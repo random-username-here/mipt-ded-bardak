@@ -8,15 +8,26 @@ jobs:
         compiler: [g++, clang++]
         build_type: [Debug, Release]
     steps:
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libinih-dev \
+            libasound2-dev libx11-dev libxrandr-dev libxi-dev \
+            libgl1-mesa-dev libxcursor-dev libxinerama-dev
+      - name: raylib
+        run: |
+          git clone --depth 1 https://github.com/raysan5/raylib.git
+          cd raylib
+          mkdir build && cd build
+          cmake ..
+          make
+          sudo make install RAYLIB_LIBTYPE=SHARED
+          sudo ldconfig
       - name: clone
         id: checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: install deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake libinih-dev
       - name: build
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
@@ -30,24 +41,36 @@ jobs:
         build_type: [Debug, Release]
     if: ${{ success() }}
     steps:
+      - name: install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libinih-dev \
+            libasound2-dev libx11-dev libxrandr-dev libxi-dev \
+            libgl1-mesa-dev libxcursor-dev libxinerama-dev
+      - name: raylib
+        run: |
+          git clone --depth 1 https://github.com/raysan5/raylib.git
+          cd raylib
+          mkdir build && cd build
+          cmake ..
+          make
+          sudo make install RAYLIB_LIBTYPE=SHARED
+          sudo ldconfig
       - name: clone
         id: checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: install deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake libinih-dev
       - name: build
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
           cmake --build build
-      - name: move_mod_dirs
+      - name: move mod dirs
         run: |
           mkdir ./CItest
           cp -r ./build/* ./CItest
           rm -r ./CItest/mods/tty-graphics
+          rm -r ./CItest/mods/vis
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
