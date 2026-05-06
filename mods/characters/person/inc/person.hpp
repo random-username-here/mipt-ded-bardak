@@ -26,11 +26,10 @@ public:
     static constexpr int STRENGTH = 10;
     static constexpr Type PERSON_TYPE = "person";
 private:
-    static constexpr std::string_view kIdleTexturePath = "assets/units/person/RotatedDown.png";
-    static constexpr std::string_view kAttackTexturePath = "assets/units/person/RotatedRight.png";
-    static constexpr modlib::VisualID kIdleEvent = modlib::VisualID("idle");
-    static constexpr modlib::VisualID kAttackEvent = modlib::VisualID("attack");
-    static constexpr modlib::AssetKeyKind kEventKeyKind = modlib::AssetKeyKind("event");
+    static constexpr std::string_view IDLE_TEXTURE_PATH = MODLIB_PROJECT_ROOT "/assets/units/person/RotatedDown.png";
+    static constexpr std::string_view ATTACK_TEXTURE_PATH = MODLIB_PROJECT_ROOT "/assets/units/person/RotatedRight.png";
+    static constexpr modlib::EventID IDLE_EVENT = modlib::EventID("idle");
+    static constexpr modlib::EventID ATTACK_EVENT = modlib::EventID("attack");
 
     Level *map_;
     RotationDir dir_ = RotationDir::down;
@@ -59,25 +58,11 @@ private:
         const modlib::SpriteID idleSpriteId("per.idle");
         const modlib::SpriteID attackSpriteId("per.atk");
 
-        registerSprite(assets, idleSpriteId, kIdleTexturePath);
-        registerSprite(assets, attackSpriteId, kAttackTexturePath);
+        registerSprite(assets, idleSpriteId, IDLE_TEXTURE_PATH);
+        registerSprite(assets, attackSpriteId, ATTACK_TEXTURE_PATH);
 
-        bindVisualAsset(assets, kIdleEvent, idleSpriteId);
-        bindVisualAsset(assets, kAttackEvent, attackSpriteId);
-    }
-
-    static void bindVisualAsset(
-        modlib::AssetManager *assets,
-        modlib::VisualID event,
-        modlib::SpriteID spriteId
-    ) {
-        modlib::VisualBinding binding;
-        binding.id = PERSON_TYPE;
-        binding.key.kind = kEventKeyKind;
-        binding.key.symbolic = event;
-        binding.sprite = spriteId;
-
-        assets->bind(binding);
+        bindEventOnSprite(assets, IDLE_EVENT, idleSpriteId);
+        bindEventOnSprite(assets, ATTACK_EVENT, attackSpriteId);
     }
 
     static void registerSprite(
@@ -89,11 +74,22 @@ private:
 
         modlib::SpriteAsset sprite;
         sprite.id = id;
-        sprite.visualClass = modlib::VisualClass::Sprite;
         sprite.file = texturePath;
         sprite.source = modlib::Recti{0, 0, 16, 16};
         sprite.size = modlib::Vec2i{16, 16};
 
         assets->registerSprite(sprite);
+    }
+
+	static void bindEventOnSprite(
+        modlib::AssetManager *assets,
+        modlib::EventID eventId,
+        modlib::SpriteID spriteId
+    ) {
+        modlib::VisualBinding binding;
+        binding.event_id = eventId;
+        binding.sprite = spriteId;
+
+        assets->registerBinding(binding);
     }
 };

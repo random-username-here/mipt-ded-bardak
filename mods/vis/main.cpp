@@ -1,3 +1,4 @@
+#include "AssetManager.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "modlib_manager.hpp"
@@ -135,8 +136,7 @@ private:
                     [this, id = entity.id, bindingId = entity.person->getType()] (EC::Stats::Attack::Damage) {
                         const modlib::AssetId assetId = vis::spriteForEvent(
                             m_assetManager,
-                            bindingId,
-                            modlib::VisualID("attack")
+                            modlib::EventID("attack")
                         );
                         if (assetId == modlib::kInvalidAssetId) return;
 

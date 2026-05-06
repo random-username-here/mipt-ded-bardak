@@ -11,21 +11,13 @@
 
 namespace vis {
 
-inline modlib::AssetKey visualEventKey(modlib::VisualID event) {
-    modlib::AssetKey key;
-    key.kind = modlib::AssetKeyKind("event");
-    key.symbolic = event;
-    return key;
-}
-
 inline modlib::AssetId spriteForEvent(
     const modlib::AssetManager *assets,
-    modlib::BindingID bindingId,
-    modlib::VisualID event
+    modlib::EventID eventId
 ) {
     if (!assets) return modlib::kInvalidAssetId;
 
-    const auto binding = assets->binding(bindingId, visualEventKey(event));
+    const auto binding = assets->binding(eventId);
     if (!binding || binding->sprite == modlib::kInvalidAssetId) {
         return modlib::kInvalidAssetId;
     }
@@ -121,7 +113,7 @@ public:
                     us.id      = entity->getID();
 
                     us.person = dynamic_cast<modlib::Entity *>(entity);
-                    us.assetId = spriteForEvent(assets, entity->getType(), modlib::VisualID("idle"));
+                    us.assetId = spriteForEvent(assets, modlib::EventID("idle"));
 
                     snap.entities.push_back(us);
                 }
