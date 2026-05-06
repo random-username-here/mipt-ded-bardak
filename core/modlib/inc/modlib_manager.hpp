@@ -1,4 +1,5 @@
 #pragma once
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -46,6 +47,14 @@ public:
             if (impl) return impl;
         }
         return nullptr;
+    }
+
+    template<typename Interface>
+    Interface *requireAnyOfType(std::string_view errmsg) const {
+        Interface *it = anyOfType<Interface>();
+        if (!it)
+            throw Error(std::string(errmsg));
+        return it;
     }
 
     template<typename Interface>
