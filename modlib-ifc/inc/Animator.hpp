@@ -8,6 +8,7 @@
 #include "Event.hpp"
 #include "Vec2.hpp"
 #include "modlib_mod.hpp"
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <string_view>
@@ -22,42 +23,14 @@ using ResourceID = std::string_view; // FIXME: temporary solution
 using SpriteID = size_t;
 using AnimationID = size_t;
 using AnimatedObjectID = uintptr_t;
-
+using EasingFunction = std::function<float(float)>;
 static const AnimationID NO_ANIMATION = (size_t) -1;
 
-class Bezier;
-
-/**
- * \brief Compiled bezier easing function 
- * This has a vector of computed time-value points for easy lerping.
- */
-class CompiledBezier {
-    friend class Bezier;
-    std::vector<Vec2f> pts;
-    CompiledBezier() = default;
-public:
-    float at(float t) const;
-};
-
-/** 
- * \brief Bezier function defenition 
- * You can generate those on site like https://www.cssportal.com/css-cubic-bezier-generator/
- * c1x & c2x must be ∈ [0, 1]
- */
-class Bezier {
-    Vec2f m_cp1, m_cp2;
-public:
-    Bezier(float c1x, float c1y, float c2x, float c2y)
-        :m_cp1(c1x, c1y), m_cp2(c2x, c2y) {}
-
-    Vec2f cp1() const { return m_cp1; }
-    Vec2f cp2() const { return m_cp2; }
-
-    CompiledBezier compile(size_t numPts = 100) const;
-
-    // Couple of pre-defined curves
-    static Bezier linear() { return Bezier(0, 0, 1, 1); }
-    static Bezier ease() { return Bezier(0.25, 0.1, 0.25, 1); }
+namespace easing {
+    static inline float linear(float t) { return t; }
+    static inline float easeInOutQuart(float x) {
+        return x < 0.5 ? 8 * x * x * x * x : 1 - std::pow(-2 * x + 2, 4) / 2;
+    }
 };
 
 /**
@@ -66,6 +39,8 @@ public:
  * Step has two times: time this step takes to execute and delay
  * before starting next step. Multiple states can be ran in parallel.
  * Conflicting steps are UB.
+ *
+ * This thing can be used as delay step, it does nothing.
  */
 struct Step {
     float stepTime, delayTime;
@@ -96,14 +71,22 @@ struct DelSpriteStep : public Step {
 
 /** Move sprite from one position to another, using specified easing function. */
 struct PosStep : public Step {
-    SpriteID sprite; Vec2f to; /*Bezier easing;*/
-    PosStep(float st, float dt, SpriteID s, Vec2f t) :Step(st, dt), sprite(s), to(t) {}
+    SpriteID sprite; Vec2f to; EasingFunction easing;
+    PosStep(float st, float dt, SpriteID s, Vec2f t, EasingFunction ef = easing::linear) 
+        :Step(st, dt), sprite(s), to(t), easing(ef) {}
 };
 
 /** Rotate sprite */
 struct RotationStep : public Step {
-    SpriteID sprite; float angle; /* Bezier easing;*/
-    RotationStep(float st, float dt, SpriteID s, float a) :Step(st, dt), sprite(s), angle(a) {}
+    SpriteID sprite; float angle; EasingFunction easing;
+    RotationStep(float st, float dt, SpriteID s, float a, EasingFunction ef = easing::linear)
+        :Step(st, dt), sprite(s), angle(a), easing(ef) {}
+};
+
+/** Call some method */
+struct CallbackStep : public Step {
+    std::function<void()> callback;
+    CallbackStep(std::function<void()> cb) :Step(0, 0), callback(cb) {}
 };
 
 class AnimationManager;
