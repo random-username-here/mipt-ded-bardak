@@ -253,7 +253,6 @@ public:
         , m_dir(DIR_DOWN)
         , m_motion()
         , m_attack()
-        , m_assetId(0)
     {}
 
     explicit VisualUnit(const UnitSnap &u)
