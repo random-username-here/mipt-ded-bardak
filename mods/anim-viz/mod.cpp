@@ -80,11 +80,11 @@ class AnimatedVisualization : public modlib::BmServerModule {
             obj.sprites.erase(delSprite->id);
         } else if (auto posStep = step->as<anim::PosStep>()) {
             auto &spr = obj.sprites[posStep->sprite];
-            spr.pos.x = lerp(spr.lastPos.x, posStep->to.x, frac);
-            spr.pos.y = lerp(spr.lastPos.y, posStep->to.y, frac);
+            spr.pos.x = lerp(spr.lastPos.x, posStep->to.x, posStep->easing(frac));
+            spr.pos.y = lerp(spr.lastPos.y, posStep->to.y, posStep->easing(frac));
         } else if (auto rotStep = step->as<anim::RotationStep>()) {
             auto &spr = obj.sprites[rotStep->sprite];
-            spr.rotation = lerp(spr.lastRotation, rotStep->angle, frac);
+            spr.rotation = lerp(spr.lastRotation, rotStep->angle, rotStep->easing(frac));
         }
     }
 
@@ -97,6 +97,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
             auto &spr = obj.sprites[rotStep->sprite];
             if (!interrupt) spr.rotation = rotStep->angle;
             spr.lastRotation = spr.rotation;
+        } else if (auto cb = step->as<anim::CallbackStep>()) {
+            cb->callback();
         }
     }
 
@@ -182,7 +184,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
         an->addStep<anim::PosStep>(0, 0, 0, Vec2f(100, 100));
         an->addStep<anim::PosStep>(5, 0, 0, Vec2f(600, 600));
         an->addStep<anim::RotationStep>(5, 5, 0, M_PI * 20);
-        an->addStep<anim::PosStep>(5, 5, 0, Vec2f(100, 100));
+        an->addStep<anim::PosStep>(5, 5, 0, Vec2f(100, 100), anim::easing::easeInOutQuart);
         an->finishBuild();
 
         m_anim->play(0, Vec2f(0, 0), 0, an->id());
