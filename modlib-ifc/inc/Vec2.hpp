@@ -10,38 +10,29 @@ public:
     T y;
 
     Vec2D (T x_=0, T y_=0)      : x (x_), y(y_) {}
-    Vec2D (const Vec2D<T>& src) : x (src.x), y(src.y) {}
 
-    Vec2D& operator= (const Vec2D<T>& src)
-    {
-        x = src.x;
-        x = src.y;
-
-        return *this;
-    }
-
-    Vec2D operator+ (const Vec2D<T>& rhs)
+    Vec2D operator+ (const Vec2D<T>& rhs) const
     {
         return Vec2D (
             x + rhs.x,
             y + rhs.y
         );
     }
-    Vec2D operator- (const Vec2D<T>& rhs)
+    Vec2D operator- (const Vec2D<T>& rhs) const
     {
         return Vec2D (
             x - rhs.x,
             y - rhs.y
         );
     }
-    Vec2D& operator+= (const Vec2D<T>& rhs)
+    Vec2D& operator+= (const Vec2D<T>& rhs) const
     {
         x += rhs.x;
         y += rhs.y;
 
         return *this;
     }
-    Vec2D& operator-= (const Vec2D<T>& rhs)
+    Vec2D& operator-= (const Vec2D<T>& rhs) const
     {
         x -= rhs.x;
         y -= rhs.y;
@@ -49,14 +40,14 @@ public:
         return *this;
     }
 
-    Vec2D operator* (const T& rhs)
+    Vec2D operator* (const T& rhs) const
     {
         return Vec2D (
             x * rhs,
             y * rhs
         );
     }
-    Vec2D& operator*= (const T& rhs)
+    Vec2D& operator*= (const T& rhs) const
     {
         x *= rhs;
         y *= rhs;
