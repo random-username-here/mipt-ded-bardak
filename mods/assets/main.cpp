@@ -1,130 +1,100 @@
-#include <cstdint>
+#include "AssetManager.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <utility>
-#include <vector>
-
-#include "modlib_mod.hpp"
-#include "AssetManager.hpp"
 
 namespace {
 
-static std::string loadFileBytes(const std::filesystem::path &filePath) {
-    std::ifstream inputFile(filePath, std::ios::binary);
-    if (!inputFile) return {};
+std::string loadFileBytes(std::string_view filePath) {
+    std::ifstream inputFile(std::filesystem::path(filePath), std::ios::binary);
+    if (!inputFile) {
+        return {};
+    }
 
     inputFile.seekg(0, std::ios::end);
-    std::streamsize fileSize = inputFile.tellg();
-    if (fileSize <= 0) return {};
+    const std::streamsize fileSize = inputFile.tellg();
+    if (fileSize <= 0) {
+        return {};
+    }
     inputFile.seekg(0, std::ios::beg);
 
-    std::string dataBytes;
-    dataBytes.resize((size_t)fileSize);
-    if (!inputFile.read(dataBytes.data(), fileSize)) return {};
-    return dataBytes;
+    std::string bytes;
+    bytes.resize(static_cast<size_t>(fileSize));
+    if (!inputFile.read(bytes.data(), fileSize)) {
+        return {};
+    }
+    return bytes;
 }
-
-// static uint64_t transformedKey(modlib::AssetId baseId, modlib::AssetTransform transform) {
-//     // Stable key: baseId + exact rotation milli-degrees.
-//     return (uint64_t(baseId) << 32) ^ uint32_t(transform.rotationMilliDeg);
-// }
 
 } // namespace
 
 class AssetManagerModule final : public modlib::AssetManager {
-public:
-    AssetManagerModule() {
-        // Reserve id=0 as "invalid asset id".
-        m_assets.emplace_back();
-    }
-
-    std::string_view id() const override { return "neilor.bardak.asset_manager"; }
-    std::string_view brief() const override { return "Registers textures and serves bytes by assetId"; }
-    ModVersion version() const override { return ModVersion(0, 1, 0); }
-
-    // Register base texture by file path, return a new asset id.
-    // If same file path is registered multiple times, returns the first id.
-    modlib::AssetId addTexture(std::string_view filePath) override {
-        std::string normalizedPath(filePath);
-        // Normalize for cache key stability.
-        std::filesystem::path fileSystemPath(normalizedPath);
-        fileSystemPath = fileSystemPath.lexically_normal();
-        normalizedPath = fileSystemPath.string();
-
-        auto cachedEntry = m_pathToBase.find(normalizedPath);
-        if (cachedEntry != m_pathToBase.end()) {
-            return cachedEntry->second;
-        }
-
-        std::string textureBytes = loadFileBytes(fileSystemPath);
-        if (textureBytes.empty()) return modlib::kInvalidAssetId;
-
-        modlib::AssetId id = (modlib::AssetId)m_assets.size();
-        m_assets.push_back(AssetRecord{
-            id,
-            modlib::AssetTransform{},
-            std::move(textureBytes),
-            normalizedPath,
-        });
-        m_pathToBase[normalizedPath] = id;
-        return id;
-    }
-
-    std::string_view getTextureBytes(modlib::AssetId id) const override {
-        if (!isValidAssetId(id)) return {};
-        const AssetRecord &rec = m_assets[id];
-        if (!isValidAssetId(rec.baseId)) return {};
-        return m_assets[rec.baseId].bytes;
-    }
-
-    modlib::AssetTransform getTransform(modlib::AssetId id) const override {
-        if (!isValidAssetId(id)) return {};
-        return m_assets[id].transform;
-    }
-
-    // modlib::AssetId getTransformed(modlib::AssetId baseId, modlib::AssetTransform transform) override {
-    //     if (!isValidAssetId(baseId)) return modlib::kInvalidAssetId;
-    //     // Cache transformed "views" so we don't create up to 360 variants unless needed.
-    //     // We still avoid duplicating bytes: transformed ids reference the same baseId.
-    //     uint64_t key = transformedKey(baseId, transform);
-    //     auto cachedEntry = m_transformedCache.find(key);
-    //     if (cachedEntry != m_transformedCache.end()) return cachedEntry->second;
-
-    //     modlib::AssetId id = (modlib::AssetId)m_assets.size();
-    //     m_assets.push_back(AssetRecord{
-    //         m_assets[baseId].kind,
-    //         baseId,
-    //         transform,
-    //         std::string{}, // no duplication of bytes
-    //         std::string{},
-    //     });
-    //     m_transformedCache.emplace(key, id);
-    //     return id;
-    // }
-
 private:
-    struct AssetRecord {
-        modlib::AssetId baseId = 0;           // points to record which holds bytes
-        modlib::AssetTransform transform{};  // metadata for visualization
-        std::string bytes;                   // only filled for base textures
-        std::string path;                    // only filled for base textures (debug)
+    struct StoredSprite {
+        modlib::SpriteAsset asset{};
+        std::string_view file{};
+        std::string bytesKey{};
     };
 
-    bool isValidAssetId(modlib::AssetId id) const {
-        return id != modlib::kInvalidAssetId && id < (modlib::AssetId)m_assets.size();
+    std::unordered_map<modlib::SpriteID, StoredSprite, modlib::SpriteIDHash> m_sprites;
+    std::unordered_map<std::string_view, std::string> m_fileBytes;
+
+public:
+    std::string_view id() const override { return "neilor.bardak.asset_manager"; }
+    std::string_view brief() const override { return "Manager of raw resources, e.g. sprites"; }
+    ModVersion version() const override { return ModVersion(0, 1, 0); }
+
+    bool registerSprite(const modlib::SpriteAsset &sprite) override {
+        const auto spriteId = sprite.id.as_u64;
+        if (spriteId == 0 || m_sprites.count(spriteId) != 0) {
+            return false;
+        }
+
+        StoredSprite stored;
+        stored.file = sprite.file;
+        if (stored.file.empty()) {
+            return false;
+        }
+        auto cachedBytesIt = m_fileBytes.find(stored.file);
+        if (cachedBytesIt == m_fileBytes.end()) {
+            std::string bytes = loadFileBytes(stored.file);
+            if (bytes.empty()) {
+                return false;
+            }
+            cachedBytesIt = m_fileBytes.emplace(stored.file, std::move(bytes)).first;
+        }
+
+        stored.asset = sprite;
+        stored.bytesKey = cachedBytesIt->first;
+        m_sprites.emplace(spriteId, std::move(stored));
+        return true;
     }
 
-    std::vector<AssetRecord> m_assets;
-    // Map "normalized path" -> base assetId
-    std::unordered_map<std::string, modlib::AssetId> m_pathToBase;
-    // Cache transformed views: (baseId, rotationMilliDeg) -> transformed assetId
-    std::unordered_map<uint64_t, modlib::AssetId> m_transformedCache;
+    std::optional<modlib::SpriteAsset> sprite(modlib::SpriteID id) const override {
+        auto it = m_sprites.find(id);
+        if (it == m_sprites.end()) {
+            return std::nullopt;
+        }
+        return it->second.asset;
+    }
+
+    std::string_view spriteBytes(modlib::SpriteID id) const override {
+        const auto spriteIt = m_sprites.find(id.as_u64);
+        if (spriteIt == m_sprites.end()) {
+            return {};
+        }
+
+        const auto bytesIt = m_fileBytes.find(spriteIt->second.bytesKey);
+        if (bytesIt == m_fileBytes.end()) {
+            return {};
+        }
+        return bytesIt->second;
+    }
 };
 
 extern "C" Mod *modlib_create(ModManager *) {
     return new AssetManagerModule();
 }
-
