@@ -1,35 +1,43 @@
 #pragma once
 #include "modlib_mod.hpp"
 #include <functional>
-#include <utility>
 
 namespace modlib {
 
 class Timer : public Mod
 {
 public:
-    using Callback = std::function<void(void)>;
     enum class Stage
     {
         ON_UPDATE = 0,
         ON_UPDATE_DONE
     };
-    using Tick = size_t;
-    using TimerID = std::pair<Tick, uint64_t>;
+    enum class Type
+    {
+        COUNTDOWN = 0,
+        CYCLE
+    };
+    using Tick     = size_t;
+    using Callback = std::function<void(void)>;
+    using TimerID = uint64_t;
 
     virtual TimerID setTimer (
-        Tick delay,
+        Tick     delay,
         Callback callback,
-        Stage type
+        Stage    stage = Stage::ON_UPDATE,
+        Type     type  = Type::COUNTDOWN
     ) = 0;
 
     virtual void cancelTimer (
         TimerID& id
     ) = 0;
 
-    virtual void tick () = 0;
+    virtual size_t tick () = 0;
 
     virtual Tick getTicksSinceCreation () = 0;
+    virtual Tick getNextEmission (TimerID id) = 0;
+
+    virtual ~Timer () = default;
 };
 
 };

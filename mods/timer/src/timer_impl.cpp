@@ -1,106 +1,170 @@
 #include <stdexcept>
-#include <random>
+#include <functional>
 #include <queue>
-#include "../timer_impl.hpp"
+#include <unordered_map>
+#include <unordered_set>
+#include <iostream>
+#include "Timer.hpp"
 
 
-std::string_view 
-Timer::id () const
+class Timer : public modlib::Timer
 {
-    return "DoDoeb.timer_mngr";
-}
-
-std::string_view 
-Timer::brief () const
-{
-    return "Singleton timer module by DoDoeb";
-}
-
-ModVersion
-Timer::version () const
-{
-    return ModVersion (1, 1, 6);
-}
-
-
-Timer::TimerID 
-Timer::setTimer (
-    Tick delay,
-    Callback callback,
-    Stage type
-)
-{
-    if (callback == nullptr)
+public:
+    TimerID setTimer (
+        Tick     delay,
+        Callback callback,
+        Stage    stage = Stage::ON_UPDATE,
+        Type     type  = Type::COUNTDOWN
+    ) override
     {
-        throw std::runtime_error ("invalid callback provided");
+        if (callback == nullptr)
+        {
+            throw std::runtime_error ("invalid callback provided");
+        }
+
+        if (delay == 0)
+        {
+            throw std::runtime_error ("timer delay must be greater than zero");
+        }
+
+        Tick tickStamp = m_tickCounter + delay;
+
+        TimerID id = ++m_lastID;
+
+        m_callbacksEntries[id] = {
+            .m_stage    = stage,
+            .m_base     = tickStamp,
+            .m_cycle    = (type == Type::CYCLE) ? delay : 0,
+            .m_callback = callback
+        };
+    
+        m_tickStamps[tickStamp].emplace (id);
+        return id;
     }
 
-    Tick tickStamp = m_tickCounter + delay;
-
-    TimerID id = {
-        tickStamp,
-        rand ()
-    };
-
-    m_tickStamps[tickStamp][id.second] = {
-        type,
-        callback
-    };
-    
-    
-    return id;
-}
-
-void
-Timer::cancelTimer (
-    Timer::TimerID& id
-)
-{
-    m_tickStamps[id.first].erase (id.second);
-
-    id = {0, 0};
-}
-
-
-void
-Timer::tick ()
-{
-    m_tickCounter++;
-
-    if (m_tickStamps[m_tickCounter].empty () == false)
+    void cancelTimer (
+        TimerID& id
+    ) override
     {
-        std::queue<Callback> callbackbackQueue;
-
-        for (const auto [_, entry] : m_tickStamps[m_tickCounter])
+        Tick tickStamp = getNextEmission (id);
+        if (tickStamp == 0)
         {
-            if (entry.first == Stage::ON_UPDATE)
+            return;
+        }
+
+        m_tickStamps[tickStamp].erase (id);
+        m_callbacksEntries.erase (id);
+        id = 0;
+    }
+
+    size_t tick () override
+    {
+        m_tickCounter++;
+
+        auto bucketIterator = m_tickStamps.find (m_tickCounter);
+        if (bucketIterator == m_tickStamps.end ())
+        {
+            return 0;
+        }
+        auto& bucket = bucketIterator->second;
+
+        size_t emitted = bucket.size ();
+        std::queue<Callback> callbackQueue;
+
+        for (TimerID id : bucket)
+        {
+            const auto& entry = m_callbacksEntries[id]; // An entry with this ID always exists in m_callbacksEntries
+
+            if (entry.m_cycle > 0)
             {
-                entry.second ();
+                Tick nextTick = m_tickCounter + entry.m_cycle;
+                m_tickStamps[nextTick].emplace (id);
+            }
+
+            if (entry.m_stage == Stage::ON_UPDATE)
+            {
+                try
+                {
+                    entry.m_callback ();
+                }
+                catch (const std::exception& e)
+                {
+                    emitted--;
+
+                    std::cerr << "[T" << m_tickCounter << "][Timer][TID" << id << "] Callback threw an exception: " << e.what () << std::endl;
+                }
             }
             else
             {
-                callbackbackQueue.push (entry.second);
-            }
+                callbackQueue.push (entry.m_callback);
+            }   
         }
-        m_tickStamps.erase (m_tickCounter);
+        m_tickStamps.erase (bucketIterator);
 
-        while (callbackbackQueue.empty () == false)
+        while (!callbackQueue.empty ())
         {
-            callbackbackQueue.front () ();
-            callbackbackQueue.pop ();
+            try
+            {
+                callbackQueue.front () ();
+            }
+            catch (const std::exception& e)
+            {
+                emitted--;
+                std::cerr << "[Timer] Callback threw an exception: " << e.what () << std::endl;
+            }
+            callbackQueue.pop ();
         }
+
+        return emitted;
     }
-}
 
-Timer::Tick
-Timer::getTicksSinceCreation ()
-{
-    return m_tickCounter;
-}
+    Tick getTicksSinceCreation () override { return m_tickCounter; }
+
+    Tick getNextEmission (TimerID id) override
+    {
+        if (id == 0)
+        {
+            return 0;
+        }
+
+        auto entryIterator =  m_callbacksEntries.find (id);
+        if ( entryIterator == m_callbacksEntries.end ())
+        {
+            return 0;
+        }
+
+        CallbackEntry& entry = entryIterator->second;
+
+        Tick tickStamp = entry.m_cycle == 0 || (entry.m_cycle && m_tickCounter < entry.m_base) ? 
+            entry.m_base :
+            entry.m_base + ((m_tickCounter - entry.m_base) / entry.m_cycle + 1) * entry.m_cycle;
+
+        return tickStamp;
+    }
+
+    std::string_view id                    () const override { return "DoDoeb.timer_mngr"; }
+    std::string_view brief                 () const override { return "Singleton timer module by DoDoeb"; }
+    ModVersion       version               () const override { return ModVersion (1, 2, 0); }
+
+private:
+    struct CallbackEntry
+    {
+        Stage    m_stage;
+        Tick     m_base;
+        Tick     m_cycle;
+        Callback m_callback;
+    };
 
 
+    Tick m_tickCounter = 0;
+    TimerID m_lastID = 0;
 
-extern "C" Mod *modlib_create (ModManager *mm)
+    std::unordered_map<TimerID, CallbackEntry>            m_callbacksEntries;
+    std::unordered_map<Tick, std::unordered_set<TimerID>> m_tickStamps;
+};
+
+
+extern "C" Mod *modlib_create (ModManager *)
 {
     return new Timer();
 }

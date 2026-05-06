@@ -20,6 +20,7 @@ public:
     virtual uint64_t teamId() const = 0;
 
     virtual int hp() const = 0;
+    virtual int maxHp() const = 0;
     virtual void takeDamage(int d) = 0;
     
     virtual void pickUp() = 0;
