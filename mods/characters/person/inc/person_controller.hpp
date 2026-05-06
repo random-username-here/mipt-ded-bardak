@@ -3,7 +3,7 @@
 #include "person.hpp"
 
 inline RotationDir convertMoveToDir(int dx, int dy) {
-    if (dx == 0 && dy == 0) return RotationDir::down; 
+    if (dx == 0 && dy == 0) return RotationDir::down;
 
     if (std::abs(dx) > std::abs(dy)) {
         return (dx > 0) ? RotationDir::right: RotationDir::left;
@@ -29,29 +29,29 @@ class PersonCtl {
 public:
     PersonCtl() = default;
 
-    PersonCtl(Level *map): 
+    PersonCtl(Level *map, BmClient *client):
         map_(map)
     {
         assert(map);
 
-        auto sz = map_->getSize(); 
+        auto sz = map_->getSize();
         assert(sz.x > 2 && sz.y > 2);
 
-        Vec2i pos = Vec2i 
+        Vec2i pos = Vec2i
         {
             1 + rand() % (sz.x - 2),
             1 + rand() % (sz.y - 2)
         };
 
         Tile *tile = map->getTile(pos);
-        person_ = std::make_unique<Person>(map, tile); 
+        person_ = std::make_unique<Person>(map, tile, client);
         map_->newEntity(person_.get(), tile);
     }
 
     void move(int dx, int dy, uint64_t curTick) {
         assert(person_);
         assert(map_);
-    
+
         if (curTick < m_nextMoveTick) return;
         if (abs(dx) > 1 || abs(dy) > 1) return;
 
@@ -73,11 +73,12 @@ public:
 
         if (std::abs(u->getPosition().x - person_->getPosition().x) > 1 || std::abs(u->getPosition().y - person_->getPosition().y) > 1)
             return;
-        
+
         int dmg = kBaseAttackDamage;
         if (person_->getCurrentHP() <= kLowHpThreshold) dmg += kBerserkBonusDamage;
         if (auto *entity = dynamic_cast<EC::Stats::Health *>(u)) {
             entity->inflictDmg(dmg);
+            person_.get()->EvAttack.emit(u->getID());
         }
 
         m_nextAttackTick = curTick + kAttackCdTicks;
@@ -92,16 +93,15 @@ public:
         map_->removeEntity(person_->getID());
     }
 
-    Vec2i pos() const { 
+    Vec2i pos() const {
         assert(person_);
-        return person_->getPosition(); 
+        return person_->getPosition();
     }
     int32_t hp() const {
-        assert(person_); 
-        return person_->getCurrentHP(); 
+        assert(person_);
+        return person_->getCurrentHP();
     }
-    Person *person() { 
-        return person_.get(); 
+    Person *person() {
+        return person_.get();
     }
 };
-  

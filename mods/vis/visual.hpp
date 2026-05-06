@@ -2,6 +2,8 @@
 
 #include "snapshot.hpp"
 #include "AssetManager.hpp"
+#include "person_base.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -191,20 +193,17 @@ struct Corpse {
 };
 
 struct DamageEvent {
-    size_t targetId;
-    int x;
-    int y;
+    size_t targetID;
+    size_t attackerID;
 
     DamageEvent()
-        : targetId(0)
-        , x(0)
-        , y(0)
+        : targetID(0)
+        , attackerID(0)
     {}
 
-    DamageEvent(size_t tid, int xx, int yy)
-        : targetId(tid)
-        , x(xx)
-        , y(yy)
+    DamageEvent(size_t tid, size_t aid)
+        : targetID(tid)
+        , attackerID(aid)
     {}
 };
 
@@ -274,12 +273,12 @@ public:
     size_t id() const { return m_id; }
     int     x() const { return m_x;  }
     int     y() const { return m_y;  }
-    
+
     int    hp() const { return m_hp;    }
     int maxHp() const { return m_maxHp; }
 
     Direction dir() const { return m_dir; }
-    
+
     modlib::AssetId assetId() const { return m_assetId; }
 
     bool attacking(double now) const {
@@ -295,7 +294,7 @@ public:
         return m_attack.pulse(now) * tile * 0.18f;
     }
 
-    void applySnapshot(const UnitSnap &u, const VisualUnit *old, double now, double tickSeconds, std::vector<DamageEvent> &damage) {
+    void applySnapshot(const UnitSnap &u, const VisualUnit *old, double now, double tickSeconds) {
         m_id = u.id;
 
         m_x = u.x;
@@ -331,10 +330,6 @@ public:
 
             m_dir = DirectionUtil::fromDelta(dx, dy, old->m_dir);
         }
-
-        if (u.hp < old->m_hp) {
-            damage.push_back(DamageEvent(u.id, u.x, u.y));
-        }
     }
 
     void triggerAttack(Direction dir, double now, double tickSeconds) {
@@ -369,9 +364,8 @@ public:
         );
     }
 
-    void applySnapshot(const WorldSnap &snap, double now, double tickSeconds) {
+    void applySnapshot(const WorldSnap &snap, double now, double tickSeconds, std::vector<DamageEvent> &damage) {
         std::unordered_set<size_t> present;
-        std::vector<DamageEvent>   damage;
 
         for (size_t i = 0; i < snap.entities.size(); ++i) {
             const UnitSnap &u = snap.entities[i];
@@ -388,9 +382,9 @@ public:
             auto old = m_units.find(u.id);
 
             if (old == m_units.end()) {
-                next.applySnapshot(u, NULL, now, tickSeconds, damage);
+                next.applySnapshot(u, NULL, now, tickSeconds);
             } else {
-                next.applySnapshot(u, &old->second, now, tickSeconds, damage);
+                next.applySnapshot(u, &old->second, now, tickSeconds);
             }
 
             m_units[u.id] = next;
@@ -439,40 +433,13 @@ private:
         for (size_t i = 0; i < damage.size(); ++i) {
             const DamageEvent &d = damage[i];
 
-            size_t bestId = 0;
-            int bestScore = 999999;
-            bool found    = false;
-
-            
-
-            for (auto &unit : m_units) {
-                if (unit.first == d.targetId) continue;
-
-                VisualUnit &candidate = unit.second;
-
-                const int dx    = std::abs(candidate.x() - d.x);
-                const int dy    = std::abs(candidate.y() - d.y);
-                const int shift = std::max(dx, dy);
-
-                if (shift > 1) continue;
-
-                const int score = dx + dy;
-
-                if (!found || score < bestScore) {
-                    found = true;
-                    bestScore = score;
-                    bestId = unit.first;
-                }
-            }
-
-            if (!found) continue;
-
-            VisualUnit &attacker = m_units[bestId];
+            VisualUnit &target = m_units[d.targetID];
+            VisualUnit &attacker = m_units[d.attackerID];
             const Direction dir = DirectionUtil::toward(
                 attacker.x(),
                 attacker.y(),
-                d.x,
-                d.y,
+                target.x(),
+                target.y(),
                 attacker.dir()
             );
 

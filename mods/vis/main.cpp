@@ -10,6 +10,7 @@
 #include <raylib.h>
 
 #include <atomic>
+#include <algorithm>
 #include <mutex>
 #include <string_view>
 #include <thread>
@@ -23,6 +24,9 @@ class VisMod final : public Mod {
     bool m_snapshotTimerSet;
 
     vis::Snapshotter m_snapshotter;
+
+    std::vector<EC::Entity::ID>   m_subscribed;
+    std::vector<vis::DamageEvent> m_damage;
 
     std::mutex     m_snapLock;
     vis::WorldSnap m_snap;
@@ -118,8 +122,28 @@ private:
         }
     }
 
+    void subscribeOnEvents(vis::WorldSnap &snap) {
+        for (auto &entity : snap.entities) {
+            auto it = std::find(m_subscribed.begin(), m_subscribed.end(), entity.id);
+            if (it != m_subscribed.end()) {
+                continue;
+            }
+
+            if (auto *person = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
+                person->EvAttack.subscribe(
+                [this, entity] (EC::Entity::ID tid) {
+                    m_damage.push_back(vis::DamageEvent(tid, entity.person->getID()));
+                });
+            }
+            
+            m_subscribed.push_back(entity.id);
+        }
+    }
+
     void snapshot() {
         vis::WorldSnap next = m_snapshotter.capture(m_map);
+
+        subscribeOnEvents(next);
 
         std::lock_guard<std::mutex> lock(m_snapLock);
 
@@ -174,7 +198,8 @@ private:
                     }
                 }
 
-                world.applySnapshot(snap, now, tickSeconds);
+                world.applySnapshot(snap, now, tickSeconds, m_damage);
+                m_damage.clear();
 
                 lastAppliedTick = snap.tick;
                 lastSnapTime = now;

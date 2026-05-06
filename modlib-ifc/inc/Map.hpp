@@ -18,16 +18,13 @@ namespace modlib {
 
 class Tile;
 
-class Entity : virtual public EC::Entity
+class Entity : public EC::Entity
 {
 public:
     Entity (Type type, Tile* tile);
 
     virtual ~Entity ();
 
-    ID    getID   () const;
-    virtual Type getType () const = 0;
-    
     Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
     Vec2i    getPosition () const;
     void     setTile     (Tile*   tile);
@@ -45,10 +42,10 @@ class Tile
 {
 public:
     using Type = bmsg::Char64;
-    
+
     struct BasicTypes {
        static const inline Type WALL = Type("wall");
-       static const inline Type EMPTY = Type("empty");    
+       static const inline Type EMPTY = Type("empty");
     };
 
      Tile (Level& level, Vec2i position, Type type);
@@ -75,9 +72,7 @@ private:
     std::unordered_map<Entity::ID, Entity*> m_EntityList;
 };
 
-
-
-class Level : public Mod 
+class Level : public Mod
 {
     friend void Tile::setType (Tile::Type type);
 public:
@@ -87,11 +82,11 @@ public:
 
     ID getLevelID() const;
     Vec2i getSize() const;
-    
+
     Tile *getTile(Vec2i position);
     const std::vector       <std::vector<Tile>             >& getTileMap   ();
     const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& getTileTypes ()                 const;
-    
+
     Entity::ID                                      newEntity       (Entity* entity, Vec2i  position);
     Entity::ID                                      newEntity       (Entity* entity, Tile   *tile    );
     void                                         removeEntity       (Entity::ID id                    );
