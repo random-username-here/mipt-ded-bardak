@@ -24,6 +24,8 @@ class VisMod final : public Mod {
 
     vis::Snapshotter m_snapshotter;
 
+    std::vector<vis::DamageEvent> damage;
+
     std::mutex     m_snapLock;
     vis::WorldSnap m_snap;
 
@@ -118,8 +120,20 @@ private:
         }
     }
 
+    void subscribeOnEvents(vis::WorldSnap &snap) {
+        for (auto &entity : snap.entities) {
+            auto *person = entity.person;
+            person->EvDamaged.subscribe(
+                [person, this] (EC::Entity::ID) {
+                    damage.push_back(vis::DamageEvent(person->getID(), person->getPosition().x, person->getPosition().y));
+                });
+        }
+    }
+
     void snapshot() {
         vis::WorldSnap next = m_snapshotter.capture(m_map);
+
+        subscribeOnEvents(next);
 
         std::lock_guard<std::mutex> lock(m_snapLock);
 
@@ -174,7 +188,8 @@ private:
                     }
                 }
 
-                world.applySnapshot(snap, now, tickSeconds);
+                world.applySnapshot(snap, now, tickSeconds, damage);
+                damage.clear();
 
                 lastAppliedTick = snap.tick;
                 lastSnapTime = now;
