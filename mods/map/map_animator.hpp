@@ -105,7 +105,7 @@ private:
         modlib::SpriteAsset sprite;
         sprite.id = spriteId;
         sprite.file = std::move(file);
-        sprite.source = modlib::Rectf{0, 0, 16, 16};
+        sprite.clip = modlib::Rectf{0, 0, 16, 16};
         sprite.size = modlib::Vec2f{kTilePixels, kTilePixels};
 
         m_assets->registerSprite(sprite);
