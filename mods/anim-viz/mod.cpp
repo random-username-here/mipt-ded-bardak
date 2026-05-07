@@ -219,7 +219,26 @@ class AnimatedVisualization : public modlib::BmServerModule {
                 ClearBackground(BLACK);
                 {
                     std::lock_guard<std::mutex> lock(m_lock);
-                    for (auto &[id, obj] : m_objs) {
+                    std::vector<anim::AnimatedObjectID> objectOrder;
+                    objectOrder.reserve(m_objs.size());
+                    for (const auto &[id, _] : m_objs) {
+                        objectOrder.push_back(id);
+                    }
+                    std::sort(
+                        objectOrder.begin(),
+                        objectOrder.end(),
+                        [this](anim::AnimatedObjectID lhs, anim::AnimatedObjectID rhs) {
+                            const AnimatedObject &left = m_objs.at(lhs);
+                            const AnimatedObject &right = m_objs.at(rhs);
+                            if (left.layer != right.layer) {
+                                return left.layer < right.layer;
+                            }
+                            return lhs < rhs;
+                        }
+                    );
+
+                    for (anim::AnimatedObjectID id : objectOrder) {
+                        AnimatedObject &obj = m_objs.at(id);
                         processSteps(obj);
                         drawSprites(obj);
                     }

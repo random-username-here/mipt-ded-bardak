@@ -10,11 +10,11 @@
 
 namespace modlib {
 
-struct Recti {
-    int x = 0;
-    int y = 0;
-    int w = 0;
-    int h = 0;
+struct Rectf {
+    float x = 0;
+    float y = 0;
+    float w = 0;
+    float h = 0;
 };
 
 using SpriteID = bmsg::Char64;
@@ -24,11 +24,11 @@ struct SpriteAsset {
     SpriteID id{};
 
     std::string file{};
-    Recti source{};
+    Rectf source{};
 
-    Vec2i size{};
-    Vec2i origin{};
-    Vec2i offset{};
+    Vec2f size{};
+    Vec2f origin{};
+    Vec2f offset{};
 
     int z = 0;
 };
