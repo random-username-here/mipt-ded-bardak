@@ -20,7 +20,7 @@ class Animator : public anim::AnimationManager {
         onRegister().emit(an);
     }
 
-    void play(anim::AnimatedObjectID obj, anim::Vec2f cell, int lyr, anim::AnimationID id) override {
+    void play(anim::AnimatedObjectID obj, modlib::Vec2f cell, int lyr, anim::AnimationID id) override {
         if (id >= m_anims.size())
             throw std::runtime_error("Unknown animation");
         onPlay().emit(obj, cell, lyr, id);

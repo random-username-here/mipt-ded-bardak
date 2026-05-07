@@ -5,13 +5,13 @@
  * \date 2026-05-06
  */
 #pragma once
+#include "AssetManager.hpp"
 #include "Event.hpp"
 #include "Vec2.hpp"
 #include "modlib_mod.hpp"
 #include <cmath>
 #include <cstdint>
 #include <memory>
-#include <string_view>
 #include <vector>
 
 namespace anim {
@@ -19,19 +19,30 @@ namespace anim {
 using modlib::Vec2f;
 using modlib::Vec2i;
 
-using ResourceID = std::string_view; // FIXME: temporary solution
-using SpriteID = size_t;
-using AnimationID = size_t;
-using AnimatedObjectID = uintptr_t;
+using SpriteSlotID = size_t;
+
 using EasingFunction = std::function<float(float)>;
-static const AnimationID NO_ANIMATION = (size_t) -1;
 
 namespace easing {
-    static inline float linear(float t) { return t; }
-    static inline float easeInOutQuart(float x) {
-        return x < 0.5 ? 8 * x * x * x * x : 1 - std::pow(-2 * x + 2, 4) / 2;
-    }
+
+static inline float linear(float t) { return t; }
+
+static inline float easeInOutQuart(float x) {
+	return x < 0.5 ? 8 * x * x * x * x : 1 - std::pow(-2 * x + 2, 4) / 2;
+}
+
+}
+
+struct Sprite {
+	modlib::SpriteID asset_id;
+    Vec2f pos{};
+    Vec2f lastPos{};
+    float rotation = 0;
+    float lastRotation = 0;
+	int z = 0;
 };
+
+using SpriteBySlot = std::unordered_map<SpriteSlotID, Sprite>;
 
 /**
  * \brief One unit of animation script
@@ -52,55 +63,119 @@ struct Step {
     template<typename T>
     bool is() const { return as<T>() != nullptr; }
 
+    Step() : Step(0,0 ) {}
     Step(float st, float dt) :stepTime(st), delayTime(dt) {}
 
     virtual ~Step() {}
 };
 
 /** Set sprite's texture, creates sprite if it didn't exist. Done before wait. */
-struct SetImageStep : public Step {
-    SpriteID id; ResourceID rid;
-    SetImageStep(SpriteID i, ResourceID r) :Step(0, 0), id(i), rid(r) {}
+class SetAssetStep : public Step {
+    SpriteSlotID slot;
+	modlib::SpriteID asset_id;
+
+  public:
+    SetAssetStep(SpriteSlotID s, modlib::SpriteID a) : slot(s), asset_id(a) {}
+	
+	void apply(SpriteBySlot& sprites) const {
+		sprites[slot].asset_id = asset_id;
+	}
 };
 
 /** Delete sprite */
-struct DelSpriteStep : public Step {
-    SpriteID id;
-    DelSpriteStep(SpriteID i) :Step(0, 0), id(i) {}
-};
+class DelSpriteStep : public Step {
+    SpriteSlotID slot;
 
-/** Move sprite from one position to another, using specified easing function. */
-struct PosStep : public Step {
-    SpriteID sprite; Vec2f to; EasingFunction easing;
-    PosStep(float st, float dt, SpriteID s, Vec2f t, EasingFunction ef = easing::linear) 
-        :Step(st, dt), sprite(s), to(t), easing(ef) {}
-};
+  public:
+    DelSpriteStep(SpriteSlotID s) : slot(s) {}
 
-/** Rotate sprite */
-struct RotationStep : public Step {
-    SpriteID sprite; float angle; EasingFunction easing;
-    RotationStep(float st, float dt, SpriteID s, float a, EasingFunction ef = easing::linear)
-        :Step(st, dt), sprite(s), angle(a), easing(ef) {}
+	void apply(SpriteBySlot& sprites) const {
+		sprites.erase(slot);
+	}
 };
 
 /** Call some method */
-struct CallbackStep : public Step {
+class CallbackStep : public Step {
     std::function<void()> callback;
-    CallbackStep(std::function<void()> cb) :Step(0, 0), callback(cb) {}
+	
+  public:
+    CallbackStep(std::function<void()> cb) : callback(cb) {}
+
+	void apply(SpriteBySlot& /* sprites */) const {
+		callback();
+	}
+
+	void end(SpriteBySlot& /* sprites */) const {
+		callback();
+	}
+};
+
+inline float lerp(float a, float b, float fac) {
+	return a * (1 - fac) + b * fac;
+}
+
+/** Move sprite from one position to another, using specified easing function. */
+class PosStep : public Step {
+    SpriteSlotID slot;
+	Vec2f to;
+	EasingFunction easing;
+
+  public:
+    PosStep(float st, float dt, SpriteSlotID s, Vec2f t, EasingFunction ef = easing::linear)
+        : Step(st, dt), slot(s), to(t), easing(ef) {}
+
+	void apply(SpriteBySlot& sprites, float frac) const {
+		auto &spr = sprites[slot];
+		spr.pos.x = lerp(spr.lastPos.x, to.x, easing(frac));
+		spr.pos.y = lerp(spr.lastPos.y, to.y, easing(frac));
+	}
+
+	void end(SpriteBySlot& sprites, bool interrupt) const {
+		auto &spr = sprites[slot];
+		if (!interrupt) spr.pos = to;
+		spr.lastPos = spr.pos; 
+	}
+};
+
+/** Rotate sprite */
+class RotationStep : public Step {
+    SpriteSlotID slot;
+	float angle;
+	EasingFunction easing;
+
+  public:
+    RotationStep(float st, float dt, SpriteSlotID s, float a, EasingFunction ef = easing::linear)
+        : Step(st, dt), slot(s), angle(a), easing(ef) {}
+
+	void apply(SpriteBySlot& sprites, float frac) const {
+		auto &spr = sprites[slot];
+		spr.rotation = lerp(spr.lastRotation, angle, easing(frac));
+	}
+		
+	void end(SpriteBySlot& sprites, bool interrupt) const {
+		auto &spr = sprites[slot];
+		if (!interrupt) spr.rotation = angle;
+		spr.lastRotation = spr.rotation;
+	}
 };
 
 class AnimationManager;
+using AnimatedObjectID = uintptr_t;
+
+using AnimationID = size_t;
+static const AnimationID NO_ANIMATION = (size_t) -1;
 
 /** Animation -- a vector of steps */
 class Animation {
     friend class AnimationManager;
+	
     std::vector<std::unique_ptr<Step>> m_steps;
     AnimationID m_id;
     AnimationManager *m_manager;
 
-    Animation(AnimationID id, AnimationManager *mgr) :m_id(id), m_manager(mgr) {}
-public:
+    Animation(AnimationID id, AnimationManager *mgr) : m_id(id), m_manager(mgr) {}
 
+public:
     template<typename T, typename ...Args>
     T* addStep(Args ...args) {
         auto v = std::make_unique<T>(args...);
@@ -123,6 +198,7 @@ public:
  */
 class AnimationManager : public Mod {
     friend class Animation;
+
     Event<AnimatedObjectID, Vec2f, int, AnimationID> m_onAnim;
     Event<const Animation*> m_onReg;
 

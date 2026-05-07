@@ -12,7 +12,7 @@
 
 class MapAnimator {
     static constexpr float kTilePixels = 40.0f;
-    static constexpr anim::SpriteID kTileSprite = 0;
+    static constexpr anim::SpriteSlotID kTileSprite = 0;
     static constexpr int kTileLayer = -100;
 
     static constexpr std::string_view kGroundSprite = "t.ground";
@@ -84,8 +84,7 @@ private:
         if (!tile || !m_anim) return;
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetImageStep>(kTileSprite, spriteFor(tile->getType()));
-        animation->addStep<anim::PosStep>(0.0f, 0.0f, kTileSprite, modlib::Vec2f(0.0f, 0.0f));
+        animation->addStep<anim::SetAssetStep>(kTileSprite, spriteFor(tile->getType()));
         animation->finishBuild();
 
         m_anim->play(tileObjectID(tile), pixelPosition(tile->getPos()), kTileLayer, animation->id());

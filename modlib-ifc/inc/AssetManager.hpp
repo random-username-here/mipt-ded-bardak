@@ -24,8 +24,11 @@ struct SpriteAsset {
     SpriteID id{};
     std::string file{};
     std::string_view raw_bytes{};
+
     Rectf clip{};
     Vec2f size{};
+    Vec2f origin{};
+    Vec2f offset{};
 };
 
 class AssetManager : public Mod {

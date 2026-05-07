@@ -2,6 +2,7 @@
 
 #include "Animator.hpp"
 #include "AssetManager.hpp"
+#include "Map.hpp"
 #include "person_controller.hpp"
 
 #include <cmath>
@@ -14,8 +15,8 @@ class PersonAnimator {
     static constexpr float kMoveSeconds = 0.18f;
     static constexpr float kAttackFrameSeconds = 0.05f;
 
-    static constexpr anim::SpriteID kBodySprite = 0;
-    static constexpr anim::SpriteID kSlashSprite = 1;
+    static constexpr anim::SpriteSlotID kBodySprite = 0;
+    static constexpr anim::SpriteSlotID kSlashSprite = 1;
 
     static constexpr std::string_view kIdleSprite = "p.idle";
     static constexpr std::string_view kRunDownSprite = "p.run.d";
@@ -41,7 +42,7 @@ public:
         registerAssets();
 
         m_ctl->person()->EvAttack.subscribe(
-            [this](Person::Damage targetID) {
+            [this](Entity::ID targetID) {
                 animateAttack(targetID);
             }
         );
@@ -57,10 +58,8 @@ public:
 
 private:
     void animateIdle() {
-        if (!m_anim || !m_ctl || !m_ctl->person()) return;
-
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetImageStep>(kBodySprite, kIdleSprite);
+        animation->addStep<anim::SetAssetStep>(kBodySprite, kIdleSprite);
         animation->addStep<anim::PosStep>(0.0f, 0.0f, kBodySprite, modlib::Vec2f(0.0f, 0.0f));
         animation->finishBuild();
 
@@ -68,8 +67,6 @@ private:
     }
 
     void animateMove(modlib::Vec2i delta) {
-        if (!m_anim || !m_ctl || !m_ctl->person()) return;
-
         const modlib::Vec2f oldPosition = pixelPosition(m_ctl->person()->getPosition() - delta);
         const modlib::Vec2f to(
             static_cast<float>(delta.x) * kTilePixels,
@@ -77,30 +74,28 @@ private:
         );
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetImageStep>(kBodySprite, runSprite(delta));
+        animation->addStep<anim::SetAssetStep>(kBodySprite, runSprite(delta));
         animation->addStep<anim::PosStep>(kMoveSeconds, kMoveSeconds, kBodySprite, to);
-        animation->addStep<anim::SetImageStep>(kBodySprite, kIdleSprite);
+        animation->addStep<anim::SetAssetStep>(kBodySprite, kIdleSprite);
         animation->finishBuild();
 
         m_anim->play(objectID(), oldPosition, 0, animation->id());
     }
 
     void animateAttack(Person::Damage targetID) {
-        if (!m_anim || !m_ctl || !m_ctl->person()) return;
-
         const modlib::Vec2f slashOffset = attackOffset(targetID);
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetImageStep>(kBodySprite, kIdleSprite);
+        animation->addStep<anim::SetAssetStep>(kBodySprite, kIdleSprite);
         animation->addStep<anim::PosStep>(0.0f, 0.0f, kSlashSprite, slashOffset);
 
-        animation->addStep<anim::SetImageStep>(kSlashSprite, kSlash1Sprite);
+        animation->addStep<anim::SetAssetStep>(kSlashSprite, kSlash1Sprite);
         animation->addStep<anim::Step>(kAttackFrameSeconds, kAttackFrameSeconds);
-        animation->addStep<anim::SetImageStep>(kSlashSprite, kSlash2Sprite);
+        animation->addStep<anim::SetAssetStep>(kSlashSprite, kSlash2Sprite);
         animation->addStep<anim::Step>(kAttackFrameSeconds, kAttackFrameSeconds);
-        animation->addStep<anim::SetImageStep>(kSlashSprite, kSlash3Sprite);
+        animation->addStep<anim::SetAssetStep>(kSlashSprite, kSlash3Sprite);
         animation->addStep<anim::Step>(kAttackFrameSeconds, kAttackFrameSeconds);
-        animation->addStep<anim::SetImageStep>(kSlashSprite, kSlash4Sprite);
+        animation->addStep<anim::SetAssetStep>(kSlashSprite, kSlash4Sprite);
         animation->addStep<anim::Step>(kAttackFrameSeconds, kAttackFrameSeconds);
         animation->addStep<anim::DelSpriteStep>(kSlashSprite);
         animation->finishBuild();
@@ -109,8 +104,6 @@ private:
     }
 
     void registerAssets() {
-        if (!m_assets) return;
-
         registerSprite(kIdleSprite, "assets/rogue_down.png", 16, 16, kTilePixels, kTilePixels);
         registerSprite(kRunDownSprite, "assets/rogue_run_down.png", 16, 16, kTilePixels, kTilePixels);
         registerSprite(kRunUpSprite, "assets/rogue_run_up.png", 16, 16, kTilePixels, kTilePixels);

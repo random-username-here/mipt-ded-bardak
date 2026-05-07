@@ -19,14 +19,8 @@ using modlib::Vec2f;
 
 using TextureID = size_t;
 
-struct Sprite {
-    std::string_view tex = ""; // FIXME: this is debug thing
-    Vec2f lastPos = Vec2f(0, 0), pos = Vec2f(0, 0);
-    float rotation = 0, lastRotation = 0;
-};
-
 struct AnimatedObject {
-    std::unordered_map<anim::SpriteID, Sprite> sprites;
+    anim::SpriteBySlot sprites;
     std::unordered_map<const anim::Step*, float> runningSteps; // step -> start time
     size_t cursor;
     float cursorTime;
@@ -38,7 +32,6 @@ struct AnimatedObject {
 Vector2 v2v(modlib::Vec2f v) {
     return Vector2 { .x = v.x, .y = v.y };
 }
-
 
 class AnimatedVisualization : public modlib::BmServerModule {
 
@@ -53,7 +46,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     std::thread m_winThread;
     std::unordered_map<anim::AnimatedObjectID, AnimatedObject> m_objs;
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
-    std::unordered_map<uint64_t, Texture2D> m_textures;
+    std::unordered_map<TextureID, Texture2D> m_textures;
     std::mutex m_lock;
 
     float m_startTime = 0;
@@ -64,28 +57,70 @@ class AnimatedVisualization : public modlib::BmServerModule {
         return (tp.tv_sec + (tp.tv_nsec / 1e9)) - m_startTime;
     }
 
-    void drawSprites(const AnimatedObject &obj) {
-        std::vector<anim::SpriteID> spriteOrder; //!FIXME z/layer sort
-        spriteOrder.reserve(obj.sprites.size());
-        for (const auto &[id, _] : obj.sprites) {
-            spriteOrder.push_back(id);
-        }
-        std::sort(spriteOrder.begin(), spriteOrder.end());
+    void windowThread() {
+        InitWindow(800, 800, "Animation-based visualizer");
+        SetTargetFPS(60);
+		while (true) {
+			BeginDrawing();
+			ClearBackground(BLACK);
 
-        for (anim::SpriteID id : spriteOrder) {
-            const Sprite &s = obj.sprites.at(id);
-            if (!drawTextureSprite(obj, s)) {
-                drawInvalid(obj, s);
-            }
-        }
+			drawObjects();
+			
+			EndDrawing();
+		}
     }
 
-    bool drawTextureSprite(const AnimatedObject &obj, const Sprite &s) {
-        if (!m_assets || s.tex.empty()) {
-            return false;
-        }
+	template<typename T, typename U>
+	using URefAsT = std::conditional_t<std::is_const_v<std::remove_pointer_t<T>>, const U&, U&>;
 
-        const auto sprite = m_assets->sprite(modlib::SpriteID(s.tex));
+	template <typename TPtr, typename TMap, typename TCmp, typename TAct>
+	void
+	forEachInSorted(URefAsT<TPtr, TMap> map, TCmp&& cmp, TAct&& action) {
+		std::vector<TPtr> sorted;
+		sorted.reserve(map.size());
+		for (auto &[_, v] : map) {
+			sorted.push_back(&v);
+		}
+
+		std::sort( sorted.begin(), sorted.end(), cmp);
+
+		for (TPtr obj : sorted) {
+			action(obj);
+		}
+	}
+
+	void drawObjects() {
+		std::lock_guard<std::mutex> lock(m_lock);
+
+		auto cmp = [](auto* lhs, auto* rhs) {
+			return lhs->layer < rhs->layer;
+		};
+
+		auto action = [this](auto* ao) {
+			processSteps(*ao);
+			drawSprites(*ao);
+		};
+
+		forEachInSorted<AnimatedObject*, decltype(m_objs)>(m_objs, cmp, action);
+	}
+
+    void drawSprites(const AnimatedObject &obj) {
+		auto cmp = [](auto* lhs, auto* rhs) {
+			return lhs->z < rhs->z;
+		};
+
+		auto action = [this, &obj](auto* spr) {
+			if (!drawTextureSprite(obj, *spr)) {
+				std::cerr << "Failed to draw texture for sprite with id = " 
+			              << spr->asset_id << "\n";
+			}
+		};
+
+		forEachInSorted<const anim::Sprite*, decltype(obj.sprites)>(obj.sprites, cmp, action);
+    }
+
+    bool drawTextureSprite(const AnimatedObject &obj, const anim::Sprite &s) {
+        const auto sprite = m_assets->sprite(s.asset_id);
         if (!sprite) {
             return false;
         }
@@ -95,41 +130,35 @@ class AnimatedVisualization : public modlib::BmServerModule {
             return false;
         }
 
-        Rectangle src;
-        src.x = static_cast<float>(sprite->clip.x);
-        src.y = static_cast<float>(sprite->clip.y);
-        src.width = static_cast<float>(sprite->clip.w > 0 ? sprite->clip.w : texture->width);
-        src.height = static_cast<float>(sprite->clip.h > 0 ? sprite->clip.h : texture->height);
+        Rectangle src = {
+			.x      = sprite->clip.x,
+			.y      = sprite->clip.y,
+			.width  = sprite->clip.w,
+			.height = sprite->clip.h,
+		};
 
-        Rectangle dst;
-        const Vec2f pos = obj.pos + s.pos;
-        dst.x = pos.x + static_cast<float>(sprite->clip.x);
-        dst.y = pos.y + static_cast<float>(sprite->clip.y);
-        dst.width = static_cast<float>(sprite->size.x > 0 ? sprite->size.x : static_cast<int>(src.width));
-        dst.height = static_cast<float>(sprite->size.y > 0 ? sprite->size.y : static_cast<int>(src.height));
+        Rectangle dst = {
+			.x      = obj.pos.x + s.pos.x + sprite->offset.x,
+			.y      = obj.pos.y + s.pos.y + sprite->offset.y,
+			.width  = sprite->size.x,
+			.height = sprite->size.y,
+		};
+
+		Vector2 origin = {
+			.x = sprite->origin.x,
+			.y = sprite->origin.y
+		};
 
         DrawTexturePro(
             *texture,
             src,
             dst,
-            Vector2{
-                static_cast<float>(0),
-                static_cast<float>(0)
-            },
+            origin,
             s.rotation,
             WHITE
         );
 
         return true;
-    }
-
-    void drawInvalid(const AnimatedObject &obj, const Sprite &s) {
-		//!FIXME delete in release, this is for debugging
-        Vec2f pos = obj.pos + s.pos;
-        Vec2f d = { std::cos(s.rotation), std::sin(s.rotation) };
-        DrawLineV(v2v(pos), v2v(pos + d * 40), RED);
-        DrawLineV(v2v(pos), v2v(pos + Vec2f(d.y, -d.x) * 40), GREEN);
-        DrawCircleV(v2v(pos), 5, WHITE);
     }
 
     Texture2D *textureFor(const modlib::SpriteAsset &sprite) {
@@ -159,37 +188,28 @@ class AnimatedVisualization : public modlib::BmServerModule {
         return &inserted.first->second;
     }
 
-    float lerp(float a, float b, float fac) {
-        return a * (1 - fac) + b * fac;
-    }
+	template<typename TStep, typename ...ArgsForDeduce, typename ...Args>
+	bool tryStep(const anim::Step *step, void (TStep::*method)(ArgsForDeduce...) const, Args&&... args) {
+		if (const auto* casted_step = step->as<TStep>()) {
+			std::invoke(method, casted_step, std::forward<Args>(args)...);
+			return true;
+		}
+
+		return false;
+	}
 
     void applyStep(AnimatedObject &obj, const anim::Step *step, float frac) {
-        if (auto setImage = step->as<anim::SetImageStep>()) {
-            obj.sprites[setImage->id].tex = setImage->rid;
-        } else if (auto delSprite = step->as<anim::DelSpriteStep>()) {
-            obj.sprites.erase(delSprite->id);
-        } else if (auto posStep = step->as<anim::PosStep>()) {
-            auto &spr = obj.sprites[posStep->sprite];
-            spr.pos.x = lerp(spr.lastPos.x, posStep->to.x, posStep->easing(frac));
-            spr.pos.y = lerp(spr.lastPos.y, posStep->to.y, posStep->easing(frac));
-        } else if (auto rotStep = step->as<anim::RotationStep>()) {
-            auto &spr = obj.sprites[rotStep->sprite];
-            spr.rotation = lerp(spr.lastRotation, rotStep->angle, rotStep->easing(frac));
-        }
+		tryStep(step, &anim::SetAssetStep::apply, obj.sprites      ) ||
+		tryStep(step, &anim::DelSpriteStep::apply,obj.sprites      ) ||
+		tryStep(step, &anim::CallbackStep::apply, obj.sprites      ) ||
+		tryStep(step, &anim::PosStep::apply,      obj.sprites, frac) ||
+		tryStep(step, &anim::RotationStep::apply, obj.sprites, frac);
     }
 
     void endStep(AnimatedObject &obj, const anim::Step *step, bool interrupt) {
-        if (auto posStep = step->as<anim::PosStep>()) {
-            auto &spr = obj.sprites[posStep->sprite];
-            if (!interrupt) spr.pos = posStep->to;
-            spr.lastPos = spr.pos; 
-        } else if (auto rotStep = step->as<anim::RotationStep>()) {
-            auto &spr = obj.sprites[rotStep->sprite];
-            if (!interrupt) spr.rotation = rotStep->angle;
-            spr.lastRotation = spr.rotation;
-        } else if (auto cb = step->as<anim::CallbackStep>()) {
-            cb->callback();
-        }
+		tryStep(step, &anim::PosStep::end,      obj.sprites, interrupt) ||
+		tryStep(step, &anim::RotationStep::end, obj.sprites, interrupt) ||
+		tryStep(step, &anim::CallbackStep::end, obj.sprites);
     }
 
     void processSteps(AnimatedObject &obj) {
@@ -217,42 +237,6 @@ class AnimatedVisualization : public modlib::BmServerModule {
 
         for (auto [step, startTime] : obj.runningSteps) {
             applyStep(obj, step, step->stepTime ? (now - startTime) / step->stepTime : 0);
-        }
-    }
-
-    void windowThread() {
-        InitWindow(800, 800, "Animation-based visualizer");
-        SetTargetFPS(60);
-        while (1) {
-            BeginDrawing();
-                ClearBackground(BLACK);
-                {
-                    std::lock_guard<std::mutex> lock(m_lock);
-                    std::vector<anim::AnimatedObjectID> objectOrder;
-                    objectOrder.reserve(m_objs.size());
-                    for (const auto &[id, _] : m_objs) {
-                        objectOrder.push_back(id);
-                    }
-                    std::sort(
-                        objectOrder.begin(),
-                        objectOrder.end(),
-                        [this](anim::AnimatedObjectID lhs, anim::AnimatedObjectID rhs) {
-                            const AnimatedObject &left = m_objs.at(lhs);
-                            const AnimatedObject &right = m_objs.at(rhs);
-                            if (left.layer != right.layer) {
-                                return left.layer < right.layer;
-                            }
-                            return lhs < rhs;
-                        }
-                    );
-
-                    for (anim::AnimatedObjectID id : objectOrder) {
-                        AnimatedObject &obj = m_objs.at(id);
-                        processSteps(obj);
-                        drawSprites(obj);
-                    }
-                }
-            EndDrawing();
         }
     }
 
