@@ -22,7 +22,7 @@ struct Config {
 
 constexpr int kZ = 0;
 constexpr int kObjectLayer = 0;
-static constexpr float kMoveSeconds = 0.18f;
+static constexpr float kMoveSeconds = 0.75f;
 
 }
 
@@ -53,14 +53,15 @@ Asset(std::string_view id, const std::string& file)
 }
 
 const auto Idle     = Asset<body::Config> ( "p.idle",  ASSETS_DIR "/units/person/rogue_down.png"      );
+const auto Death    = Asset<body::Config> ( "p.death", ASSETS_DIR "/units/person/rogue_dead.png"      );
 const auto RunDown  = Asset<body::Config> ( "p.run.d", ASSETS_DIR "/units/person/rogue_run_down.png"  );
 const auto RunUp    = Asset<body::Config> ( "p.run.u", ASSETS_DIR "/units/person/rogue_run_up.png"    );
 const auto RunLeft  = Asset<body::Config> ( "p.run.l", ASSETS_DIR "/units/person/rogue_run_left.png"  );
 const auto RunRight = Asset<body::Config> ( "p.run.r", ASSETS_DIR "/units/person/rogue_run_right.png" );
-const auto Slash1   = Asset<slash::Config>( "p.slh.1", ASSETS_DIR "/units/person/slash_01.png"   );
-const auto Slash2   = Asset<slash::Config>( "p.slh.2", ASSETS_DIR "/units/person/slash_02.png"   );
-const auto Slash3   = Asset<slash::Config>( "p.slh.3", ASSETS_DIR "/units/person/slash_03.png"   );
-const auto Slash4   = Asset<slash::Config>( "p.slh.4", ASSETS_DIR "/units/person/slash_04.png"   );
+const auto Slash1   = Asset<slash::Config>( "p.slh.1", ASSETS_DIR "/units/person/slash_01.png"        );
+const auto Slash2   = Asset<slash::Config>( "p.slh.2", ASSETS_DIR "/units/person/slash_02.png"        );
+const auto Slash3   = Asset<slash::Config>( "p.slh.3", ASSETS_DIR "/units/person/slash_03.png"        );
+const auto Slash4   = Asset<slash::Config>( "p.slh.4", ASSETS_DIR "/units/person/slash_04.png"        );
 
 }
 
@@ -74,6 +75,7 @@ class PersonAnimator {
 
     struct {
         anim::AnimationID idle = anim::NO_ANIMATION;
+        anim::AnimationID death = anim::NO_ANIMATION;
         anim::AnimationID move_d = anim::NO_ANIMATION;
         anim::AnimationID move_u = anim::NO_ANIMATION;
         anim::AnimationID move_l = anim::NO_ANIMATION;
@@ -99,6 +101,7 @@ public:
 private:
     void registerAssets() {
         m_assets->registerSprite(assets::Idle);
+        m_assets->registerSprite(assets::Death);
         m_assets->registerSprite(assets::RunDown);
         m_assets->registerSprite(assets::RunLeft);
         m_assets->registerSprite(assets::RunUp);
@@ -122,6 +125,12 @@ private:
                 animateMove(delta);
             }
         );
+
+		m_ctl->person()->EvDeath.subscribe(
+            [this]() {
+                animateDeath();
+            }
+        );
 	}
 
     void animateIdle() {
@@ -139,6 +148,15 @@ private:
         );
     }
 
+    void animateDeath() {
+        m_anim->play(
+            m_object_id,
+            currentPixelPosition(),
+            body::kObjectLayer - 1,
+            m_anims.death
+        );
+    }
+
     void animateAttack(Entity::ID target_id) {
         m_anim->play(
             m_object_id,
@@ -150,6 +168,7 @@ private:
 
     void buildAnimations() {
         m_anims.idle   = buildIdleAnimation();
+        m_anims.death  = buildDeathAnimation();
         m_anims.move_d = buildMoveAnimation(assets::RunDown,  {0,  1});
         m_anims.move_u = buildMoveAnimation(assets::RunUp,    {0, -1});
         m_anims.move_l = buildMoveAnimation(assets::RunLeft,  {-1, 0});
@@ -159,6 +178,13 @@ private:
     anim::AnimationID buildIdleAnimation() {
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
+        animation->finishBuild();
+        return animation->id();
+    }
+
+	anim::AnimationID buildDeathAnimation() {
+        auto *animation = m_anim->newAnimation();
+        animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Death.id, body::kZ);
         animation->finishBuild();
         return animation->id();
     }
