@@ -9,8 +9,6 @@
 #include <cmath>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <utility>
 
 //TODO unify tile size between different persons and map
 constexpr float kTilePixels = 40.0f;
@@ -70,24 +68,27 @@ class PersonAnimator {
     PersonCtl *m_ctl = nullptr;
     anim::AnimationManager *m_anim = nullptr;
     modlib::AssetManager *m_assets = nullptr;
-    anim::AnimatedObjectID m_objectID = 0;
-    anim::SpriteSlotID m_bodySlot = 0;
-    anim::SpriteSlotID m_slashSlot = 0;
+    anim::AnimatedObjectID m_object_id = anim::NO_ANIMATION_OBJECT;
+    anim::SpriteSlotID m_body_slot = 0;
+    anim::SpriteSlotID m_slash_slot = 0;
 
-    anim::AnimationID m_idleAnimation = anim::NO_ANIMATION;
-    anim::AnimationID m_moveDownAnimation = anim::NO_ANIMATION;
-    anim::AnimationID m_moveUpAnimation = anim::NO_ANIMATION;
-    anim::AnimationID m_moveLeftAnimation = anim::NO_ANIMATION;
-    anim::AnimationID m_moveRightAnimation = anim::NO_ANIMATION;
-    std::unordered_map<int, anim::AnimationID> m_attackAnimations;
+    struct {
+        anim::AnimationID idle = anim::NO_ANIMATION;
+        anim::AnimationID move_d = anim::NO_ANIMATION;
+        anim::AnimationID move_u = anim::NO_ANIMATION;
+        anim::AnimationID move_l = anim::NO_ANIMATION;
+        anim::AnimationID move_r = anim::NO_ANIMATION;
+
+        std::unordered_map<int, anim::AnimationID> attacks;
+    } m_anims;
 
 public:
     PersonAnimator(PersonCtl *ctl, anim::AnimationManager *anim, modlib::AssetManager *assets)
         : m_ctl(ctl), m_anim(anim), m_assets(assets)
     {
-        m_objectID = m_anim->newObject();
-        m_bodySlot = m_anim->newSpriteSlot();
-        m_slashSlot = m_anim->newSpriteSlot();
+        m_object_id = m_anim->newObject();
+        m_body_slot = m_anim->newSpriteSlot();
+        m_slash_slot = m_anim->newSpriteSlot();
 
         registerAssets();
         buildAnimations();
@@ -124,14 +125,14 @@ private:
 	}
 
     void animateIdle() {
-        m_anim->play(m_objectID, currentPixelPosition(), body::kObjectLayer, m_idleAnimation);
+        m_anim->play(m_object_id, currentPixelPosition(), body::kObjectLayer, m_anims.idle);
     }
 
     void animateMove(modlib::Vec2i delta) {
         const modlib::Vec2f old_position = pixelPosition(m_ctl->person()->getPosition() - delta);
 
         m_anim->play(
-            m_objectID,
+            m_object_id,
             old_position,
             body::kObjectLayer,
             moveAnimation(delta)
@@ -140,7 +141,7 @@ private:
 
     void animateAttack(Entity::ID target_id) {
         m_anim->play(
-            m_objectID,
+            m_object_id,
             currentPixelPosition(),
             body::kObjectLayer,
             attackAnimation(attackDelta(target_id))
@@ -148,16 +149,16 @@ private:
     }
 
     void buildAnimations() {
-        m_idleAnimation = buildIdleAnimation();
-        m_moveDownAnimation = buildMoveAnimation(assets::RunDown, modlib::Vec2i(0, 1));
-        m_moveUpAnimation = buildMoveAnimation(assets::RunUp, modlib::Vec2i(0, -1));
-        m_moveLeftAnimation = buildMoveAnimation(assets::RunLeft, modlib::Vec2i(-1, 0));
-        m_moveRightAnimation = buildMoveAnimation(assets::RunRight, modlib::Vec2i(1, 0));
+        m_anims.idle   = buildIdleAnimation();
+        m_anims.move_d = buildMoveAnimation(assets::RunDown,  {0,  1});
+        m_anims.move_u = buildMoveAnimation(assets::RunUp,    {0, -1});
+        m_anims.move_l = buildMoveAnimation(assets::RunLeft,  {-1, 0});
+        m_anims.move_r = buildMoveAnimation(assets::RunRight, {1,  0});
     }
 
     anim::AnimationID buildIdleAnimation() {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, assets::Idle.id, body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
         animation->finishBuild();
         return animation->id();
     }
@@ -166,15 +167,15 @@ private:
         const modlib::Vec2f to(delta.x * kTilePixels, delta.y * kTilePixels);
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, asset.id, body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_body_slot, asset.id, body::kZ);
         animation->addStep<anim::PosStep>(
             body::kMoveSeconds,
             body::kMoveSeconds,
-            m_bodySlot,
+            m_body_slot,
             to,
             anim::easing::easeInOutQuart
         );
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, assets::Idle.id, body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
         animation->finishBuild();
         return animation->id();
     }
@@ -183,44 +184,45 @@ private:
         const modlib::Vec2f slash_offset(delta.x * kTilePixels, delta.y * kTilePixels);
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, assets::Idle.id, body::kZ);
-        animation->addStep<anim::PosStep>(0.0f, 0.0f, m_slashSlot, slash_offset);
+        animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
+        animation->addStep<anim::PosStep>(0.0f, 0.0f, m_slash_slot, slash_offset);
 
-        animation->addStep<anim::SetAssetStep>(m_slashSlot, assets::Slash1.id, slash::kZ);
+        animation->addStep<anim::SetAssetStep>(m_slash_slot, assets::Slash1.id, slash::kZ);
         animation->addStep<anim::Step>(slash::kAttackFrameSeconds, slash::kAttackFrameSeconds);
-        animation->addStep<anim::SetAssetStep>(m_slashSlot, assets::Slash2.id, slash::kZ);
+        animation->addStep<anim::SetAssetStep>(m_slash_slot, assets::Slash2.id, slash::kZ);
         animation->addStep<anim::Step>(slash::kAttackFrameSeconds, slash::kAttackFrameSeconds);
-        animation->addStep<anim::SetAssetStep>(m_slashSlot, assets::Slash3.id, slash::kZ);
+        animation->addStep<anim::SetAssetStep>(m_slash_slot, assets::Slash3.id, slash::kZ);
         animation->addStep<anim::Step>(slash::kAttackFrameSeconds, slash::kAttackFrameSeconds);
-        animation->addStep<anim::SetAssetStep>(m_slashSlot, assets::Slash4.id, slash::kZ);
+        animation->addStep<anim::SetAssetStep>(m_slash_slot, assets::Slash4.id, slash::kZ);
         animation->addStep<anim::Step>(slash::kAttackFrameSeconds, slash::kAttackFrameSeconds);
-        animation->addStep<anim::DelSpriteStep>(m_slashSlot);
+        animation->addStep<anim::DelSpriteStep>(m_slash_slot);
         animation->finishBuild();
+
         return animation->id();
     }
 
     anim::AnimationID moveAnimation(modlib::Vec2i delta) const {
         if (std::abs(delta.x) > std::abs(delta.y)) {
-            return delta.x < 0 ? m_moveLeftAnimation : m_moveRightAnimation;
+            return delta.x < 0 ? m_anims.move_l : m_anims.move_r;
         }
 
-        return delta.y < 0 ? m_moveUpAnimation : m_moveDownAnimation;
+        return delta.y < 0 ?  m_anims.move_u : m_anims.move_d;
     }
 
     anim::AnimationID attackAnimation(modlib::Vec2i delta) {
         const int key = directionKey(delta);
-        auto it = m_attackAnimations.find(key);
-        if (it != m_attackAnimations.end()) {
+        auto it = m_anims.attacks.find(key);
+        if (it != m_anims.attacks.end()) {
             return it->second;
         }
 
         const anim::AnimationID animation = buildAttackAnimation(delta);
-        m_attackAnimations.emplace(key, animation);
+        m_anims.attacks.emplace(key, animation);
         return animation;
     }
 
     static int directionKey(modlib::Vec2i delta) {
-        return (delta.x + 1) * 3 + (delta.y + 1);
+        return ( delta.x + 1 ) * 3 + ( delta.y + 1 );
     }
 
     modlib::Vec2f currentPixelPosition() const {
@@ -231,10 +233,10 @@ private:
         return modlib::Vec2f( cell.x * kTilePixels, cell.y * kTilePixels );
     }
 
-    modlib::Vec2i attackDelta(Person::Damage targetID) const {
+    modlib::Vec2i attackDelta(Person::Damage target_id) const {
         modlib::Vec2i delta(1, 0);
 
-        if (auto *target = m_ctl->map()->getEntity(targetID)) {
+        if (auto *target = m_ctl->map()->getEntity(target_id)) {
             const modlib::Vec2i raw = target->getPosition() - m_ctl->person()->getPosition();
             delta.x = raw.x == 0 ? 0 : (raw.x < 0 ? -1 : 1);
             delta.y = raw.y == 0 ? 0 : (raw.y < 0 ? -1 : 1);

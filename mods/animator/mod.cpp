@@ -10,7 +10,7 @@ class Animator : public anim::AnimationManager {
     ModVersion version() const override { return ModVersion(0, 0, 1); }
 
     std::deque<anim::Animation> m_anims;
-    anim::AnimatedObjectID m_nextObject = 1;
+    anim::AnimatedObjectID m_nextObject = 0;
     anim::SpriteSlotID m_nextSpriteSlot = 0;
 
     anim::AnimatedObjectID newObject() override {
@@ -26,7 +26,7 @@ class Animator : public anim::AnimationManager {
         return &m_anims.back();
     }
 
-    const anim::Animation *animation(anim::AnimationID id) const override {
+    const anim::Animation *animationFixUp(anim::AnimationID id) const override {
         if (id >= m_anims.size()) {
             return nullptr;
         }
