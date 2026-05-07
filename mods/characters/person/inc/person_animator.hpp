@@ -66,9 +66,9 @@ const auto Slash4   = Asset<slash::Config>( "p.slh.4", ASSETS_DIR "/units/person
 }
 
 class PersonAnimator {
-    PersonCtl *m_ctl = nullptr;
-    anim::AnimationManager *m_anim = nullptr;
-    modlib::AssetManager *m_assets = nullptr;
+    PersonCtl* m_ctl = nullptr;
+    anim::AnimationManager* m_anim = nullptr;
+    modlib::AssetManager* m_assets = nullptr;
     anim::AnimatedObjectID m_object_id = anim::NO_ANIMATION_OBJECT;
     anim::SpriteSlotID m_body_slot = 0;
     anim::SpriteSlotID m_slash_slot = 0;
@@ -85,7 +85,7 @@ class PersonAnimator {
     } m_anims;
 
 public:
-    PersonAnimator(PersonCtl *ctl, anim::AnimationManager *anim, modlib::AssetManager *assets)
+    PersonAnimator(PersonCtl* ctl, anim::AnimationManager* anim, modlib::AssetManager* assets)
         : m_ctl(ctl), m_anim(anim), m_assets(assets)
     {
         m_object_id = m_anim->newObject();
@@ -176,23 +176,23 @@ private:
     }
 
     anim::AnimationID buildIdleAnimation() {
-        auto *animation = m_anim->newAnimation();
+        auto* animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
         animation->finishBuild();
         return animation->id();
     }
 
 	anim::AnimationID buildDeathAnimation() {
-        auto *animation = m_anim->newAnimation();
+        auto* animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Death.id, body::kZ);
         animation->finishBuild();
         return animation->id();
     }
 
     anim::AnimationID buildMoveAnimation(const modlib::SpriteAsset &asset, modlib::Vec2i delta) {
-        const modlib::Vec2f to(delta.x * kTilePixels, delta.y * kTilePixels);
+        const modlib::Vec2f to(delta.x* kTilePixels, delta.y* kTilePixels);
 
-        auto *animation = m_anim->newAnimation();
+        auto* animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_body_slot, asset.id, body::kZ);
         animation->addStep<anim::PosStep>(
             body::kMoveSeconds,
@@ -209,7 +209,7 @@ private:
     anim::AnimationID buildAttackAnimation(modlib::Vec2i delta) {
         const modlib::Vec2f slash_offset(delta.x * kTilePixels, delta.y * kTilePixels);
 
-        auto *animation = m_anim->newAnimation();
+        auto* animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_body_slot, assets::Idle.id, body::kZ);
         animation->addStep<anim::PosStep>(0.0f, 0.0f, m_slash_slot, slash_offset);
 
@@ -262,7 +262,7 @@ private:
     modlib::Vec2i attackDelta(Person::Damage target_id) const {
         modlib::Vec2i delta(1, 0);
 
-        if (auto *target = m_ctl->map()->getEntity(target_id)) {
+        if (auto* target = m_ctl->map()->getEntity(target_id)) {
             const modlib::Vec2i raw = target->getPosition() - m_ctl->person()->getPosition();
             delta.x = raw.x == 0 ? 0 : (raw.x < 0 ? -1 : 1);
             delta.y = raw.y == 0 ? 0 : (raw.y < 0 ? -1 : 1);
