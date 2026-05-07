@@ -7,13 +7,14 @@
 
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 class MapAnimator {
     static constexpr float kTilePixels = 40.0f;
-    static constexpr anim::SpriteSlotID kTileSprite = 0;
     static constexpr int kTileLayer = -100;
+    static constexpr int kTileZ = -100;
 
     static constexpr std::string_view kGroundSprite = "t.ground";
     static constexpr std::string_view kWallSprite = "t.wall";
@@ -23,6 +24,10 @@ class MapAnimator {
     modlib::AssetManager *m_assets = nullptr;
     modlib::Timer *m_timer = nullptr;
     std::unordered_set<modlib::Tile *> m_subscribedTiles;
+    std::unordered_map<modlib::Tile *, anim::AnimatedObjectID> m_tileObjects;
+    anim::SpriteSlotID m_tileSlot = 0;
+    anim::AnimationID m_groundAnimation = anim::NO_ANIMATION;
+    anim::AnimationID m_wallAnimation = anim::NO_ANIMATION;
 
 public:
     MapAnimator(
@@ -38,7 +43,9 @@ public:
     {}
 
     void start() {
+        m_tileSlot = m_anim->newSpriteSlot();
         registerAssets();
+        buildAnimations();
 
 		m_map->EvLevelLoaded.subscribe([this]() {
 			subscribeAndAnimateAll();
@@ -83,18 +90,31 @@ private:
     void animateTile(modlib::Tile *tile) {
         if (!tile || !m_anim) return;
 
-        auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(kTileSprite, spriteFor(tile->getType()));
-        animation->finishBuild();
+        m_anim->play(
+            tileObjectID(tile),
+            pixelPosition(tile->getPos()),
+            kTileLayer,
+            animationFor(tile->getType())
+        );
+    }
 
-        m_anim->play(tileObjectID(tile), pixelPosition(tile->getPos()), kTileLayer, animation->id());
+    void buildAnimations() {
+        m_groundAnimation = buildTileAnimation(kGroundSprite);
+        m_wallAnimation = buildTileAnimation(kWallSprite);
+    }
+
+    anim::AnimationID buildTileAnimation(modlib::SpriteID sprite) {
+        auto *animation = m_anim->newAnimation();
+        animation->addStep<anim::SetAssetStep>(m_tileSlot, sprite, kTileZ);
+        animation->finishBuild();
+        return animation->id();
     }
 
     void registerAssets() {
         if (!m_assets) return;
 
-        registerSprite(kGroundSprite, "assets/ground.png");
-        registerSprite(kWallSprite, "assets/spikes.png");
+        registerSprite(kGroundSprite, "assets/map/ground.png");
+        registerSprite(kWallSprite, "assets/map/spikes.png");
     }
 
     void registerSprite(std::string_view id, std::string file) {
@@ -110,16 +130,23 @@ private:
         m_assets->registerSprite(sprite);
     }
 
-    static std::string_view spriteFor(modlib::Tile::Type type) {
+    anim::AnimationID animationFor(modlib::Tile::Type type) const {
         if (type == modlib::Tile::BasicTypes::WALL) {
-            return kWallSprite;
+            return m_wallAnimation;
         }
 
-        return kGroundSprite;
+        return m_groundAnimation;
     }
 
-    static anim::AnimatedObjectID tileObjectID(modlib::Tile *tile) {
-        return reinterpret_cast<anim::AnimatedObjectID>(tile);
+    anim::AnimatedObjectID tileObjectID(modlib::Tile *tile) {
+        auto it = m_tileObjects.find(tile);
+        if (it != m_tileObjects.end()) {
+            return it->second;
+        }
+
+        const anim::AnimatedObjectID id = m_anim->newObject();
+        m_tileObjects.emplace(tile, id);
+        return id;
     }
 
     static modlib::Vec2f pixelPosition(modlib::Vec2i cell) {

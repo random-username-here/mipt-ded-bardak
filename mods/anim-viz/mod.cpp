@@ -213,7 +213,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
 
     void processSteps(AnimatedObject &obj) {
         float now = curTime();
-        auto anim = m_anims[obj.anim];
+        auto anim = animationByID(obj.anim);
         if (!anim) return;
 
         std::vector<const anim::Step*> toDelete;
@@ -237,6 +237,19 @@ class AnimatedVisualization : public modlib::BmServerModule {
         for (auto [step, startTime] : obj.runningSteps) {
             applyStep(obj, step, step->stepTime ? (now - startTime) / step->stepTime : 0);
         }
+    }
+
+    const anim::Animation *animationByID(anim::AnimationID id) {
+        auto it = m_anims.find(id);
+        if (it != m_anims.end()) {
+            return it->second;
+        }
+
+        const anim::Animation *animation = m_anim->animation(id);
+        if (animation) {
+            m_anims[id] = animation;
+        }
+        return animation;
     }
 
     void onResolveDeps(ModManager *mm) override {
@@ -268,7 +281,6 @@ class AnimatedVisualization : public modlib::BmServerModule {
             m_anims[an->id()] = an;
         });
         m_anim->onPlay().subscribe([this](anim::AnimatedObjectID obj, anim::Vec2f off, int lyr, anim::AnimationID an){
-            std::cerr << "play animation " << an << "\n";
             playAnimation(obj, off, lyr, an);
         });
     }

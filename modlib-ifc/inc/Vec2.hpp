@@ -9,7 +9,7 @@ public:
     T x;
     T y;
 
-    Vec2D (T x_=0, T y_=0)      : x (x_), y(y_) {}
+    constexpr Vec2D (T x_=0, T y_=0)      : x (x_), y(y_) {}
 
     Vec2D operator+ (const Vec2D<T>& rhs) const
     {
