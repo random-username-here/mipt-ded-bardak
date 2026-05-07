@@ -18,7 +18,7 @@ class Person :
     virtual public EC::Stats::Attack    
 {
 public:
-    static constexpr int MAX_HP = 200;
+    static constexpr int MAX_HP = 40;
     static constexpr int CURRENT_HP = 100;
     static constexpr int STRENGTH = 10;
     static constexpr Type PERSON_TYPE = "person";
