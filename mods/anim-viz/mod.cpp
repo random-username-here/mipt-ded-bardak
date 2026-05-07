@@ -245,7 +245,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
             return it->second;
         }
 
-        const anim::Animation *animation = m_anim->animation(id);
+        const anim::Animation *animation = m_anim->animationFixUp(id);
         if (animation) {
             m_anims[id] = animation;
         }

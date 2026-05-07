@@ -22,10 +22,11 @@ using modlib::Vec2f;
 using modlib::Vec2i;
 
 using SpriteSlotID = size_t;
-using AnimatedObjectID = uint64_t;
+using AnimatedObjectID = size_t;
 using AnimationID = size_t;
 
 using EasingFunction = std::function<float(float)>;
+static const AnimatedObjectID NO_ANIMATION_OBJECT = (size_t) -1;
 static const AnimationID NO_ANIMATION = (size_t) -1;
 
 namespace easing {
@@ -219,7 +220,7 @@ public:
     virtual SpriteSlotID newSpriteSlot() = 0;
 
     virtual Animation* newAnimation() = 0;
-    virtual const Animation* animation(AnimationID id) const = 0;
+    virtual const Animation* animationFixUp(AnimationID id) const = 0;
 
     /** Play given animation on object. If another animation is playing, interrupt it. */
     virtual void play(AnimatedObjectID obj, Vec2f off, int layer, AnimationID id) = 0;
