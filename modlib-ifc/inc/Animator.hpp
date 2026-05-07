@@ -11,7 +11,9 @@
 #include "modlib_mod.hpp"
 #include <cmath>
 #include <cstdint>
+#include <functional>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace anim {
@@ -20,8 +22,11 @@ using modlib::Vec2f;
 using modlib::Vec2i;
 
 using SpriteSlotID = size_t;
+using AnimatedObjectID = uint64_t;
+using AnimationID = size_t;
 
 using EasingFunction = std::function<float(float)>;
+static const AnimationID NO_ANIMATION = (size_t) -1;
 
 namespace easing {
 
@@ -73,12 +78,16 @@ struct Step {
 class SetAssetStep : public Step {
     SpriteSlotID slot;
 	modlib::SpriteID asset_id;
+    int z;
 
   public:
-    SetAssetStep(SpriteSlotID s, modlib::SpriteID a) : slot(s), asset_id(a) {}
+    SetAssetStep(SpriteSlotID s, modlib::SpriteID a, int spriteZ = 0)
+        : slot(s), asset_id(a), z(spriteZ) {}
 	
 	void apply(SpriteBySlot& sprites) const {
-		sprites[slot].asset_id = asset_id;
+        auto &sprite = sprites[slot];
+		sprite.asset_id = asset_id;
+        sprite.z = z;
 	}
 };
 
@@ -160,10 +169,6 @@ class RotationStep : public Step {
 };
 
 class AnimationManager;
-using AnimatedObjectID = uintptr_t;
-
-using AnimationID = size_t;
-static const AnimationID NO_ANIMATION = (size_t) -1;
 
 /** Animation -- a vector of steps */
 class Animation {
@@ -210,8 +215,11 @@ protected:
     }
 
 public:
+    virtual AnimatedObjectID newObject() = 0;
+    virtual SpriteSlotID newSpriteSlot() = 0;
 
     virtual Animation* newAnimation() = 0;
+    virtual const Animation* animation(AnimationID id) const = 0;
 
     /** Play given animation on object. If another animation is playing, interrupt it. */
     virtual void play(AnimatedObjectID obj, Vec2f off, int layer, AnimationID id) = 0;

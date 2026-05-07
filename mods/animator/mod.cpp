@@ -10,10 +10,28 @@ class Animator : public anim::AnimationManager {
     ModVersion version() const override { return ModVersion(0, 0, 1); }
 
     std::deque<anim::Animation> m_anims;
+    anim::AnimatedObjectID m_nextObject = 1;
+    anim::SpriteSlotID m_nextSpriteSlot = 0;
+
+    anim::AnimatedObjectID newObject() override {
+        return m_nextObject++;
+    }
+
+    anim::SpriteSlotID newSpriteSlot() override {
+        return m_nextSpriteSlot++;
+    }
 
     anim::Animation *newAnimation() override {
         m_anims.push_back(constructAnimation(m_anims.size()));
         return &m_anims.back();
+    }
+
+    const anim::Animation *animation(anim::AnimationID id) const override {
+        if (id >= m_anims.size()) {
+            return nullptr;
+        }
+
+        return &m_anims[id];
     }
     
     void animationBuilt(anim::Animation *an) override {
