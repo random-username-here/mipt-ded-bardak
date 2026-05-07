@@ -46,10 +46,10 @@ const auto Wall   = Asset<tile::Config>("m.wall", ASSETS_DIR "/map/spikes.png");
 }
 
 class MapAnimator {
-    modlib::Level *m_map = nullptr;
-    anim::AnimationManager *m_anim = nullptr;
-    modlib::AssetManager *m_assets = nullptr;
-    modlib::Timer *m_timer = nullptr;
+    modlib::Level* m_map = nullptr;
+    anim::AnimationManager* m_anim = nullptr;
+    modlib::AssetManager* m_assets = nullptr;
+    modlib::Timer* m_timer = nullptr;
     std::unordered_set<modlib::Tile*> m_subscribed_tiles;
     std::unordered_map<modlib::Tile*, anim::AnimatedObjectID> m_tile_objects;
     anim::SpriteSlotID m_tile_slot = 0;
@@ -61,10 +61,10 @@ class MapAnimator {
 
 public:
     MapAnimator(
-        modlib::Level *map,
-        anim::AnimationManager *anim,
-        modlib::AssetManager *assets,
-        modlib::Timer *timer
+        modlib::Level* map,
+        anim::AnimationManager* anim,
+        modlib::AssetManager* assets,
+        modlib::Timer* timer
     ) : m_map(map), m_anim(anim), m_assets(assets), m_timer(timer) {}
 
     void start() {
@@ -90,14 +90,14 @@ private:
         const modlib::Vec2i size = m_map->getSize();
         for (int x = 0; x < size.x; ++x) {
             for (int y = 0; y < size.y; ++y) {
-                modlib::Tile *tile = m_map->getTile({x, y});
+                modlib::Tile* tile = m_map->getTile({x, y});
                 subscribeTile(tile);
                 animateTile(tile);
             }
         }
     }
 
-    void subscribeTile(modlib::Tile *tile) {
+    void subscribeTile(modlib::Tile* tile) {
         if (m_subscribed_tiles.find(tile) != m_subscribed_tiles.end()) {
             return;
         }
@@ -110,7 +110,7 @@ private:
         m_subscribed_tiles.insert(tile);
     }
 
-    void animateTile(modlib::Tile *tile) {
+    void animateTile(modlib::Tile* tile) {
         m_anim->play(
             tileObjectID(tile),
             pixelPosition(tile->getPos()),
@@ -125,7 +125,7 @@ private:
     }
 
     anim::AnimationID buildTileAnimation(const modlib::SpriteAsset& sprite) {
-        auto *animation = m_anim->newAnimation();
+        auto* animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_tile_slot, sprite.id, tile::kZ);
         animation->finishBuild();
         return animation->id();
@@ -144,7 +144,7 @@ private:
         return m_anims.ground;
     }
 
-    anim::AnimatedObjectID tileObjectID(modlib::Tile *tile) {
+    anim::AnimatedObjectID tileObjectID(modlib::Tile* tile) {
         auto it = m_tile_objects.find(tile);
         if (it != m_tile_objects.end()) {
             return it->second;
