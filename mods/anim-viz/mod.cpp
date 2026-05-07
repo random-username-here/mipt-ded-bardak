@@ -70,12 +70,11 @@ class AnimatedVisualization : public modlib::BmServerModule {
 		}
     }
 
-	template<typename T, typename U>
-	using URefAsT = std::conditional_t<std::is_const_v<std::remove_pointer_t<T>>, const U&, U&>;
-
-	template <typename TPtr, typename TMap, typename TCmp, typename TAct>
+	template <typename TMap, typename TCmp, typename TAct>
 	void
-	forEachInSorted(URefAsT<TPtr, TMap> map, TCmp&& cmp, TAct&& action) {
+	forEachInSorted(TMap&& map, TCmp&& cmp, TAct&& action) {
+	    using TPtr = decltype(&map.begin()->second);
+
 		std::vector<TPtr> sorted;
 		sorted.reserve(map.size());
 		for (auto &[_, v] : map) {
@@ -101,7 +100,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
 			drawSprites(*ao);
 		};
 
-		forEachInSorted<AnimatedObject*, decltype(m_objs)>(m_objs, cmp, action);
+		forEachInSorted(m_objs, cmp, action);
 	}
 
     void drawSprites(const AnimatedObject &obj) {
@@ -116,7 +115,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
 			}
 		};
 
-		forEachInSorted<const anim::Sprite*, decltype(obj.sprites)>(obj.sprites, cmp, action);
+		forEachInSorted(obj.sprites, cmp, action);
     }
 
     bool drawTextureSprite(const AnimatedObject &obj, const anim::Sprite &s) {
