@@ -10,7 +10,7 @@
 #include <utility>
 
 class PersonAnimator {
-    static constexpr float kTilePixels = 32.0f;
+    static constexpr float kTilePixels = 40.0f;
     static constexpr float kMoveSeconds = 0.18f;
     static constexpr float kAttackFrameSeconds = 0.05f;
 
@@ -111,11 +111,11 @@ private:
     void registerAssets() {
         if (!m_assets) return;
 
-        registerSprite(kIdleSprite, "assets/rogue_down.png", 16, 16, 32, 32);
-        registerSprite(kRunDownSprite, "assets/rogue_run_down.png", 16, 16, 32, 32);
-        registerSprite(kRunUpSprite, "assets/rogue_run_up.png", 16, 16, 32, 32);
-        registerSprite(kRunLeftSprite, "assets/rogue_run_left.png", 16, 16, 32, 32);
-        registerSprite(kRunRightSprite, "assets/rogue_run_right.png", 16, 16, 32, 32);
+        registerSprite(kIdleSprite, "assets/rogue_down.png", 16, 16, kTilePixels, kTilePixels);
+        registerSprite(kRunDownSprite, "assets/rogue_run_down.png", 16, 16, kTilePixels, kTilePixels);
+        registerSprite(kRunUpSprite, "assets/rogue_run_up.png", 16, 16, kTilePixels, kTilePixels);
+        registerSprite(kRunLeftSprite, "assets/rogue_run_left.png", 16, 16, kTilePixels, kTilePixels);
+        registerSprite(kRunRightSprite, "assets/rogue_run_right.png", 16, 16, kTilePixels, kTilePixels);
 
         registerSprite(kSlash1Sprite, "assets/slash_01.png", 32, 32, 48, 48);
         registerSprite(kSlash2Sprite, "assets/slash_02.png", 32, 32, 48, 48);
@@ -126,10 +126,10 @@ private:
     void registerSprite(
         std::string_view id,
         std::string file,
-        int sourceW,
-        int sourceH,
-        int drawW,
-        int drawH
+        float sourceW,
+        float sourceH,
+        float drawW,
+        float drawH
     ) {
         const modlib::SpriteID spriteId(id);
         if (m_assets->sprite(spriteId)) return;
@@ -137,8 +137,8 @@ private:
         modlib::SpriteAsset sprite;
         sprite.id = spriteId;
         sprite.file = std::move(file);
-        sprite.source = modlib::Recti{0, 0, sourceW, sourceH};
-        sprite.size = modlib::Vec2i{drawW, drawH};
+        sprite.source = modlib::Rectf{0, 0, sourceW, sourceH};
+        sprite.size = modlib::Vec2f{drawW, drawH};
 
         m_assets->registerSprite(sprite);
     }
