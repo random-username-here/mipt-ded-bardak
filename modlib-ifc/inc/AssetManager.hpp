@@ -22,24 +22,21 @@ using SpriteIDHash = bmsg::Char64Hasher;
 
 struct SpriteAsset {
     SpriteID id{};
-
     std::string file{};
-    Rectf source{};
-
+    std::string_view raw_bytes{};
+    Rectf clip{};
     Vec2f size{};
-    Vec2f origin{};
-    Vec2f offset{};
-
-    int z = 0;
 };
 
 class AssetManager : public Mod {
 public:
-    virtual bool registerSprite(const SpriteAsset &sprite) = 0;
-	virtual std::optional<modlib::SpriteAsset> sprite(modlib::SpriteID id) const = 0;
-    virtual std::string_view spriteBytes(SpriteID id) const = 0;
-
     ~AssetManager() override = default;
+
+    virtual bool registerSprite(SpriteAsset sprite) = 0;
+
+	virtual std::optional<modlib::SpriteAsset> sprite(modlib::SpriteID id  ) const = 0;
+	virtual std::optional<std::string_view>    bytes (modlib::SpriteID id  ) const = 0;
+	virtual std::optional<std::string_view>    bytes (std::string_view file) const = 0;
 };
 
 } // namespace modlib

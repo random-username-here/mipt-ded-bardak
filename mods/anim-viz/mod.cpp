@@ -65,7 +65,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     }
 
     void drawSprites(const AnimatedObject &obj) {
-        std::vector<anim::SpriteID> spriteOrder;
+        std::vector<anim::SpriteID> spriteOrder; //!FIXME z/layer sort
         spriteOrder.reserve(obj.sprites.size());
         for (const auto &[id, _] : obj.sprites) {
             spriteOrder.push_back(id);
@@ -75,7 +75,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
         for (anim::SpriteID id : spriteOrder) {
             const Sprite &s = obj.sprites.at(id);
             if (!drawTextureSprite(obj, s)) {
-                drawDebugSprite(obj, s);
+                drawInvalid(obj, s);
             }
         }
     }
@@ -96,15 +96,15 @@ class AnimatedVisualization : public modlib::BmServerModule {
         }
 
         Rectangle src;
-        src.x = static_cast<float>(sprite->source.x);
-        src.y = static_cast<float>(sprite->source.y);
-        src.width = static_cast<float>(sprite->source.w > 0 ? sprite->source.w : texture->width);
-        src.height = static_cast<float>(sprite->source.h > 0 ? sprite->source.h : texture->height);
+        src.x = static_cast<float>(sprite->clip.x);
+        src.y = static_cast<float>(sprite->clip.y);
+        src.width = static_cast<float>(sprite->clip.w > 0 ? sprite->clip.w : texture->width);
+        src.height = static_cast<float>(sprite->clip.h > 0 ? sprite->clip.h : texture->height);
 
         Rectangle dst;
         const Vec2f pos = obj.pos + s.pos;
-        dst.x = pos.x + static_cast<float>(sprite->offset.x);
-        dst.y = pos.y + static_cast<float>(sprite->offset.y);
+        dst.x = pos.x + static_cast<float>(sprite->clip.x);
+        dst.y = pos.y + static_cast<float>(sprite->clip.y);
         dst.width = static_cast<float>(sprite->size.x > 0 ? sprite->size.x : static_cast<int>(src.width));
         dst.height = static_cast<float>(sprite->size.y > 0 ? sprite->size.y : static_cast<int>(src.height));
 
@@ -113,8 +113,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
             src,
             dst,
             Vector2{
-                static_cast<float>(sprite->origin.x),
-                static_cast<float>(sprite->origin.y)
+                static_cast<float>(0),
+                static_cast<float>(0)
             },
             s.rotation,
             WHITE
@@ -123,7 +123,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
         return true;
     }
 
-    void drawDebugSprite(const AnimatedObject &obj, const Sprite &s) {
+    void drawInvalid(const AnimatedObject &obj, const Sprite &s) {
+		//!FIXME delete in release, this is for debugging
         Vec2f pos = obj.pos + s.pos;
         Vec2f d = { std::cos(s.rotation), std::sin(s.rotation) };
         DrawLineV(v2v(pos), v2v(pos + d * 40), RED);
@@ -139,14 +140,22 @@ class AnimatedVisualization : public modlib::BmServerModule {
             return &loaded->second;
         }
 
-        Texture2D texture = LoadTexture(sprite.file.c_str());
+		auto raw_tex = m_assets->bytes(sprite.id);
+    	Image image = LoadImageFromMemory(
+			".png",
+			reinterpret_cast<const unsigned char*>(raw_tex->data()),
+			raw_tex->size()
+		);
+    	Texture2D texture = LoadTextureFromImage(image);
+		UnloadImage(image);
+
         if (texture.id == 0) {
             return nullptr;
         }
 
         SetTextureFilter(texture, TEXTURE_FILTER_POINT);
 
-        auto inserted = m_textures.emplace(key, texture);
+        auto inserted = m_textures.try_emplace(key, texture);
         return &inserted.first->second;
     }
 

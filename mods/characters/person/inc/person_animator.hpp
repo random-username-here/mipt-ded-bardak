@@ -137,7 +137,7 @@ private:
         modlib::SpriteAsset sprite;
         sprite.id = spriteId;
         sprite.file = std::move(file);
-        sprite.source = modlib::Rectf{0, 0, sourceW, sourceH};
+        sprite.clip = modlib::Rectf{0, 0, sourceW, sourceH};
         sprite.size = modlib::Vec2f{drawW, drawH};
 
         m_assets->registerSprite(sprite);
