@@ -2,119 +2,87 @@
 
 
 #include "Vec2.hpp"
-#include "modlib_mod.hpp"
-#include "binmsg.hpp"
 #include "Event.hpp"
-
-#include "ECbasis.hpp"
 
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
-namespace modlib {
+namespace modlib::Map {
+using   VecXY = Vec2D<int>; // a special alias for representing 2D coordinates
+#define BADXY  modlib::Map::VecXY (INT32_MAX, INT32_MAX)
+
+using   ID    = uintptr_t;
+
 
 class Tile;
+class Level;
 
-class Entity : public EC::Entity
+class Entity
 {
 public:
-    Entity (Type type, Tile* tile);
-
+                Entity (Tile* tile = nullptr);
     virtual ~Entity ();
 
-    Tile*    getTile     () const;                                                                                  // Please refrain from using this method for safety reasons
-    Vec2i    getPosition () const;
-    void     setTile     (Tile*   tile);
-    void     setPosition (Vec2i position);
+    Tile*  getTile () const;    
+    void   setTile (Tile* tile);
 
-    Event<Vec2i> EvEntityMoved;
+    Event<Tile*, Tile*> EvEntityMoved;
+    Event<>             EvBeingDeconstructed;
 
 private:
     Tile* m_tile;
 };
 
-class Level;
-
 class Tile
 {
 public:
-    using Type = bmsg::Char64;
+                Tile (Level* level, VecXY position);
+    virtual ~Tile ();
 
-    struct BasicTypes {
-       static const inline Type WALL = Type("wall");
-       static const inline Type EMPTY = Type("empty");
-    };
+    Level* getLevel () const;
+    VecXY  getPos   () const;
 
-     Tile (Level& level, Vec2i position, Type type);
-    ~Tile ();
+    void   setLevel (Level* level, VecXY position=BADXY);
+    void   setPos   (VecXY  position);
 
-    Level&   getLevel () const;
-    Vec2i  getPos   () const;
-    Type     getType  () const;
-    void     setType  (Type type);
+    void    addEntity (Entity* entity);
+    void removeEntity (Entity* entity);
 
-    void    addEntity (Entity*     entity);
-    void removeEntity (Entity::ID  id);
+    std::unordered_set<Entity*>& getEntityList ();
 
-    const std::unordered_map<Entity::ID, Entity*>& getEntityList () const;                                      // Please refrain from using this method for safety reasons
+    Event<Level*, VecXY, Level*, VecXY> EvLvlChanged;
+    Event<VecXY,  VecXY>                EvPosChanged;
+    Event<Entity*>                      EvEntityHasCome;
+    Event<Entity*>                      EvEntityHasGone;
 
-    Event<Type>       EvTileTypeChanged;
-    Event<Entity::ID> EvEntityHasCome;
-    Event<Entity::ID> EvEntityHasGone;
+    Event<>                             EvBeingDeconstructed;
 private:
-    Level&  m_level;
-    Vec2i m_position;
-    Type    m_type;
+    Level*  m_level;
+    VecXY   m_position;
 
-    std::unordered_map<Entity::ID, Entity*> m_EntityList;
+    std::unordered_set<Entity*> m_EntityList;
 };
 
-class Level : public Mod
+class Level
 {
-    friend void Tile::setType (Tile::Type type);
 public:
-    using ID = uint64_t;
+    virtual ~Level () {};
 
-    virtual ~Level() {};
+    VecXY getSize () const;
 
-    ID getLevelID() const;
-    Vec2i getSize() const;
-
-    Tile *getTile(Vec2i position);
-    const std::vector       <std::vector<Tile>             >& getTileMap   ();
-    const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& getTileTypes ()                 const;
-
-    Entity::ID                                      newEntity       (Entity* entity, Vec2i  position);
-    Entity::ID                                      newEntity       (Entity* entity, Tile   *tile    );
-    void                                         removeEntity       (Entity::ID id                    );
-                             Entity*                 getEntity      (Entity::ID id                    );        // Please refrain from using this method for safety reasons
-    const std::unordered_map<Entity::ID,   Entity*>& getEntityList  ();                                         // Please refrain from using this method for safety reasons
-    const std::unordered_map<Entity::Type, size_t, bmsg::Char64Hasher>& getEntityTypes ()                                  const;
+    Tile*                           getTile    (VecXY position);
+    std::vector<std::vector<Tile>>& getTileMap ();
 
     void loadLevel (std::string_view path2level);
 
+    Event<> EvLevelLoaded;
 
-    Event<>             EvLevelLoaded;
-
-    Event<Tile::Type>   EvTileTypeNew;
-    Event<Tile::Type>   EvTileTypeExpired;
-
-    Event<Entity::ID>   EvEntitySpawned;
-    Event<Entity*>      EvEntityDespawned;
-
-    Event<Entity::Type> EvEntityTypeNew;
-    Event<Entity::Type> EvEntityTypeExpired;
 protected:
-    ID m_levelID;
-
-    std::vector<std::vector<Tile>             > m_tileMap;
-    std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher> m_tileTypes;
-
-    std::unordered_map<Entity::ID,   Entity*> m_entityList;
-    std::unordered_map<Entity::Type, size_t, bmsg::Char64Hasher> m_entityTypes;
+    std::vector<std::vector<Tile>> m_tileMap;
 };
 
-} // namespace modlib
+} // namespace modlib::Map

@@ -9,8 +9,18 @@ public:
     T x;
     T y;
 
-    Vec2D (T x_=0, T y_=0)      : x (x_), y(y_) {}
+    Vec2D (T x=0, T y=0)        : x (x)    , y(y)     {}
     Vec2D (const Vec2D<T>& src) : x (src.x), y(src.y) {}
+
+    bool operator== (const Vec2D<T>& rhs)
+    {
+        return x == rhs.x && y == rhs.y;
+    }
+
+    bool operator!= (const Vec2D<T>& rhs)
+    {
+        return !(*this == rhs);
+    }
 
     Vec2D& operator= (const Vec2D<T>& src)
     {
