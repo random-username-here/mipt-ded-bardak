@@ -1,3 +1,4 @@
 project(characters)
 
-add_subdirectory(players)
+add_subdirectory(person)
+    

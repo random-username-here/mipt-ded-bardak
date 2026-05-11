@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Map.hpp"
-#include "person_base.hpp"
 
 using namespace modlib;
 
