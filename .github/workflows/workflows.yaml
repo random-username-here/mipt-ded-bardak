@@ -84,6 +84,7 @@ jobs:
           port = 3000
           pan_dir = ./specs/proto/srv.pan
           pan_dir = ./specs/proto/role.pan
+          pan_dir = ./mods/characters/person/proto/person.pan
           EOF
           ./build/clients/person/person_client /tmp/ci_person_client.ini &
           CLIENT_PID=$!
