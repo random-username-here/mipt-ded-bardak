@@ -1,4 +1,4 @@
-#include "utils/tcp/tcp_connection.hpp"
+#include "client-core/tcp/tcp_connection.hpp"
 
 #include <cstring>
 #include <stdexcept>

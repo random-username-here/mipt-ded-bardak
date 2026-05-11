@@ -1,4 +1,4 @@
-#include "utils/base/client_base.hpp"
+#include "client-core/base/client_base.hpp"
 #include "ghost_proto.hpp"
 #include "srv_proto.hpp"
 

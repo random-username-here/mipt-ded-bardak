@@ -7,7 +7,7 @@
 #pragma once
 
 #include "libpan.h"
-#include "utils/tcp/tcp_connection.hpp"
+#include "client-core/tcp/tcp_connection.hpp"
 
 #include <functional>
 #include <iostream>
