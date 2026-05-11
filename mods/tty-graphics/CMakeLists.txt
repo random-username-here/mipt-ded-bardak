@@ -1,7 +1,7 @@
 project(tty-graphics)
 
 add_library(ttygraph MODULE main.cpp)
-target_link_libraries(ttygraph PRIVATE modlib modlib-ifc msva-internals)
+target_link_libraries(ttygraph PRIVATE modlib modlib-ifc map-core msva-internals)
 set_target_properties(ttygraph PROPERTIES OUTPUT_NAME "isd.bardak.ttygraph")
 set_target_properties(ttygraph PROPERTIES PREFIX "")
 set_target_properties(ttygraph PROPERTIES SUFFIX ".mod")

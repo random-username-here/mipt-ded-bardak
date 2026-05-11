@@ -21,8 +21,8 @@ endif()
 option(BUILD_GRAPHICS "Build graphical modules" ON)
 
 if(BUILD_GRAPHICS)
-    add_subdirectory(mods/vis)
-    add_subdirectory(mods/tty-graphics)
+    add_subdirectory(mods/anim-viz)
+    # add_subdirectory(mods/tty-graphics)
 endif()
 
 
