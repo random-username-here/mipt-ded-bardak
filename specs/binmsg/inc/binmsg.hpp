@@ -24,13 +24,15 @@ union Char64 {
     constexpr Char64() : as_u64(0) {}
     constexpr Char64(uint64_t v) : as_u64(v) {}
 
-    constexpr Char64(std::string_view s) : as_chars{0,0,0,0,0,0,0,0} { 
+    constexpr Char64(std::string_view s) : as_u64 (0) { 
         if (s.size() > 8) { 
             throw "s.size() should be <= 8"; 
         }
         
-        for (size_t i = 0; i < s.size(); ++i) {
-            as_chars[i] = s[i]; 
+        as_u64 = 0;
+        for (size_t i = 0; i < s.size(); ++i) 
+        {
+            as_u64 |= static_cast<uint64_t>(static_cast<unsigned char>(s[i])) << (i * 8);
         }
     }
 
