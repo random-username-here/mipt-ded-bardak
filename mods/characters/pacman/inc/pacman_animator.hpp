@@ -39,13 +39,12 @@ Asset(std::string_view id, const std::string &file)
 	};
 }
 
-// Placeholder art: reuse person sprites until pacman-specific assets exist.
-const auto Idle = Asset<pm_body::Config>("pm.idle", ASSETS_DIR "/units/person/rogue_down.png");
-const auto Death = Asset<pm_body::Config>("pm.death", ASSETS_DIR "/units/person/rogue_dead.png");
-const auto RunDown = Asset<pm_body::Config>("pm.run.d", ASSETS_DIR "/units/person/rogue_run_down.png");
-const auto RunUp = Asset<pm_body::Config>("pm.run.u", ASSETS_DIR "/units/person/rogue_run_up.png");
-const auto RunLeft = Asset<pm_body::Config>("pm.run.l", ASSETS_DIR "/units/person/rogue_run_left.png");
-const auto RunRight = Asset<pm_body::Config>("pm.run.r", ASSETS_DIR "/units/person/rogue_run_right.png");
+const auto Idle = Asset<pm_body::Config>("pm.idle", ASSETS_DIR "/units/pacman/down.png");
+const auto Death = Asset<pm_body::Config>("pm.death", ASSETS_DIR "/units/pacman/dead.png");
+const auto RunDown = Asset<pm_body::Config>("pm.run.d", ASSETS_DIR "/units/pacman/down.png");
+const auto RunUp = Asset<pm_body::Config>("pm.run.u", ASSETS_DIR "/units/pacman/up.png");
+const auto RunLeft = Asset<pm_body::Config>("pm.run.l", ASSETS_DIR "/units/pacman/left.png");
+const auto RunRight = Asset<pm_body::Config>("pm.run.r", ASSETS_DIR "/units/pacman/right.png");
 
 } // namespace pm_assets
 

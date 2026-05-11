@@ -1,62 +1,37 @@
-#include "player_base.hpp"
-#include "Map.hpp"
-#include "ghost_proto.hpp"
+#include <cassert>
+#include <iostream>
+
+#include "BmServerModule.hpp"
+#include "Animator.hpp"
+#include "AssetManager.hpp"
 #include "RoleMgr.hpp"
+#include "Map.hpp"
 #include "Timer.hpp"
+#include "binmsg.hpp"
+#include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
 
-#include <cstdlib>
-#include <string_view>
-#include <unordered_map>
+#include "ghost_manager.hpp"
 
-constexpr uint64_t kGhostType = 2;
-constexpr uint64_t kGhostTeam = 1;
-constexpr uint64_t kMoveCooldownTicks = 1;
-constexpr uint64_t kAttackCooldownTicks = 2;
-constexpr int kVisionRadius = 4;
-constexpr int kAttackDamage = 25;
+using namespace modlib;
 
-struct Ghost final : public PersonBase
+class GhostModule : public BmServerModule
 {
-	Ghost(modlib::Map *map, modlib::Vec2i pos, size_t id, modlib::BmClient *client)
-	    : PersonBase(map, pos, id, client)
-	{
-	}
+	Timer *tm = nullptr;
+	Level *map = nullptr;
+	RoleMgr *roles_ = nullptr;
+	anim::AnimationManager *animator = nullptr;
+	AssetManager *assets = nullptr;
+	GhostManager manager;
 
-	uint64_t type() const override
-	{
-		return kGhostType;
-	}
-	uint64_t teamId() const override
-	{
-		return kGhostTeam;
-	}
-	int attackDamage() const override
-	{
-		return kAttackDamage;
-	}
-	virtual uint64_t getAssetId() const override
-	{
-		return 1;
-	};
-	virtual void pickUp() override {};
-	virtual int weight() const override
-	{
-		return 0;
-	};
-	virtual void setWeight(const int weight) override {};
-};
-
-class GhostRole final : public modlib::BmServerModule
-{
-  public:
+public:
 	std::string_view id() const override
 	{
-		return "sevsol.bardak.role.ghost";
+		return "sevsol.bardak.uctl.ghost";
 	}
 	std::string_view brief() const override
 	{
-		return "Ghost playable role";
+		return "Ghost unit controller";
 	}
 	ModVersion version() const override
 	{
@@ -65,239 +40,98 @@ class GhostRole final : public modlib::BmServerModule
 
 	void onResolveDeps(ModManager *mm) override
 	{
+		tm = mm->anyOfType<Timer>();
+		map = mm->anyOfType<Level>();
 		roles_ = mm->anyOfType<modlib::RoleMgr>();
-		map_ = mm->anyOfType<modlib::Map>();
-		timer_ = mm->anyOfType<modlib::Timer>();
+		animator = mm->anyOfType<anim::AnimationManager>();
+		assets = mm->anyOfType<AssetManager>();
 
-		if (roles_ == nullptr) {
-			throw ModManager::Error("RoleMgr module not found");
-		}
-		if (map_ == nullptr) {
-			throw ModManager::Error("Map module not found");
-		}
-		if (timer_ == nullptr) {
+		if (!tm) {
 			throw ModManager::Error("Timer module not found");
 		}
+		if (!map) {
+			throw ModManager::Error("Map module not found");
+		}
+		if (!roles_) {
+			throw ModManager::Error("RoleMgr module not found");
+		}
+		if (!animator) {
+			throw ModManager::Error("Animator module not found");
+		}
+		if (!assets) {
+			throw ModManager::Error("AssetManager module not found");
+		}
+
+		manager.setModules(tm, map, animator, assets);
 	}
 
-	void onDepsResolved(ModManager *) override
+	void select(modlib::BmClient *client)
 	{
+		if (manager.count(client) != 0) {
+			return;
+		}
+		manager.spawnGhost(client);
+	}
+
+	void onDepsResolved(ModManager * /*mm*/) override
+	{
+		manager.resolve();
 		if (!roles_->registerRole("ghost", "Ghost", "ghost",
 		                          [this](modlib::BmClient *client) { select(client); })) {
 			throw ModManager::Error("failed to register ghost role");
 		}
-
-		timer_->setTimer(1, [this] { tick(); }, modlib::Timer::Stage::ON_UPDATE);
 	}
 
-	void onSetup(modlib::BmServer *server) override
+	void onSetup(BmServer *server) override
 	{
 		if (!server->registerPrefix("ghost", this)) {
 			throw ModManager::Error("failed to register ghost prefix");
 		}
 	}
 
-	void onDisconnect(modlib::BmClient *client) override
+	void onConnect(BmClient * /*client*/) override {}
+
+	void onMessage(BmClient *cl, bmsg::RawMessage m) override
 	{
-		const auto found = ghosts_.find(client->id());
-		if (found == ghosts_.end()) {
+		assert(m.isCorrect());
+
+		if (!roles_->clientHasRole(cl, "ghost") || !m.isCorrect()) {
 			return;
 		}
 
-		found->second->destroy();
-		ghosts_.erase(found);
-	}
-
-	void onMessage(modlib::BmClient *client, bmsg::RawMessage msg) override
-	{
-		if (!roles_->clientHasRole(client, "ghost") || !msg.isCorrect()) {
-			return;
-		}
-
-		const auto found = ghosts_.find(client->id());
-		if (found == ghosts_.end()) {
-			return;
-		}
-
-		if (msg.header()->type == "move") {
-			handleMove(found->second, msg);
-		} else if (msg.header()->type == "attack") {
-			handleAttack(found->second, msg);
-		} else if (msg.header()->type == "where") {
-			handleWhere(client, msg);
-		} else if (msg.header()->type == "sees") {
-			sendVision(client, found->second);
-		}
-	}
-
-  private:
-	modlib::RoleMgr *roles_ = nullptr;
-	modlib::Map *map_ = nullptr;
-	modlib::Timer *timer_ = nullptr;
-	std::unordered_map<size_t, Ghost *> ghosts_;
-	uint64_t tick_ = 0;
-
-	void select(modlib::BmClient *client)
-	{
-		if (ghosts_.count(client->id()) != 0) {
-			return;
-		}
-
-		auto *ghost = map_->spawn<Ghost>(findSpawn(), client);
-		ghosts_[client->id()] = ghost;
-		sendState(client, ghost);
-	}
-
-	void tick()
-	{
-		++tick_;
-		for (auto it = ghosts_.begin(); it != ghosts_.end();) {
-			auto *ghost = it->second;
-			if (ghost->destroyed()) {
-				it = ghosts_.erase(it);
-				continue;
+		if (m.header()->type == "move") {
+			const auto move_cmd = bmsg::CL_ghost_move::decode(m);
+			if (!move_cmd) {
+				return;
 			}
-
-			sendState(ghost->m_client, ghost);
-			++it;
-		}
-
-		timer_->setTimer(1, [this] { tick(); }, modlib::Timer::Stage::ON_UPDATE);
-	}
-
-	void handleMove(Ghost *ghost, bmsg::RawMessage msg)
-	{
-		const auto move = bmsg::CL_ghost_move::decode(msg);
-		if (!move) {
-			return;
-		}
-		if (std::abs(move->dx) > 1 || std::abs(move->dy) > 1 || (move->dx == 0 && move->dy == 0)) {
-			return;
-		}
-		if (tick_ < ghost->m_nextMoveTick) {
-			return;
-		}
-
-		const modlib::Vec2i next{ghost->pos().x + move->dx, ghost->pos().y + move->dy};
-		auto *tile = map_->at(next);
-		if (!ghost->canEnter(tile)) {
-			return;
-		}
-
-		ghost->move(next);
-		ghost->m_nextMoveTick = tick_ + kMoveCooldownTicks;
-	}
-
-	void handleAttack(Ghost *ghost, bmsg::RawMessage msg)
-	{
-		const auto attack = bmsg::CL_ghost_attack::decode(msg);
-		if (!attack) {
-			return;
-		}
-		if (tick_ < ghost->m_nextAttackTick) {
-			return;
-		}
-
-		auto *target = dynamic_cast<modlib::MOB *>(map_->byId(attack->whom));
-		if (target == nullptr) {
-			return;
-		}
-		if (std::abs(target->pos().x - ghost->pos().x) > 1 ||
-		    std::abs(target->pos().y - ghost->pos().y) > 1) {
-			return;
-		}
-
-		target->takeDamage(ghost->attackDamage());
-		ghost->m_nextAttackTick = tick_ + kAttackCooldownTicks;
-	}
-
-	void handleWhere(modlib::BmClient *client, bmsg::RawMessage msg) const
-	{
-		const auto where = bmsg::CL_ghost_where::decode(msg);
-		if (!where) {
-			return;
-		}
-		sendWhere(client, where->teamId);
-	}
-
-	void sendWhere(modlib::BmClient *client, uint32_t team_id) const
-	{
-		const auto size = map_->size();
-		for (int y = 0; y < size.y; ++y) {
-			for (int x = 0; x < size.x; ++x) {
-				auto *tile = map_->at({x, y});
-				if (tile == nullptr) {
-					continue;
-				}
-				for (auto *unit : tile->units()) {
-					if (unit != nullptr && unit->teamId() == team_id) {
-						client->send(bmsg::SV_ghost_where{unit->pos().x, unit->pos().y,
-						                                  static_cast<uint32_t>(unit->id()),
-						                                  static_cast<uint32_t>(unit->teamId())});
-					}
-				}
+			manager.receiveMoveCommand(cl, move_cmd.value());
+		} else if (m.header()->type == "attack") {
+			const auto atk_cmd = bmsg::CL_ghost_attack::decode(m);
+			if (!atk_cmd) {
+				return;
 			}
+			manager.receiveAttackCommand(cl, atk_cmd.value());
+		} else if (m.header()->type == "where") {
+			const auto where_cmd = bmsg::CL_ghost_where::decode(m);
+			if (!where_cmd) {
+				return;
+			}
+			manager.receiveWhereCommand(cl, where_cmd.value());
+		} else if (m.header()->type == "sees") {
+			if (!bmsg::CL_ghost_sees::decode(m)) {
+				return;
+			}
+			manager.receiveSeesCommand(cl);
 		}
 	}
 
-	modlib::Vec2i findSpawn() const
+	void onDisconnect(BmClient *client) override
 	{
-		const auto size = map_->size();
-		for (int attempts = 0; attempts < 64; ++attempts) {
-			modlib::Vec2i pos{std::rand() % size.x, std::rand() % size.y};
-			auto *tile = map_->at(pos);
-			if (tile != nullptr && !(tile->type() == modlib::Tile::BasicType::Wall)) {
-				return pos;
-			}
-		}
-
-		for (int y = 0; y < size.y; ++y) {
-			for (int x = 0; x < size.x; ++x) {
-				modlib::Vec2i pos{x, y};
-				auto *tile = map_->at(pos);
-				if (tile != nullptr && !(tile->type() == modlib::Tile::BasicType::Wall)) {
-					return pos;
-				}
-			}
-		}
-
-		return {0, 0};
-	}
-
-	void sendState(modlib::BmClient *client, Ghost *ghost) const
-	{
-		client->send(bmsg::SV_ghost_tick{});
-		client->send(bmsg::SV_ghost_at{ghost->pos().x, ghost->pos().y});
-		client->send(bmsg::SV_ghost_hp{ghost->hp()});
-	}
-
-	void sendVision(modlib::BmClient *client, Ghost *ghost) const
-	{
-		const auto size = map_->size();
-		for (int dx = -kVisionRadius; dx <= kVisionRadius; ++dx) {
-			for (int dy = -kVisionRadius; dy <= kVisionRadius; ++dy) {
-				const modlib::Vec2i pos{ghost->pos().x + dx, ghost->pos().y + dy};
-				if (pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y) {
-					continue;
-				}
-
-				auto *tile = map_->at(pos);
-				if (tile->type() == modlib::Tile::BasicType::Wall) {
-					client->send(bmsg::SV_ghost_wall{pos.x, pos.y});
-				}
-				for (auto *unit : tile->units()) {
-					if (unit != ghost) {
-						client->send(bmsg::SV_ghost_sees{pos.x, pos.y,
-						                                 static_cast<uint32_t>(unit->id()),
-						                                 static_cast<uint32_t>(unit->teamId())});
-					}
-				}
-			}
-		}
+		manager.destroy(client);
 	}
 };
 
 extern "C" Mod *modlib_create(ModManager *)
 {
-	return new GhostRole();
+	return new GhostModule();
 }
