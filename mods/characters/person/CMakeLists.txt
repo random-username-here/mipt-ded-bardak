@@ -1,6 +1,6 @@
 project(person)
 
-pan_header(../../../specs/proto/person.pan ./inc/person_proto.hpp)
+pan_header(../../../clients/person/proto/person.pan ./inc/person_proto.hpp)
 
 add_library(person MODULE main.cpp ./inc/person_proto.hpp)
 
