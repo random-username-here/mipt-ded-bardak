@@ -84,6 +84,8 @@ public:
         timer_->setTimer(1, [ctl](){ ctl->setActionDoneState(false); }, modlib::Timer::Stage::ON_UPDATE);
     }
 
+    size_t count(BmClient *client) const { return people_.count(client); }
+    
     void spawnPerson(BmClient *client) {
         if (people_.count(client)) {
             std::cerr << "person with client `" << client->id() << "` was already spawned\n";
