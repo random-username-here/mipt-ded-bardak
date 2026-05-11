@@ -1,5 +1,8 @@
 # CMake files
 build/
+
+# Character mod pan codegen (source tree)
+mods/characters/*/proto/generated/
 # For local-only files, drafts, experiments, random files, etc
 local/
 
