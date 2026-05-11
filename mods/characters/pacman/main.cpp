@@ -1,59 +1,36 @@
-#include "player_base.hpp"
+#include <iostream>
+
+#include "BmServerModule.hpp"
+#include "Animator.hpp"
+#include "AssetManager.hpp"
 #include "RoleMgr.hpp"
+#include "Map.hpp"
 #include "Timer.hpp"
+#include "binmsg.hpp"
+#include "modlib_mod.hpp"
 #include "modlib_manager.hpp"
-#include "pacman_proto.hpp"
 
-#include <cstdlib>
-#include <string_view>
-#include <unordered_map>
+#include "pacman_manager.hpp"
 
-constexpr uint64_t kPacmanType = 1;
-constexpr uint64_t kPacmanTeam = 0;
-constexpr uint64_t kMoveCooldownTicks = 1;
-constexpr int kVisionRadius = 4;
+using namespace modlib;
 
-struct Pacman final : public PersonBase
+class PacmanModule : public BmServerModule
 {
-	Pacman(modlib::Map *map, modlib::Vec2i pos, size_t id, modlib::BmClient *client)
-	    : PersonBase(map, pos, id, client)
-	{
-	}
+	Timer *tm = nullptr;
+	Level *map = nullptr;
+	RoleMgr *roles_ = nullptr;
+	anim::AnimationManager *animator = nullptr;
+	AssetManager *assets = nullptr;
+	PacmanManager manager;
 
-	uint64_t type() const override
-	{
-		return kPacmanType;
-	}
-	uint64_t teamId() const override
-	{
-		return kPacmanTeam;
-	}
-	int attackDamage() const override
-	{
-		return 0;
-	}
-	virtual uint64_t getAssetId() const override
-	{
-		return 0;
-	};
-	virtual void pickUp() override {};
-	virtual int weight() const override
-	{
-		return 0;
-	};
-	virtual void setWeight(const int weight) override {};
-};
-
-class PacmanRole final : public modlib::BmServerModule
-{
-  public:
+public:
 	std::string_view id() const override
 	{
-		return "sevsol.bardak.role.pacman";
+		return "sevsol.bardak.uctl.pacman";
 	}
 	std::string_view brief() const override
 	{
-		return "Pac-Man role";
+		return "Pac-Man unit controller";
 	}
 	ModVersion version() const override
 	{
@@ -62,214 +39,92 @@ class PacmanRole final : public modlib::BmServerModule
 
 	void onResolveDeps(ModManager *mm) override
 	{
+		tm = mm->anyOfType<Timer>();
+		map = mm->anyOfType<Level>();
 		roles_ = mm->anyOfType<modlib::RoleMgr>();
-		map_ = mm->anyOfType<modlib::Map>();
-		timer_ = mm->anyOfType<modlib::Timer>();
+		animator = mm->anyOfType<anim::AnimationManager>();
+		assets = mm->anyOfType<AssetManager>();
 
-		if (roles_ == nullptr) {
-			throw ModManager::Error("RoleMgr module not found");
-		}
-		if (map_ == nullptr) {
-			throw ModManager::Error("Map module not found");
-		}
-		if (timer_ == nullptr) {
+		if (!tm) {
 			throw ModManager::Error("Timer module not found");
 		}
+		if (!map) {
+			throw ModManager::Error("Map module not found");
+		}
+		if (!roles_) {
+			throw ModManager::Error("RoleMgr module not found");
+		}
+		if (!animator) {
+			throw ModManager::Error("Animator module not found");
+		}
+		if (!assets) {
+			throw ModManager::Error("AssetManager module not found");
+		}
+
+		manager.setModules(tm, map, animator, assets);
 	}
 
-	void onDepsResolved(ModManager *) override
+	void select(modlib::BmClient *client)
 	{
+		if (manager.count(client) != 0) {
+			return;
+		}
+		manager.spawnPacman(client);
+	}
+
+	void onDepsResolved(ModManager * /*mm*/) override
+	{
+		manager.resolve();
 		if (!roles_->registerRole("pacman", "Pac-Man", "pacman",
 		                          [this](modlib::BmClient *client) { select(client); })) {
 			throw ModManager::Error("failed to register pacman role");
 		}
-
-		timer_->setTimer(1, [this] { tick(); }, modlib::Timer::Stage::ON_UPDATE);
 	}
 
-	void onSetup(modlib::BmServer *server) override
+	void onSetup(BmServer *server) override
 	{
 		if (!server->registerPrefix("pacman", this)) {
 			throw ModManager::Error("failed to register pacman prefix");
 		}
 	}
 
-	void onDisconnect(modlib::BmClient *client) override
+	void onConnect(BmClient * /*client*/) override {}
+
+	void onMessage(BmClient *cl, bmsg::RawMessage m) override
 	{
-		const auto found = pacmen_.find(client->id());
-		if (found == pacmen_.end()) {
+		assert(m.isCorrect());
+
+		if (!roles_->clientHasRole(cl, "pacman") || !m.isCorrect()) {
 			return;
 		}
 
-		found->second->destroy();
-		pacmen_.erase(found);
-	}
-
-	void onMessage(modlib::BmClient *client, bmsg::RawMessage msg) override
-	{
-		if (!roles_->clientHasRole(client, "pacman") || !msg.isCorrect()) {
-			return;
-		}
-
-		const auto found = pacmen_.find(client->id());
-		if (found == pacmen_.end()) {
-			return;
-		}
-
-		if (msg.header()->type == "move") {
-			handleMove(found->second, msg);
-		} else if (msg.header()->type == "where") {
-			handleWhere(client, msg);
-		} else if (msg.header()->type == "sees") {
-			sendVision(client, found->second);
-		}
-	}
-
-  private:
-	modlib::RoleMgr *roles_ = nullptr;
-	modlib::Map *map_ = nullptr;
-	modlib::Timer *timer_ = nullptr;
-	std::unordered_map<size_t, Pacman *> pacmen_;
-	uint64_t tick_ = 0;
-
-	void select(modlib::BmClient *client)
-	{
-		if (pacmen_.count(client->id()) != 0) {
-			return;
-		}
-
-		auto *pacman = map_->spawn<Pacman>(findSpawn(), client);
-		pacmen_[client->id()] = pacman;
-		sendState(client, pacman);
-	}
-
-	void tick()
-	{
-		++tick_;
-		for (auto it = pacmen_.begin(); it != pacmen_.end();) {
-			auto *pacman = it->second;
-			if (pacman->destroyed()) {
-				it = pacmen_.erase(it);
-				continue;
+		if (m.header()->type == "move") {
+			const auto move_cmd = bmsg::CL_pacman_move::decode(m);
+			if (!move_cmd) {
+				return;
 			}
-
-			sendState(pacman->m_client, pacman);
-			++it;
-		}
-
-		timer_->setTimer(1, [this] { tick(); }, modlib::Timer::Stage::ON_UPDATE);
-	}
-
-	void handleMove(Pacman *pacman, bmsg::RawMessage msg)
-	{
-		const auto move = bmsg::CL_pacman_move::decode(msg);
-		if (!move) {
-			return;
-		}
-		if (std::abs(move->dx) > 1 || std::abs(move->dy) > 1 || (move->dx == 0 && move->dy == 0)) {
-			return;
-		}
-		if (tick_ < pacman->m_nextMoveTick) {
-			return;
-		}
-
-		const modlib::Vec2i next{pacman->pos().x + move->dx, pacman->pos().y + move->dy};
-		auto *tile = map_->at(next);
-		if (!pacman->canEnter(tile)) {
-			return;
-		}
-
-		pacman->move(next);
-		pacman->m_nextMoveTick = tick_ + kMoveCooldownTicks;
-	}
-
-	void handleWhere(modlib::BmClient *client, bmsg::RawMessage msg) const
-	{
-		const auto where = bmsg::CL_pacman_where::decode(msg);
-		if (!where) {
-			return;
-		}
-		sendWhere(client, where->teamId);
-	}
-
-	void sendWhere(modlib::BmClient *client, uint32_t team_id) const
-	{
-		const auto size = map_->size();
-		for (int y = 0; y < size.y; ++y) {
-			for (int x = 0; x < size.x; ++x) {
-				auto *tile = map_->at({x, y});
-				if (tile == nullptr) {
-					continue;
-				}
-				for (auto *unit : tile->units()) {
-					if (unit != nullptr && unit->teamId() == team_id) {
-						client->send(bmsg::SV_pacman_where{unit->pos().x, unit->pos().y,
-						                                   static_cast<uint32_t>(unit->id()),
-						                                   static_cast<uint32_t>(unit->teamId())});
-					}
-				}
+			manager.receiveMoveCommand(cl, move_cmd.value());
+		} else if (m.header()->type == "where") {
+			const auto where_cmd = bmsg::CL_pacman_where::decode(m);
+			if (!where_cmd) {
+				return;
 			}
+			manager.receiveWhereCommand(cl, where_cmd.value());
+		} else if (m.header()->type == "sees") {
+			if (!bmsg::CL_pacman_sees::decode(m)) {
+				return;
+			}
+			manager.receiveSeesCommand(cl);
 		}
 	}
 
-	modlib::Vec2i findSpawn() const
+	void onDisconnect(BmClient *client) override
 	{
-		const auto size = map_->size();
-		for (int attempts = 0; attempts < 64; ++attempts) {
-			modlib::Vec2i pos{std::rand() % size.x, std::rand() % size.y};
-			auto *tile = map_->at(pos);
-			if (tile != nullptr && !(tile->type() == modlib::Tile::BasicType::Wall)) {
-				return pos;
-			}
-		}
-
-		for (int y = 0; y < size.y; ++y) {
-			for (int x = 0; x < size.x; ++x) {
-				modlib::Vec2i pos{x, y};
-				auto *tile = map_->at(pos);
-				if (tile != nullptr && !(tile->type() == modlib::Tile::BasicType::Wall)) {
-					return pos;
-				}
-			}
-		}
-
-		return {0, 0};
-	}
-
-	void sendState(modlib::BmClient *client, Pacman *pacman) const
-	{
-		client->send(bmsg::SV_pacman_tick{});
-		client->send(bmsg::SV_pacman_at{pacman->pos().x, pacman->pos().y});
-		client->send(bmsg::SV_pacman_hp{pacman->hp()});
-	}
-
-	void sendVision(modlib::BmClient *client, Pacman *pacman) const
-	{
-		const auto size = map_->size();
-		for (int dx = -kVisionRadius; dx <= kVisionRadius; ++dx) {
-			for (int dy = -kVisionRadius; dy <= kVisionRadius; ++dy) {
-				const modlib::Vec2i pos{pacman->pos().x + dx, pacman->pos().y + dy};
-				if (pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y) {
-					continue;
-				}
-
-				auto *tile = map_->at(pos);
-				if (tile->type() == modlib::Tile::BasicType::Wall) {
-					client->send(bmsg::SV_pacman_wall{pos.x, pos.y});
-				}
-				for (auto *unit : tile->units()) {
-					if (unit != pacman) {
-						client->send(bmsg::SV_pacman_sees{pos.x, pos.y,
-						                                  static_cast<uint32_t>(unit->id()),
-						                                  static_cast<uint32_t>(unit->teamId())});
-					}
-				}
-			}
-		}
+		manager.destroy(client);
 	}
 };
 
 extern "C" Mod *modlib_create(ModManager *)
 {
-	return new PacmanRole();
+	return new PacmanModule();
 }
