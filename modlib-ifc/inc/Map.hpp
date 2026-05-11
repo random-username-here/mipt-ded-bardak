@@ -12,7 +12,8 @@
 #include <unordered_set>
 
 namespace modlib::Map {
-using   VecXY = Vec2D<int>; // a special alias for representing 2D coordinates
+using   Coordinate = int;          // a special alias for representing coordinate
+using   VecXY = Vec2D<Coordinate>; // a special alias for representing 2D coordinates
 #define BADXY  modlib::Map::VecXY (INT32_MAX, INT32_MAX)
 
 using   ID    = uintptr_t;
