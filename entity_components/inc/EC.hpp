@@ -32,7 +32,7 @@ namespace EC
 
     namespace Stats
     {
-        class Armor     // TODO: EC->IC
+        class Armor     // TODO: this component should be a component of the item, not an entity
         {
         public:
             using AP = int;
