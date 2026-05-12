@@ -1,12 +1,13 @@
-#include <random>
-#include <stdexcept>
 #include "Map.hpp"
+#include <cstdint>
 
-namespace modlib::Map
+namespace modlib { namespace Map
 {
 
 
-Entity::Entity (Tile* tile)
+Entity::Entity (
+    Tile* tile
+)
 {
     if (tile)
     {
@@ -25,12 +26,16 @@ Entity::~Entity ()
     EvBeingDeconstructed.emit ();
 }
 
-Tile* Entity::getTile () const
+Tile* 
+Entity::getTile () const
 {
     return m_tile;
 }
 
-void Entity::setTile (Tile* newTile)
+void 
+Entity::setTile (
+    Tile* newTile
+)
 {
     if (m_tile)
     {
@@ -51,4 +56,10 @@ void Entity::setTile (Tile* newTile)
     );
 }
 
+uint8_t
+Entity::destroy ()
+{
+    return 0;
 }
+
+} }

@@ -1,11 +1,12 @@
+#include "Map.hpp"
+#include <cstddef>
 #include <iostream>
 
-#include "Map.hpp"
-
-namespace modlib::Map {
+namespace modlib { namespace Map {
 
 
-VecXY Level::getSize () const 
+VecXY 
+Level::getSize () const 
 {
     if (m_tileMap.size() == 0) return {0, 0};
 
@@ -13,7 +14,10 @@ VecXY Level::getSize () const
 }
 
 
-Tile *Level::getTile(VecXY position)
+Tile* 
+Level::getTile (
+    VecXY position
+)
 {
     VecXY size = getSize();
 
@@ -28,14 +32,35 @@ Tile *Level::getTile(VecXY position)
     return &m_tileMap[position.x][position.y];
 }
 
-std::vector<std::vector<Tile>>& Level::getTileMap ()
+std::vector<std::vector<Tile>>&
+Level::getTileMap ()
 {
     return m_tileMap;
 }
 
-void Level::loadLevel (std::string_view path2level) {
+void
+Level::loadLevel (
+    std::string_view path2level
+)
+{
     std::cerr << "`loadLevel` is not implemented yet\n";
 }
 
+void
+Level::finalCleaning ()
+{
+    EvCleaning.emit ();
 
+    VecXY size = getSize();
+
+    for (Coordinate x = 0; x < size.x; x++)
+    {
+        for (Coordinate y = 0; y < size.y; y++)
+        {
+            m_tileMap[x][y].finalCleaning ();
+        }
+    }
 }
+
+
+} }
