@@ -84,6 +84,7 @@ public:
     Vec2i getSize() const;
 
     Tile *getTile(Vec2i position);
+    bool isWalkable(Vec2i position) const;
     const std::vector       <std::vector<Tile>             >& getTileMap   ();
     const std::unordered_map<Tile::Type, size_t, bmsg::Char64Hasher>& getTileTypes ()                 const;
 

@@ -25,9 +25,7 @@ public:
             column.reserve(height);
 
             for (int y = 0; y < height; ++y) {
-                bool isWall = (x == 0 || x == width - 1 || y == 0 || y == height - 1);
-                
-                Tile::Type type = isWall ? Tile::BasicTypes::WALL : Tile::BasicTypes::EMPTY;
+                Tile::Type type = Tile::BasicTypes::EMPTY;
 
                 column.emplace_back(*this, Vec2i(x, y), type);
                 

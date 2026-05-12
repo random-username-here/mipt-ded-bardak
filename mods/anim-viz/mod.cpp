@@ -200,6 +200,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     void applyStep(AnimatedObject &obj, const anim::Step *step, float frac) {
 		tryStep(step, &anim::SetAssetStep::apply, obj.sprites      ) ||
 		tryStep(step, &anim::DelSpriteStep::apply,obj.sprites      ) ||
+		tryStep(step, &anim::SetWhiteStep::apply, obj.sprites      ) ||
 		tryStep(step, &anim::CallbackStep::apply, obj.sprites      ) ||
 		tryStep(step, &anim::PosStep::apply,      obj.sprites, frac) ||
 		tryStep(step, &anim::RotationStep::apply, obj.sprites, frac);

@@ -31,6 +31,34 @@ Tile *Level::getTile(Vec2i position)
     return &m_tileMap[position.x][position.y];
 }
 
+bool Level::isWalkable(Vec2i position) const
+{
+    Vec2i size = getSize();
+
+    if (position.x < 0 || position.x >= size.x ||
+        position.y < 0 || position.y >= size.y)
+    {
+        return false;
+    }
+
+    const Tile& tile = m_tileMap[position.x][position.y];
+    if (tile.getType() == Tile::BasicTypes::WALL)
+    {
+        return false;
+    }
+
+    for (const auto& [id, entity] : tile.getEntityList())
+    {
+        (void) id;
+        if (entity && entity->getType() == Entity::BasicTypes::ROOT)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 const std::vector<std::vector<Tile>>& Level::getTileMap ()
 {
     return m_tileMap;

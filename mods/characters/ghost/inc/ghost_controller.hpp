@@ -52,10 +52,9 @@ public:
 
 		const Vec2i cur = ghost_->getPosition();
 		const Vec2i new_pos{cur.x + dx, cur.y + dy};
-		Tile *next = map_->getTile(new_pos);
-		if (!next || next->getType() == Tile::BasicTypes::WALL) {
-			return;
-		}
+        if (!map_->isWalkable(new_pos)) {
+            return;
+        }
 
 		ghost_->setPosition(new_pos);
 		m_next_move_tick = cur_tick + kMoveCdTicks;
