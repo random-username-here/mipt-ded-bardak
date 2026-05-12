@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(pacman_client)
 
-set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto/generated")
+set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proto/generated")
 set(PACMAN_PROTO_OUTPUTS "")
 
 function(generate_pan_proto source output_name)

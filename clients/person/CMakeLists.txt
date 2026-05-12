@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(person_client)
 
-set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto/generated")
+set(GENERATED_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/proto/generated")
 
 set(PERSON_PROTO_OUTPUTS "")
 
