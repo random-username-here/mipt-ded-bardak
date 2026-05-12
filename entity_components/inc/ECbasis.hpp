@@ -53,7 +53,7 @@ namespace EC
         class Health
         {
         public:
-            using HP = size_t;
+            using HP = int64_t;
 
             Health (HP currentHP, HP maxHP);
 

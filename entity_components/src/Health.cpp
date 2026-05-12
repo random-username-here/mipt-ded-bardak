@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "ECbasis.hpp"
 
 using namespace EC;
@@ -41,22 +43,10 @@ Stats::Health::inflictDmg (
     Stats::Health::HP damage
 )
 {
-    if (damage > m_currentHP)
-    {
-        m_currentHP = 0;
-        
-        EvDamaged.emit (damage);
-        EvDeath.emit ();
-
-        return 0;
-    }
-    else
-    {
-        m_currentHP -= damage;
-        EvDamaged.emit (damage);
-
-        return m_currentHP;
-    }
+    m_currentHP = std::max((HP)0, m_currentHP - damage);
+    EvDamaged.emit(damage);
+    if (m_currentHP == 0) EvDeath.emit();
+    return m_currentHP;
 }
 
 Stats::Health::HP 
@@ -64,11 +54,8 @@ Stats::Health::heal (
     Stats::Health::HP healed
 )
 {
-    Stats::Health::HP delta = m_maxHP - m_currentHP;
-    Stats::Health::HP clamped = healed >= delta ? delta : healed;
-    
-    m_currentHP += clamped;
-    EvHealed.emit (clamped);
-
+    HP prevHP = m_currentHP; 
+    m_currentHP = std::clamp(m_currentHP + healed, (HP)0, m_maxHP);
+    EvHealed.emit (m_currentHP - prevHP);
     return m_currentHP;
 }
