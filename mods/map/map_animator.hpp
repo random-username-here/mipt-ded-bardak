@@ -11,8 +11,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-//TODO unify tile size between different persons and map
-constexpr float kMapTilePixels = 40.0f;
+// TODO: unify tile size between different persons and map
+constexpr float kMapTilePixels = 16.0f;
 
 namespace tile {
 
@@ -40,8 +40,8 @@ Asset(std::string_view id, const std::string& file)
     };
 }
 
-const auto Ground = Asset<tile::Config>("m.gnd",  ASSETS_DIR "/map/ground.png");
-const auto Wall   = Asset<tile::Config>("m.wall", ASSETS_DIR "/map/spikes.png");
+const auto Ground = Asset<tile::Config>("m.gnd",  ASSETS_DIR "/map/tile_grass.png");
+const auto Wall   = Ground;
 
 }
 

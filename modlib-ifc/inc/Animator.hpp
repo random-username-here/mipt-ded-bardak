@@ -45,6 +45,7 @@ struct Sprite {
     Vec2f lastPos{};
     float rotation = 0;
     float lastRotation = 0;
+    bool forceWhite = false;
 	int z = 0;
 };
 
@@ -102,6 +103,19 @@ class DelSpriteStep : public Step {
 	void apply(SpriteBySlot& sprites) const {
 		sprites.erase(slot);
 	}
+};
+
+/** Draw sprite as a solid white shape until changed back. */
+class SetWhiteStep : public Step {
+    SpriteSlotID slot;
+    bool enabled;
+
+  public:
+    SetWhiteStep(SpriteSlotID s, bool e) : slot(s), enabled(e) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        sprites[slot].forceWhite = enabled;
+    }
 };
 
 /** Call some method */

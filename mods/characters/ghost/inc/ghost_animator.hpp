@@ -11,7 +11,7 @@
 #include <string_view>
 #include <unordered_map>
 
-constexpr float kGhostTilePixels = 40.0f;
+constexpr float kGhostTilePixels = 16.0f;
 
 namespace gh_body {
 

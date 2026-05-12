@@ -148,6 +148,11 @@ class AnimatedVisualization : public modlib::BmServerModule {
 			.y = sprite->origin.y
 		};
 
+        if (s.forceWhite) {
+            DrawRectanglePro(dst, origin, s.rotation, WHITE);
+            return true;
+        }
+
         DrawTexturePro(
             *texture,
             src,

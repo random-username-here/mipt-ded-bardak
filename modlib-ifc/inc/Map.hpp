@@ -21,6 +21,10 @@ class Tile;
 class Entity : public EC::Entity
 {
 public:
+    struct BasicTypes {
+        static const inline Type ROOT = Type("root");
+    };
+
     Entity (Type type, Tile* tile);
 
     virtual ~Entity ();

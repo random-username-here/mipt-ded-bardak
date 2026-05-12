@@ -1,0 +1,140 @@
+#pragma once
+
+#include "knight.hpp"
+
+#include <cassert>
+#include <cstdlib>
+#include <memory>
+
+class KnightCtl {
+    static constexpr uint64_t kMoveCdTicks   = 1;
+    static constexpr uint64_t kAttackCdTicks = 1;
+    static constexpr int      kAttackDamage  = 10;
+
+    Level *map_ = nullptr;
+    std::unique_ptr<Knight> knight_ = nullptr;
+    uint64_t m_nextMoveTick   = 0;
+    uint64_t m_nextAttackTick = 0;
+
+public:
+    KnightCtl() = default;
+
+    KnightCtl(Level *map, BmClient *client)
+        : map_(map)
+    {
+        assert(map_);
+
+        const Vec2i pos = randomWalkablePosition();
+        Tile *tile = map_->getTile(pos);
+        assert(tile);
+
+        knight_ = std::make_unique<Knight>(map_, tile, client);
+        map_->newEntity(knight_.get(), tile);
+    }
+
+    void move(int dx, int dy, uint64_t curTick)
+    {
+        assert(knight_);
+        assert(map_);
+
+        if (curTick < m_nextMoveTick) {
+            return;
+        }
+        if (std::abs(dx) + std::abs(dy) != 1) {
+            return;
+        }
+
+        const Vec2i delta{dx, dy};
+        const Vec2i newPos = knight_->getPosition() + delta;
+        if (!map_->isWalkable(newPos)) {
+            return;
+        }
+
+        knight_->rotate(knightDirFromDelta(delta));
+        knight_->setPosition(newPos);
+        m_nextMoveTick = curTick + kMoveCdTicks;
+    }
+
+    void attack(size_t whom, uint64_t curTick)
+    {
+        assert(knight_);
+        assert(map_);
+
+        if (curTick < m_nextAttackTick) {
+            return;
+        }
+
+        auto *target = map_->getEntity(static_cast<modlib::Entity::ID>(whom));
+        if (target == nullptr || target == knight_.get()) {
+            return;
+        }
+
+        const Vec2i delta = target->getPosition() - knight_->getPosition();
+        if (std::abs(delta.x) + std::abs(delta.y) != 1) {
+            return;
+        }
+
+        knight_->rotate(knightDirFromDelta(delta));
+
+        if (auto *health = dynamic_cast<EC::Stats::Health *>(target)) {
+            const modlib::Entity::ID targetId = target->getID();
+            health->inflictDmg(kAttackDamage);
+            knight_->EvAttack.emit(targetId);
+        }
+
+        m_nextAttackTick = curTick + kAttackCdTicks;
+    }
+
+    void destroy()
+    {
+        assert(knight_);
+        map_->removeEntity(knight_->getID());
+    }
+
+    Vec2i pos() const
+    {
+        assert(knight_);
+        return knight_->getPosition();
+    }
+
+    int32_t hp() const
+    {
+        assert(knight_);
+        return static_cast<int32_t>(knight_->getCurrentHP());
+    }
+
+    Knight *knight()
+    {
+        return knight_.get();
+    }
+
+    Level *map()
+    {
+        return map_;
+    }
+
+private:
+    Vec2i randomWalkablePosition() const
+    {
+        const auto sz = map_->getSize();
+        assert(sz.x > 0 && sz.y > 0);
+
+        for (int attempt = 0; attempt < 256; ++attempt) {
+            const Vec2i pos{std::rand() % sz.x, std::rand() % sz.y};
+            if (map_->isWalkable(pos)) {
+                return pos;
+            }
+        }
+
+        for (int x = 0; x < sz.x; ++x) {
+            for (int y = 0; y < sz.y; ++y) {
+                const Vec2i pos{x, y};
+                if (map_->isWalkable(pos)) {
+                    return pos;
+                }
+            }
+        }
+
+        return {0, 0};
+    }
+};
