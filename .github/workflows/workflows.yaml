@@ -70,7 +70,6 @@ jobs:
           mkdir ./CItest
           cp -r ./build/* ./CItest
           rm -r -f ./CItest/mods/tty-graphics
-          rm -r -f ./CItest/mods/vis
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
