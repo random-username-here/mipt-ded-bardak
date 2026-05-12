@@ -1,4 +1,4 @@
-#include "ECbasis.hpp"
+#include "EC.hpp"
 using namespace EC;
 
 Social::Group::Group(GID groupID): m_groupID (groupID) {}

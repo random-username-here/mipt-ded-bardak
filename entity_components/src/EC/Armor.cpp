@@ -1,10 +1,9 @@
-#include <cmath>
-#include "ECbasis.hpp"
+#include "EC.hpp"
 
 using namespace EC;
 
-Stats::Armor::Armor (AP armor, AP resistance)
-    : m_armor (armor), m_resistance (resistance) {}
+Stats::Armor::Armor (AP armor)
+    : m_armor (armor), m_resistance (calculateResist (armor)) {}
 
 float
 Stats::Armor::calculateResist (AP armor) const
@@ -13,15 +12,24 @@ Stats::Armor::calculateResist (AP armor) const
     return (1 - armorCoeff) / (1 + std::abs (armorCoeff));
 }
 
+Common::Damage::DMG
+Stats::Armor::calculateDamage (
+    const Common::Damage& damage
+) const
+{
+    return damage.m_damage * m_resistance;
+}
+
 float
 Stats::Armor::setArmor (AP armor)
 {
-    AP dif = armor - m_armor;
-
+    AP oldArmor = m_armor;
     m_armor      = armor;
+
+    float oldResistance = m_resistance;
     m_resistance = calculateResist (m_armor);
 
-    EvArmorChanged.emit (dif);
+    EvArmorChanged.emit (oldArmor, oldResistance, m_armor, m_resistance);
 
     return m_resistance;
 }
