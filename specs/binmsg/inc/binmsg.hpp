@@ -19,6 +19,7 @@ namespace bmsg {
  */
 union Char64 {
     uint64_t as_u64;
+    uint64_t as_u64;
     char as_chars[8];
 
     constexpr Char64() : as_u64(0) {}
@@ -39,6 +40,7 @@ union Char64 {
     constexpr Char64(const char* c) : Char64(std::string_view(c)) {}
 
     constexpr size_t size() const {
+    constexpr size_t size() const {
         size_t s = 0;
         while (s < 8 && as_chars[s] != '\0') ++s;
         return s;
@@ -51,8 +53,23 @@ union Char64 {
 
     constexpr operator uint64_t() const { return as_u64; }
     constexpr operator std::string_view() const { return std::string_view(as_chars, size()); }
+    constexpr Char64 &operator=(const std::string_view &s) {
+        *this = Char64(s);
+        return *this;
+    }
+
+    constexpr operator uint64_t() const { return as_u64; }
+    constexpr operator std::string_view() const { return std::string_view(as_chars, size()); }
 };
 
+struct Char64Hasher {
+    size_t operator()(const bmsg::Char64& c) const {
+        return std::hash<uint64_t>{}(c.as_u64);
+    }
+};
+
+constexpr inline bool operator==(Char64 lhs, Char64 rhs) { return lhs.as_u64 == rhs.as_u64; }
+constexpr inline bool operator!=(Char64 lhs, Char64 rhs) { return !(lhs == rhs); }
 struct Char64Hasher {
     size_t operator()(const bmsg::Char64& c) const {
         return std::hash<uint64_t>{}(c.as_u64);

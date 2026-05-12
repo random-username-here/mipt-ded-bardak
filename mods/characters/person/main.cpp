@@ -4,7 +4,9 @@
 #include <optional>
 
 #include "BmServerModule.hpp"
+#include "Animator.hpp"
 #include "AssetManager.hpp"
+#include "RoleMgr.hpp"
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
@@ -12,16 +14,17 @@
 #include "modlib_manager.hpp"
 
 #include "person_manager.hpp"
-// #include "person.hpp"
-// #include "person_proto.hpp"
 
 using namespace modlib;
 
 class PersonModule : public BmServerModule {   
     Timer *tm=nullptr;
     Level *map=nullptr;
+    RoleMgr *roles_=nullptr;
+    anim::AnimationManager *animator=nullptr;
     AssetManager *assets=nullptr;
     PersonManager manager;
+    
 
 public:
     std::string_view id() const override { return "isd.bardak.uctl.person"; };
@@ -29,30 +32,51 @@ public:
     ModVersion version() const override { return ModVersion(0, 0, 1); };
 
     void onResolveDeps(ModManager *mm) override {
-        tm = mm->anyOfType<Timer>();
-        map = mm->anyOfType<Level>();
-        assets = mm->anyOfType<AssetManager>();
-        if (!tm) throw ModManager::Error("Timer module not found");
-        if (!map) throw ModManager::Error("Map module not found");
-        if (!assets) throw ModManager::Error("AssetManager module not found");
+        tm              = mm->anyOfType<Timer>();
+        map             = mm->anyOfType<Level>();
+        roles_          = mm->anyOfType<modlib::RoleMgr>();
+        animator        = mm->anyOfType<anim::AnimationManager>();
+        assets          = mm->anyOfType<AssetManager>();
 
-        manager.setModules(tm, map, assets);
+        if (!tm)        throw ModManager::Error("Timer module not found");
+        if (!map)       throw ModManager::Error("Map module not found");
+        if (!roles_)    throw ModManager::Error("RoleMgr module not found");
+        if (!animator)  throw ModManager::Error("Animator module not found");
+        if (!assets)    throw ModManager::Error("AssetManager module not found");
+
+        manager.setModules(tm, map, animator, assets);
     }   
+
+    void select(modlib::BmClient *client)
+	{
+		if (manager.count(client) != 0) {
+			return;
+		}
+        manager.spawnPerson(client);
+	}
+
 
     void onDepsResolved(ModManager *mm) override {
         manager.resolve();
+        if (!roles_->registerRole("person", "person", "person",
+		                          [this](modlib::BmClient *client) { select(client); })) {
+			throw ModManager::Error("failed to register pacman role");
+		}
     }
 
     void onSetup(BmServer *server) override {
         server->registerPrefix("person", this);
     };
 
-    void onConnect(BmClient *client) override {
-        manager.spawnPerson(client);
-    }
+    void onConnect(BmClient *client) override {}
 
     void onMessage(BmClient *cl, bmsg::RawMessage m) override {
         assert(m.isCorrect());
+
+        if (!roles_->clientHasRole(cl, "person") || !m.isCorrect()) {
+			return;
+		} 
+    
         if (m.header()->type == "move") {
             auto moveCmd = bmsg::CL_person_move::decode(m);
             if (moveCmd == std::nullopt) return;

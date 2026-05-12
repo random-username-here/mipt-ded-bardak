@@ -35,7 +35,7 @@ void exitAlt() {
               << "\x1b[?1049l"; // no alt buffer
     std::cout.flush();
 }
-void exitAlt_i(int v) { exitAlt(); }
+void exitAlt_i(int ) { exitAlt(); }
 
 class TTYgraph : public BmServerModule {
 
@@ -43,7 +43,7 @@ class TTYgraph : public BmServerModule {
     std::string_view brief() const override { return "Simple game visualization in terminal, for server-side debugging"; };
     ModVersion version() const override { return ModVersion(0, 0, 1); };
 
-    Map *m_map;
+    Level *m_map;
     Timer *m_timer;
     msva::Server *m_msva;
     int w, h, cx, cy;
@@ -56,7 +56,7 @@ class TTYgraph : public BmServerModule {
         h = wsz.ws_row;
         std::cout << "\x1b[2J"; // clear screen
     }
-    
+
     void frameEnd() {
     }
 
@@ -99,13 +99,13 @@ class TTYgraph : public BmServerModule {
     }
 
     void gamemap(int x, int y) {
-        for (int i = 0; i < m_map->size().y; ++i) {
-            for (int j = 0; j < m_map->size().x; ++j) {
+        for (int i = 0; i < m_map->getSize().y; ++i) {
+            for (int j = 0; j < m_map->getSize().x; ++j) {
                 const char *clr = "", *chr = "?";
-                auto tile = m_map->at({j, i});
-                if (!tile->entities().empty())
+                auto tile = m_map->getTile({j, i});
+                if (!tile->getEntityList().empty())
                     clr = ESC_RED, chr = "@";
-                else if (tile->type() == modlib::Tile::BasicType::Wall)
+                else if (tile->getType() == modlib::Tile::BasicTypes::WALL)
                     clr = ESC_RST, chr = "#";
                 else
                     clr = ESC_GRY, chr = ".";
@@ -128,8 +128,8 @@ class TTYgraph : public BmServerModule {
 
     void render() {
         frameBegin();
-        gamemap(w - m_map->size().x - 2, 1);
-        stats(w - m_map->size().x - 2, m_map->size().y + 2);
+        gamemap(w - m_map->getSize().x - 2, 1);
+        stats(w - m_map->getSize().x - 2, m_map->getSize().y + 2);
         logs(1, 0, h);
         frameEnd();
         std::cout.flush();
@@ -141,7 +141,7 @@ class TTYgraph : public BmServerModule {
     }
 
     void onResolveDeps(ModManager *mm) override {
-        m_map = mm->anyOfType<Map>();
+        m_map = mm->anyOfType<Level>();
         m_timer = mm->anyOfType<Timer>();
         if (!m_map) throw ModManager::Error("TTYGraph needs Map to visualize");
         if (!m_timer) throw ModManager::Error("TTYGraph needs a Timer");

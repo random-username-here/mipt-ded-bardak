@@ -23,11 +23,13 @@ class VisMod final : public Mod {
     modlib::Timer::TimerID m_snapshotTimer;
     bool m_snapshotTimerSet;
 
+    modlib::Timer::TimerID m_snapshotTimer;
+    bool m_snapshotTimerSet;
+
     vis::Snapshotter m_snapshotter;
 
     std::vector<EC::Entity::ID>   m_subscribed;
-    std::mutex m_eventLock;
-    std::vector<vis::AssetChangeEvent> m_assetChanges;
+    std::vector<vis::DamageEvent> m_damage;
 
     std::mutex     m_snapLock;
     vis::WorldSnap m_snap;
@@ -130,20 +132,11 @@ private:
                 continue;
             }
 
-            if (auto *attack = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
-                attack->EvAttack.subscribe(
-                    [this, id = entity.id, bindingId = entity.person->getType()] (EC::Stats::Attack::Damage) {
-                        const modlib::AssetId assetId = vis::spriteForEvent(
-                            m_assetManager,
-                            bindingId,
-                            modlib::VisualID("attack")
-                        );
-                        if (assetId == modlib::kInvalidAssetId) return;
-
-                        std::lock_guard<std::mutex> lock(m_eventLock);
-                        m_assetChanges.push_back(vis::AssetChangeEvent(id, assetId));
-                    }
-                );
+            if (auto *person = dynamic_cast<EC::Stats::Attack *>(entity.person)) {
+                person->EvAttack.subscribe(
+                [this, entity] (EC::Entity::ID tid) {
+                    m_damage.push_back(vis::DamageEvent(tid, entity.person->getID()));
+                });
             }
             
             m_subscribed.push_back(entity.id);
@@ -151,7 +144,7 @@ private:
     }
 
     void snapshot() {
-        vis::WorldSnap next = m_snapshotter.capture(m_map, m_assetManager);
+        vis::WorldSnap next = m_snapshotter.capture(m_map);
 
         subscribeOnEvents(next);
 
@@ -212,8 +205,8 @@ private:
                     }
                 }
 
-                std::vector<vis::AssetChangeEvent> assetChanges = takeAssetChanges();
-                world.applySnapshot(snap, now, tickSeconds, assetChanges);
+                world.applySnapshot(snap, now, tickSeconds, m_damage);
+                m_damage.clear();
 
                 lastAppliedTick = snap.tick;
                 lastSnapTime = now;

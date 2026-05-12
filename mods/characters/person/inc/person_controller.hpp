@@ -21,7 +21,6 @@ class PersonCtl {
     static constexpr int kLowHpThreshold = 25;
 
     Level *map_=nullptr;
-    AssetManager *assets_=nullptr;
     std::unique_ptr<Person> person_=nullptr;
     uint64_t m_nextMoveTick = 0;
     uint64_t m_nextAttackTick = 0;
@@ -30,9 +29,8 @@ class PersonCtl {
 public:
     PersonCtl() = default;
 
-    PersonCtl(Level *map, BmClient *client, AssetManager *assets):
-        map_(map),
-        assets_(assets)
+    PersonCtl(Level *map, BmClient *client):
+        map_(map)
     {
         assert(map);
 
@@ -46,7 +44,7 @@ public:
         };
 
         Tile *tile = map->getTile(pos);
-        person_ = std::make_unique<Person>(map, tile, client, assets_);
+        person_ = std::make_unique<Person>(map, tile, client);
         map_->newEntity(person_.get(), tile);
     }
 
@@ -105,5 +103,9 @@ public:
     }
     Person *person() {
         return person_.get();
+    }
+
+    Level *map() {
+        return map_;
     }
 };

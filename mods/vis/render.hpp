@@ -7,10 +7,12 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <iostream>
 #include <cassert>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
+
+#ifndef VIS_TILESET_PATH
+#define VIS_TILESET_PATH "mods/vis/tilesheet.png"
+#endif
 
 namespace vis {
 
@@ -61,16 +63,10 @@ public:
 
 class Renderer {
     modlib::AssetManager * m_assetManager=nullptr;
-    std::unordered_map<uint64_t, Texture2D> m_assetTextures;
-    std::unordered_set<uint64_t> m_failedAssetTextures;
 public:
     explicit Renderer(modlib::AssetManager *assetManager) : m_assetManager(assetManager) { assert(m_assetManager); }
 
-    ~Renderer() {
-        unloadAssetTextures();
-    }
-
-    void draw(const WorldSnap &snap, const VisualWorld &world, double now) {
+    void draw(const WorldSnap &snap, const VisualWorld &world, const Atlas &atlas, double now) {
         Camera cam;
         cam.fit(GetScreenWidth(), GetScreenHeight(), snap.w, snap.h);
 
@@ -120,70 +116,19 @@ private:
             return &loaded->second;
         }
 
-        if (m_failedAssetTextures.find(key) != m_failedAssetTextures.end()) {
-            return nullptr;
+        drawTiles  (snap,            cam, atlas);
+        drawCorpses(world.corpses(), cam, atlas);
+
+        const std::unordered_map<size_t, VisualUnit> &entities = world.entities();
+
+        for (auto unit : entities) {
+            drawUnit(unit.second, cam, atlas, now);
         }
 
-        const std::string path(sprite.file);
-        if (path.empty() || !FileExists(path.c_str())) {
-            m_failedAssetTextures.insert(key);
-            return nullptr;
-        }
-
-        Texture2D texture = LoadTexture(path.c_str());
-        if (texture.id == 0) {
-            m_failedAssetTextures.insert(key);
-            return nullptr;
-        }
-
-        SetTextureFilter(texture, TEXTURE_FILTER_POINT);
-
-        auto inserted = m_assetTextures.emplace(key, texture);
-        return &inserted.first->second;
+        drawSlashes(world.slashes(), cam, atlas, now);
     }
 
-    bool drawAssetSprite(modlib::AssetId assetId, float x, float y, float size) {
-        if (!m_assetManager || assetId == modlib::kInvalidAssetId) {
-            return false;
-        }
-
-        const auto sprite = m_assetManager->sprite(assetId);
-        if (!sprite) {
-            return false;
-        }
-
-        Texture2D *texture = textureFor(*sprite);
-        if (!texture || texture->id == 0) {
-            return false;
-        }
-
-        Rectangle src;
-        src.x = static_cast<float>(sprite->source.x);
-        src.y = static_cast<float>(sprite->source.y);
-        src.width = static_cast<float>(sprite->source.w > 0 ? sprite->source.w : sprite->size.x);
-        src.height = static_cast<float>(sprite->source.h > 0 ? sprite->source.h : sprite->size.y);
-
-        if (src.width <= 0.0f) src.width = static_cast<float>(SPRITE_SIZE);
-        if (src.height <= 0.0f) src.height = static_cast<float>(SPRITE_SIZE);
-
-        Rectangle dst;
-        dst.x = x + static_cast<float>(sprite->offset.x);
-        dst.y = y + static_cast<float>(sprite->offset.y);
-        dst.width = size;
-        dst.height = size;
-
-        DrawTexturePro(
-            *texture,
-            src,
-            dst,
-            Vector2{0.0f, 0.0f},
-            0.0f,
-            WHITE
-        );
-
-        return true;
-    }
-
+private:
     static Color hpColor(float frac) {
         frac = std::max(0.0f, std::min(1.0f, frac));
 
@@ -235,8 +180,17 @@ private:
         Vec2f rp = u.renderPos(now);
 
         Vector2 pos = cam.tileToScreen(rp.x, rp.y);
+        pos.x += dv.x * nudge;
+        pos.y += dv.y * nudge;
 
-        if (!drawAssetSprite(u.assetId(), pos.x, pos.y, cam.tile())) {
+        // std::cerr << "Current unit assetId: " << u.assetId() << "\n";
+
+        if (atlas.loaded()) {
+            const int row = attacking ? 2 : 1;
+            const int col = static_cast<int>(u.dir());
+
+            drawSprite(atlas, row, col, pos.x, pos.y, cam.tile());
+        } else {
             const float cx = pos.x + cam.tile() * 0.5f;
             const float cy = pos.y + cam.tile() * 0.5f;
             const float radius = std::max(3.0f, cam.tile() * 0.28f);
