@@ -58,10 +58,9 @@ public:
 
 		const Vec2i cur = m_pacman->getPosition();
 		const Vec2i new_pos{cur.x + dx, cur.y + dy};
-		Tile *next = m_map->getTile(new_pos);
-		if (!next || next->getType() == Tile::BasicTypes::WALL) {
-			return;
-		}
+        if (!m_map->isWalkable(new_pos)) {
+            return;
+        }
 
 		m_pacman->setPosition(new_pos);
 		m_nextMoveTick = cur_tick + kMoveCdTicks;

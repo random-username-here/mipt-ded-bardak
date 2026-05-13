@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-constexpr float kPacmanTilePixels = 40.0f;
+constexpr float kPacmanTilePixels = 16.0f;
 
 namespace pm_body {
 

@@ -65,7 +65,7 @@ public:
         if (abs(dx) > 1 || abs(dy) > 1) return;
 
         Vec2i newPos = {m_person->getPosition().x + dx, m_person->getPosition().y + dy};
-        if (m_map->getTile(newPos)->getType() == Tile::BasicTypes::WALL) return;
+        if (!m_map->isWalkable(newPos)) return;
 
         // m_person->rotate(convertMoveToDir(dx, dy));
         m_person->setPosition(newPos);

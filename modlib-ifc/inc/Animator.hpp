@@ -45,6 +45,7 @@ struct Sprite {
     Vec2f lastPos{};
     float rotation = 0;
     float lastRotation = 0;
+    bool forceWhite = false;
 	int z = 0;
 };
 
@@ -102,6 +103,49 @@ class DelSpriteStep : public Step {
 	void apply(SpriteBySlot& sprites) const {
 		sprites.erase(slot);
 	}
+};
+
+/** Set sprite position immediately. */
+class SetPosStep : public Step {
+    SpriteSlotID slot;
+    Vec2f pos;
+
+  public:
+    SetPosStep(SpriteSlotID s, Vec2f p) : slot(s), pos(p) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        auto &spr = sprites[slot];
+        spr.pos     = pos;
+        spr.lastPos = pos;
+    }
+};
+
+/** Set sprite rotation immediately. Angle is in degrees. */
+class SetRotationStep : public Step {
+    SpriteSlotID slot;
+    float        angle;
+
+  public:
+    SetRotationStep(SpriteSlotID s, float a) : slot(s), angle(a) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        auto &spr = sprites[slot];
+        spr.rotation     = angle;
+        spr.lastRotation = angle;
+    }
+};
+
+/** Draw sprite as a solid white shape until changed back. */
+class SetWhiteStep : public Step {
+    SpriteSlotID slot;
+    bool enabled;
+
+  public:
+    SetWhiteStep(SpriteSlotID s, bool e) : slot(s), enabled(e) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        sprites[slot].forceWhite = enabled;
+    }
 };
 
 /** Call some method */

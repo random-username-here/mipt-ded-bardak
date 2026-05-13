@@ -14,28 +14,9 @@ class DodoLevel : public Level {
     std::unique_ptr<MapAnimator> m_mapAnimator;
 
 public:
-    DodoLevel() {
-        const int width = 20;
-        const int height = 20;
-
-        m_tileMap.reserve(width);
-
-        for (int x = 0; x < width; ++x) {
-            std::vector<Tile> column;
-            column.reserve(height);
-
-            for (int y = 0; y < height; ++y) {
-                bool isWall = (x == 0 || x == width - 1 || y == 0 || y == height - 1);
-                
-                Tile::Type type = isWall ? Tile::BasicTypes::WALL : Tile::BasicTypes::EMPTY;
-
-                column.emplace_back(*this, Vec2i(x, y), type);
-                
-                m_tileTypes[type]++;
-            }
-            
-            m_tileMap.push_back(std::move(column));
-        }
+    DodoLevel()
+    {
+        loadLevel(ASSETS_DIR "/map/sample.map");
     }
 
     ~DodoLevel() = default;
