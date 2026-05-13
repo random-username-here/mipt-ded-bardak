@@ -12,8 +12,9 @@
 class MageClient : public ClientBase {
     static constexpr int32_t kMageMaxHp = 55;
 
-    bool    m_alive = true;
-    int32_t m_hp = 0;
+    bool    m_alive  = true;
+    bool    m_last_p = false;
+    int32_t m_hp     = 0;
     UnitAi  m_ai{AiRangeKind::MageFlameStar};
     std::unordered_set<std::string> m_items;
     std::unordered_set<std::string> m_abilities;
@@ -147,12 +148,14 @@ private:
             return m_alive;
         }
 
-        if (tryFlameEnemy()) {
+        if (m_last_p && tryFlameEnemy()) {
+            m_last_p = false;
             m_ai.clearVisible();
             return m_alive;
         }
 
         if (tryPlantNearEnemy()) {
+            m_last_p = true;
             m_ai.clearVisible();
             return m_alive;
         }
