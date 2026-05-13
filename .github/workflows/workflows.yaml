@@ -70,7 +70,6 @@ jobs:
           mkdir ./CItest
           cp -r ./build/* ./CItest
           rm -r -f ./CItest/mods/tty-graphics
-          rm -r -f ./CItest/mods/vis
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
@@ -79,14 +78,7 @@ jobs:
 
           sleep 2
 
-          cat > /tmp/ci_person_client.ini <<EOF
-          host = ${SERVER_IP}
-          port = 3000
-          pan_dir = ./specs/proto/srv.pan
-          pan_dir = ./specs/proto/role.pan
-          pan_dir = ./mods/characters/person/proto/person.pan
-          EOF
-          ./build/clients/person/person_client /tmp/ci_person_client.ini &
+          ./build/clients/person/person_client ./clients/person/default.ini &
           CLIENT_PID=$!
 
           sleep 2
