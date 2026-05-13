@@ -100,7 +100,13 @@ void Level::removeEntity (Entity::ID id)
 
 Entity* Level::getEntity (Entity::ID id)
 {
-    return m_entityList[id];
+    auto it = m_entityList.find(id);
+    if (it == m_entityList.end())
+    {
+        return nullptr;
+    }
+
+    return it->second;
 }
 
 const std::unordered_map<Entity::ID, Entity*>& Level::getEntityList ()
