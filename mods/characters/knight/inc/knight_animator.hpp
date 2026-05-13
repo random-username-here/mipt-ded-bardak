@@ -93,10 +93,12 @@ static const std::array<modlib::SpriteAsset, 4> Slash = {
 } // namespace knight_assets
 
 class KnightAnimator {
-    KnightCtl              *m_ctl       = nullptr;
-    anim::AnimationManager *m_anim      = nullptr;
-    modlib::AssetManager   *m_assets    = nullptr;
-    anim::AnimatedObjectID  m_object    = anim::NO_ANIMATION_OBJECT;
+    KnightCtl              *m_ctl    = nullptr;
+    anim::AnimationManager *m_anim   = nullptr;
+    modlib::AssetManager   *m_assets = nullptr;
+    anim::AnimatedObjectID  m_object      = anim::NO_ANIMATION_OBJECT;
+    anim::AnimatedObjectID  m_flashObject = anim::NO_ANIMATION_OBJECT;
+    anim::SpriteSlotID      m_flashSlot = 0;
     anim::SpriteSlotID      m_bodySlot  = 0;
     anim::SpriteSlotID      m_slashSlot = 0;
 
@@ -110,9 +112,12 @@ public:
     KnightAnimator(KnightCtl *ctl, anim::AnimationManager *anim, modlib::AssetManager *assets)
         : m_ctl(ctl), m_anim(anim), m_assets(assets)
     {
-        m_object    = m_anim->newObject();
+        m_object      = m_anim->newObject();
+        m_flashObject = m_anim->newObject();
+
         m_bodySlot  = m_anim->newSpriteSlot();
         m_slashSlot = m_anim->newSpriteSlot();
+        m_flashSlot = m_anim->newSpriteSlot();
 
         registerAssets();
         buildAnimations();
@@ -182,12 +187,22 @@ private:
     void animateHitFlash()
     {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, knight_assets::Idle[dirIndex(m_ctl->knight()->dir())].id, knight_body::kZ);
-        animation->addStep<anim::SetWhiteStep>(m_bodySlot, true);
+        animation->addStep<anim::SetAssetStep>(
+            m_flashSlot,
+            knight_assets::Idle[dirIndex(m_ctl->knight()->dir())].id,
+            knight_body::kZ
+        );
+        animation->addStep<anim::SetWhiteStep>(m_flashSlot, true);
         animation->addStep<anim::Step>(0.08f, 0.08f);
-        animation->addStep<anim::SetWhiteStep>(m_bodySlot, false);
+        animation->addStep<anim::DelSpriteStep>(m_flashSlot);
         animation->finishBuild();
-        m_anim->play(m_object, currentPixelPosition(), knight_body::kObjectLayer, animation->id());
+
+        m_anim->play(
+            m_flashObject,
+            currentPixelPosition(),
+            knight_body::kObjectLayer + 1,
+            animation->id()
+        );
     }
 
     anim::AnimationID buildIdleAnimation(const modlib::SpriteAsset &asset)

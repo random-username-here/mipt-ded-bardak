@@ -122,15 +122,18 @@ private:
             return false;
         }
 
-        archer_->rotate(archerDirFromDelta(delta));
-
-        if (auto *health = dynamic_cast<EC::Stats::Health *>(target)) {
-            const modlib::Entity::ID id = target->getID();
-            health->inflictDmg(kShootDamage);
-            archer_->EvAttack.emit(id);
+        auto *health = dynamic_cast<EC::Stats::Health *>(target);
+        if (health == nullptr || health->getCurrentHP() <= 0) {
+            return false;
         }
 
-        m_nextShootTick = curTick + kShootCdTicks;
+        archer_->rotate(archerDirFromDelta(delta));
+
+        const modlib::Entity::ID id = target->getID();
+        archer_->EvAttack.emit(id);
+        health->inflictDmg(kShootDamage);
+
+        m_nextShootTick = curTick + kShootCdTicks + 1;
         return true;
     }
 

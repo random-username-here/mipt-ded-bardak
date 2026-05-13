@@ -122,15 +122,18 @@ private:
             return false;
         }
 
-        rogue_->rotate(rogueDirFromDelta(delta));
-
-        if (auto *health = dynamic_cast<EC::Stats::Health *>(target)) {
-            const modlib::Entity::ID id = target->getID();
-            health->inflictDmg(kSliceDamage);
-            rogue_->EvAttack.emit(id);
+        auto *health = dynamic_cast<EC::Stats::Health *>(target);
+        if (health == nullptr || health->getCurrentHP() <= 0) {
+            return false;
         }
 
-        m_nextSliceTick = curTick + kSliceCdTicks;
+        rogue_->rotate(rogueDirFromDelta(delta));
+
+        const modlib::Entity::ID id = target->getID();
+        rogue_->EvAttack.emit(id);
+        health->inflictDmg(kSliceDamage);
+
+        m_nextSliceTick = curTick + kSliceCdTicks + 1;
         return true;
     }
 

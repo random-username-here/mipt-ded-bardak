@@ -93,10 +93,12 @@ static const std::array<modlib::SpriteAsset, 4> Slice = {
 } // namespace rogue_assets
 
 class RogueAnimator {
-    RogueCtl               *m_ctl       = nullptr;
-    anim::AnimationManager *m_anim      = nullptr;
-    modlib::AssetManager   *m_assets    = nullptr;
-    anim::AnimatedObjectID  m_object    = anim::NO_ANIMATION_OBJECT;
+    RogueCtl               *m_ctl    = nullptr;
+    anim::AnimationManager *m_anim   = nullptr;
+    modlib::AssetManager   *m_assets = nullptr;
+    anim::AnimatedObjectID  m_object      = anim::NO_ANIMATION_OBJECT;
+    anim::AnimatedObjectID  m_flashObject = anim::NO_ANIMATION_OBJECT;
+    anim::SpriteSlotID      m_flashSlot = 0;
     anim::SpriteSlotID      m_bodySlot  = 0;
     anim::SpriteSlotID      m_sliceSlot = 0;
 
@@ -112,9 +114,12 @@ public:
         , m_anim(anim)
         , m_assets(assets)
     {
-        m_object    = m_anim->newObject();
+        m_object      = m_anim->newObject();
+        m_flashObject = m_anim->newObject();
+
         m_bodySlot  = m_anim->newSpriteSlot();
         m_sliceSlot = m_anim->newSpriteSlot();
+        m_flashSlot = m_anim->newSpriteSlot();
 
         registerAssets();
         buildAnimations();
@@ -184,13 +189,22 @@ private:
     void animateHitFlash()
     {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, rogue_assets::Idle[dirIndex(m_ctl->rogue()->dir())].id, rogue_body::kZ);
-        animation->addStep<anim::SetWhiteStep>(m_bodySlot, true);
+        animation->addStep<anim::SetAssetStep>(
+            m_flashSlot,
+            rogue_assets::Idle[dirIndex(m_ctl->rogue()->dir())].id,
+            rogue_body::kZ
+        );
+        animation->addStep<anim::SetWhiteStep>(m_flashSlot, true);
         animation->addStep<anim::Step>(0.08f, 0.08f);
-        animation->addStep<anim::SetWhiteStep>(m_bodySlot, false);
+        animation->addStep<anim::DelSpriteStep>(m_flashSlot);
         animation->finishBuild();
 
-        m_anim->play(m_object, currentPixelPosition(), rogue_body::kObjectLayer, animation->id());
+        m_anim->play(
+            m_flashObject,
+            currentPixelPosition(),
+            rogue_body::kObjectLayer + 1,
+            animation->id()
+        );
     }
 
     anim::AnimationID buildIdleAnimation(const modlib::SpriteAsset &asset)
