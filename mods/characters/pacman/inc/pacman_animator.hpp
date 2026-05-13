@@ -2,7 +2,6 @@
 
 #include "Animator.hpp"
 #include "AssetManager.hpp"
-#include "Map.hpp"
 #include "Vec2.hpp"
 #include "pacman_controller.hpp"
 
@@ -15,7 +14,7 @@ constexpr float kPacmanTilePixels = 40.0f;
 namespace pm_body {
 
 struct Config {
-	static constexpr Rectf kClip = {0, 0, 16, 16};
+	static constexpr Rectf kClip = {0, 0, 14, 14};
 	static constexpr Vec2f kSize = {kPacmanTilePixels, kPacmanTilePixels};
 };
 

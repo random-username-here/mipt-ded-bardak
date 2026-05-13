@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BmServerModule.hpp"
 #include "pacman.hpp"
 
 #include <cassert>
