@@ -8,12 +8,9 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <limits>
-#include <queue>
 #include <random>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -267,7 +264,7 @@ class GhostClient : public ClientBase
 
 	bool moveToward(Pos target)
 	{
-		const std::vector<Pos> moves = rankedMovesToward(target);
+		const std::vector<Pos> moves = sortedMovesToward(target);
 		if (moves.empty()) {
 			return true;
 		}
@@ -277,73 +274,18 @@ class GhostClient : public ClientBase
 		return m_alive;
 	}
 
-	std::vector<Pos> rankedMovesToward(Pos target)
+	std::vector<Pos> sortedMovesToward(Pos target)
 	{
-		std::vector<Pos> legal = legalDirections();
-		if (legal.empty()) {
-			return {};
-		}
-
-		const auto distance = distanceFromTarget(target);
-		int32_t best = std::numeric_limits<int32_t>::max();
-		std::vector<Pos> best_moves;
-
-		for (const Pos dir : legal) {
-			const Pos next{m_pos.x + dir.x, m_pos.y + dir.y};
-			const auto it = distance.find(next);
-			const int32_t score = it == distance.end()
-			    ? manhattanFrom(next, target)
-			    : it->second;
-
-			if (score < best) {
-				best = score;
-				best_moves.clear();
-				best_moves.push_back(dir);
-			} else if (score == best) {
-				best_moves.push_back(dir);
-			}
-		}
-
-		std::shuffle(best_moves.begin(), best_moves.end(), m_rng);
-		return best_moves;
-	}
-
-	std::unordered_map<Pos, int32_t, Pos::Hash> distanceFromTarget(Pos target) const
-	{
-		std::unordered_map<Pos, int32_t, Pos::Hash> distance;
-		Bounds bounds;
-		if (!knownBounds(bounds) || !inBounds(target, bounds) || knownWall(target)) {
-			return distance;
-		}
-
-		static constexpr std::array<Pos, 4> dirs{{
-		    {1, 0},
-		    {-1, 0},
-		    {0, 1},
-		    {0, -1},
-		}};
-
-		std::queue<Pos> queue;
-		distance.emplace(target, 0);
-		queue.push(target);
-
-		while (!queue.empty()) {
-			const Pos current = queue.front();
-			queue.pop();
-			const int32_t next_distance = distance.at(current) + 1;
-
-			for (const Pos dir : dirs) {
-				const Pos next{current.x + dir.x, current.y + dir.y};
-				if (!inBounds(next, bounds) || knownWall(next) || distance.count(next) != 0) {
-					continue;
-				}
-
-				distance.emplace(next, next_distance);
-				queue.push(next);
-			}
-		}
-
-		return distance;
+		std::vector<Pos> moves = legalDirections();
+		std::stable_sort(
+		    moves.begin(),
+		    moves.end(),
+		    [this, target](Pos lhs, Pos rhs) {
+			    const Pos lhs_next{m_pos.x + lhs.x, m_pos.y + lhs.y};
+			    const Pos rhs_next{m_pos.x + rhs.x, m_pos.y + rhs.y};
+			    return manhattanFrom(lhs_next, target) < manhattanFrom(rhs_next, target);
+		    });
+		return moves;
 	}
 
 	static int32_t manhattanFrom(Pos from, Pos to)
