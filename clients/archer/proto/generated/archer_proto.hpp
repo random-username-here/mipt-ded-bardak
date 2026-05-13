@@ -72,29 +72,25 @@ PAN_GH_MSG(PAN_GH_SERVER, archer, enemy, "archer", "enemy",
     int32_t          x;
     int32_t          y;
     PAN_GH_ID        who;
-    PAN_GH_SLICE     kind;
+    PAN_GH_CHAR64    kind;
 )
 PAN_GH_DECODE(PAN_GH_SERVER, archer, enemy, "archer", "enemy",
     PAN_GH_READ(&self->x, sizeof(self->x));
     PAN_GH_READ(&self->y, sizeof(self->y));
     PAN_GH_READ(&self->who, sizeof(self->who));
-    uint16_t kind_len = 0;
-    PAN_GH_READ(&kind_len, 2);
-    PAN_GH_READ_SLICE(&self->kind, kind_len);
+    PAN_GH_READ(&self->kind, sizeof(self->kind));
 )
 PAN_GH_ENCODE(PAN_GH_SERVER, archer, enemy, "archer", "enemy",
     uint16_t len = 0;
     len += sizeof(self->x);
     len += sizeof(self->y);
     len += sizeof(self->who);
-    len += 2 + PAN_GH_SLICE_LEN(&self->kind);
+    len += sizeof(self->kind);
     PAN_GH_HEADER("archer", "enemy", len);
     PAN_GH_WRITE(&self->x, sizeof(self->x));
     PAN_GH_WRITE(&self->y, sizeof(self->y));
     PAN_GH_WRITE(&self->who, sizeof(self->who));
-    uint16_t kind_len = PAN_GH_SLICE_LEN(&self->kind);
-    PAN_GH_WRITE(&kind_len, 2);
-    PAN_GH_WRITE_SLICE(&self->kind, kind_len);
+    PAN_GH_WRITE(&self->kind, sizeof(self->kind));
 )
 
 PAN_GH_MSG(PAN_GH_SERVER, archer, root, "archer", "root",

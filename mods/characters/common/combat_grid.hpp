@@ -127,13 +127,13 @@ inline std::vector<modlib::Vec2i> visibleOffsets()
     return out;
 }
 
-inline std::string_view entityTypeName(const modlib::Entity *entity)
+inline bmsg::Char64 entityTypeName(const modlib::Entity *entity)
 {
     if (entity == nullptr) {
-        return {};
+        return bmsg::Char64();
     }
 
-    return std::string_view(entity->getType());
+    return entity->getType();
 }
 
 } // namespace combat_grid

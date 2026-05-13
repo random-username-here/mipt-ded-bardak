@@ -86,7 +86,11 @@ private:
                 return false;
             }
 
-            m_ai.enemies.push_back({{enemy->x, enemy->y}, enemy->who, std::string(enemy->kind)});
+            m_ai.enemies.push_back({
+                {enemy->x, enemy->y},
+                enemy->who,
+                std::string(std::string_view(enemy->kind))
+            });
             return true;
         }
 

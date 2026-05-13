@@ -9,7 +9,7 @@ server knight:tick();
 server knight:hp(int32 val);
 server knight:at(int32 x, int32 y);
 server knight:root(int32 x, int32 y, id who);
-server knight:enemy(int32 x, int32 y, id who, string kind);
+server knight:enemy(int32 x, int32 y, id who, char64 kind);
 server knight:wall(int32 x, int32 y);
 server knight:item(string id);
 server knight:ability(string id);
