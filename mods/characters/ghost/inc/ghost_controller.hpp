@@ -23,7 +23,7 @@ class GhostCtl
 public:
 	GhostCtl() = default;
 
-	GhostCtl(Level *map, BmClient *client, uint64_t team_id)
+	GhostCtl(Level *map, BmClient *client)
 	    : m_map(map)
 	{
 		(void)client;
@@ -36,7 +36,7 @@ public:
 
 		Tile *tile = map->getTile(pos);
 		assert(tile);
-		m_ghost = std::make_unique<Ghost>(map, tile, team_id);
+		m_ghost = std::make_unique<Ghost>(map, tile);
 		m_map->newEntity(m_ghost.get(), tile);
 		m_alive = true;
 

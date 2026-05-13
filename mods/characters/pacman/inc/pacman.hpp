@@ -11,19 +11,10 @@ public:
 	static constexpr size_t kStartHp = 100;
 	static constexpr Type PACMAN_TYPE = "pacman";
 
-private:
-	uint64_t team_id_ = 0;
-
 public:
-	Pacman(Level * /*map*/, Tile *tile, uint64_t team_id)
+	Pacman(Level * /*map*/, Tile *tile)
 	    : Entity(PACMAN_TYPE, tile)
 	    , Health(kStartHp, kMaxHp)
-	    , team_id_(team_id)
 	{
-	}
-
-	uint64_t teamId() const
-	{
-		return team_id_;
 	}
 };

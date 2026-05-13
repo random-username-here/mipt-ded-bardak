@@ -111,17 +111,6 @@ public:
 				return;
 			}
 			manager.receiveAttackCommand(cl, atk_cmd.value());
-		} else if (m.header()->type == "where") {
-			const auto where_cmd = bmsg::CL_ghost_where::decode(m);
-			if (!where_cmd) {
-				return;
-			}
-			manager.receiveWhereCommand(cl, where_cmd.value());
-		} else if (m.header()->type == "sees") {
-			if (!bmsg::CL_ghost_sees::decode(m)) {
-				return;
-			}
-			manager.receiveSeesCommand(cl);
 		}
 	}
 

@@ -20,7 +20,7 @@ class PacmanCtl
 public:
 	PacmanCtl() = default;
 
-	PacmanCtl(Level *map, BmClient *client, uint64_t team_id)
+	PacmanCtl(Level *map, BmClient *client)
 	    : m_map(map)
 	{
 		(void)client;
@@ -33,7 +33,7 @@ public:
 
 		Tile *tile = map->getTile(pos);
 		assert(tile);
-		m_pacman = std::make_unique<Pacman>(map, tile, team_id);
+		m_pacman = std::make_unique<Pacman>(map, tile);
 		m_map->newEntity(m_pacman.get(), tile);
 		m_alive = true;
 

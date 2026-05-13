@@ -12,20 +12,11 @@ public:
 	static constexpr size_t kAttackStrength = 25;
 	static constexpr Type GHOST_TYPE = "ghost";
 
-private:
-	uint64_t team_id_ = 0;
-
 public:
-	Ghost(Level * /*map*/, Tile *tile, uint64_t team_id)
+	Ghost(Level * /*map*/, Tile *tile)
 	    : Entity(GHOST_TYPE, tile)
 	    , Health(kStartHp, kMaxHp)
 	    , Attack(kAttackStrength)
-	    , team_id_(team_id)
 	{
-	}
-
-	uint64_t teamId() const
-	{
-		return team_id_;
 	}
 };

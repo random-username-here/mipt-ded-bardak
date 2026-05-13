@@ -75,9 +75,6 @@ class Pacman : public ClientBase
 			if (!bmsg::SV_pacman_tick::decode(msg)) {
 				return false;
 			}
-			if (!requestWorldInfo()) {
-				return false;
-			}
 			return tick();
 		}
 		if (type == "hp") {
@@ -103,19 +100,7 @@ class Pacman : public ClientBase
 			if (!sees) {
 				return false;
 			}
-			if (sees->teamId == kGhostTeam) {
-				rememberGhost({sees->x, sees->y});
-			}
-			return true;
-		}
-		if (type == "where") {
-			const auto where = bmsg::SV_pacman_where::decode(msg);
-			if (!where) {
-				return false;
-			}
-			if (where->teamId == kGhostTeam) {
-				rememberGhost({where->x, where->y});
-			}
+			rememberGhost({sees->x, sees->y});
 			return true;
 		}
 		if (type == "wall") {
@@ -142,12 +127,6 @@ class Pacman : public ClientBase
 		}
 
 		return randomMove();
-	}
-
-	bool requestWorldInfo()
-	{
-		return sendMessage(bmsg::CL_pacman_where{kGhostTeam}) &&
-		       sendMessage(bmsg::CL_pacman_sees{});
 	}
 
 	void rememberGhost(Pos pos)
@@ -248,9 +227,7 @@ class Pacman : public ClientBase
 	{
 		return sendMessage(bmsg::CL_pacman_move{dx, dy});
 	}
-
-	static constexpr uint32_t kGhostTeam = 1;
-};
+	};
 
 int main(int argc, char **argv)
 {
