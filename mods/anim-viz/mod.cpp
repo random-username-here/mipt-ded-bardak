@@ -21,6 +21,28 @@ using TextureID = size_t;
 constexpr float kRenderScale       = 2.0f;
 constexpr int   kLogicalTilePixels = 16;
 
+static constexpr const char *kWhiteFlashFragShader = R"(
+#version 330
+
+in vec2 fragTexCoord;
+in vec4 fragColor;
+
+out vec4 finalColor;
+
+uniform sampler2D texture0;
+
+void main()
+{
+    vec4 texel = texture(texture0, fragTexCoord);
+
+    if (texel.a <= 0.0) {
+        discard;
+    }
+
+    finalColor = vec4(1.0, 1.0, 1.0, texel.a) * fragColor;
+}
+)";
+
 struct AnimatedObject {
     anim::SpriteBySlot sprites;
     std::unordered_map<const anim::Step*, float> runningSteps; // step -> start time
@@ -49,6 +71,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     std::unordered_map<anim::AnimatedObjectID, AnimatedObject> m_objs;
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
     std::unordered_map<TextureID, Texture2D> m_textures;
+    Shader m_whiteFlashShader{};
     std::mutex m_lock;
 
     float m_startTime = 0;
@@ -72,6 +95,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
         );
 
         InitWindow(windowW, windowH, "Animation-based visualizer");
+        m_whiteFlashShader = LoadShaderFromMemory(nullptr, kWhiteFlashFragShader);
         SetTargetFPS(60);
 
         while (true) {
@@ -162,8 +186,18 @@ class AnimatedVisualization : public modlib::BmServerModule {
             .y = sprite->origin.y * kRenderScale
         };
 
-        if (s.forceWhite) {
-            DrawRectanglePro(dst, origin, s.rotation, WHITE);
+        if (s.forceWhite && m_whiteFlashShader.id != 0) {
+            BeginShaderMode(m_whiteFlashShader);
+            DrawTexturePro(
+                *texture,
+                src,
+                dst,
+                origin,
+                s.rotation,
+                WHITE
+            );
+            EndShaderMode();
+
             return true;
         }
 
