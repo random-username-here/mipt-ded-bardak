@@ -21,6 +21,7 @@ using TextureID = size_t;
 
 constexpr float kRenderScale       = 2.0f;
 constexpr int   kLogicalTilePixels = 16;
+constexpr float kHpBarFadeSeconds  = 0.5f;
 constexpr int   kOverlaySplitLayer = 0;
 constexpr Color kVisibilityOverlayColor = { 40, 120, 255, 55};
 constexpr Color kAttackOverlayColor     = {255,  40,  40, 70};
@@ -61,6 +62,15 @@ struct DebugTile {
     modlib::Vec2i pos;
 };
 
+struct HealthBarFade {
+    modlib::Entity::ID entity = 0;
+    modlib::Vec2i tile{};
+    int hp     = 0;
+    int maxHp  = 1;
+    int lastHp = -1;
+    float startedAt = 0.0f;
+};
+
 Vector2 v2v(modlib::Vec2f v) {
     return Vector2 { .x = v.x, .y = v.y };
 }
@@ -82,6 +92,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
     Shader m_whiteFlashShader{};
     std::vector<DebugTile> m_debugVisibleTiles;
     std::vector<DebugTile> m_debugAttackTiles;
+    std::vector<HealthBarFade> m_healthBarFades;
     bool m_showDebugVisibility = false;
     bool m_showDebugAttack = false;
     std::mutex m_lock;
@@ -176,6 +187,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
                 drawSprites(*obj);
             }
         }
+
+        drawHealthBars();
     }
 
     void drawSprites(const AnimatedObject &obj) {
@@ -357,6 +370,187 @@ class AnimatedVisualization : public modlib::BmServerModule {
         };
 
         DrawRectangleRec(dst, color);
+    }
+
+    void drawHealthBars()
+    {
+        updateHealthBarFades();
+
+        const float now = curTime();
+
+        for (const HealthBarFade &bar : m_healthBarFades) {
+            const float age = now - bar.startedAt;
+            if (age < 0.0f || age >= kHpBarFadeSeconds) {
+                continue;
+            }
+
+            const float alpha = 1.0f - std::max(0.0f, std::min(1.0f, age / kHpBarFadeSeconds));
+            drawHpBarAt(bar.tile, bar.hp, bar.maxHp, alpha);
+        }
+    }
+
+    void updateHealthBarFades()
+    {
+        const float now = curTime();
+
+        for (const auto &[id, entity] : m_map->getEntityList()) {
+            if (entity == nullptr || !isHealthBarUnit(entity)) {
+                continue;
+            }
+
+            auto *health = dynamic_cast<EC::Stats::Health *>(entity);
+            if (health == nullptr) {
+                continue;
+            }
+
+            const int maxHp = static_cast<int>(health->getMaxHP());
+            if (maxHp <= 0) {
+                continue;
+            }
+
+            const int hp = std::max(
+                0,
+                std::min(maxHp, static_cast<int>(health->getCurrentHP()))
+            );
+
+            HealthBarFade *bar = findHealthBarFade(id);
+            if (bar == nullptr) {
+                m_healthBarFades.push_back(HealthBarFade{
+                    .entity = id,
+                    .tile = entity->getPosition(),
+                    .hp = hp,
+                    .maxHp = maxHp,
+                    .lastHp = hp,
+                    .startedAt = -1000000.0f,
+                });
+                continue;
+            }
+
+            if (hp > 0 && hp < bar->lastHp) {
+                bar->tile = entity->getPosition();
+                bar->hp = hp;
+                bar->maxHp = maxHp;
+                bar->startedAt = now;
+            }
+
+            bar->lastHp = hp;
+        }
+
+        m_healthBarFades.erase(
+            std::remove_if(
+                m_healthBarFades.begin(),
+                m_healthBarFades.end(),
+                [this, now](const HealthBarFade &bar) {
+                    if (now - bar.startedAt < kHpBarFadeSeconds) {
+                        return false;
+                    }
+
+                    auto *entity = m_map->getEntity(bar.entity);
+                    if (entity == nullptr || !isHealthBarUnit(entity)) {
+                        return true;
+                    }
+
+                    auto *health = dynamic_cast<EC::Stats::Health *>(entity);
+                    if (health == nullptr) {
+                        return true;
+                    }
+
+                    return health->getCurrentHP() <= 0 || health->getCurrentHP() >= health->getMaxHP();
+                }
+            ),
+            m_healthBarFades.end()
+        );
+    }
+
+    HealthBarFade *findHealthBarFade(modlib::Entity::ID id)
+    {
+        for (HealthBarFade &bar : m_healthBarFades) {
+            if (bar.entity == id) {
+                return &bar;
+            }
+        }
+
+        return nullptr;
+    }
+
+    void drawHpBarAt(modlib::Vec2i pos, int hp, int maxHp, float alpha)
+    {
+        alpha = std::max(0.0f, std::min(1.0f, alpha));
+
+        const float tile = kLogicalTilePixels * kRenderScale;
+
+        const float rx = pos.x * tile;
+        const float ry = pos.y * tile;
+
+        const float frac = static_cast<float>(hp) / static_cast<float>(maxHp);
+
+        const float outerW = tile * 0.76f;
+        const float outerH = std::max(5.0f, tile * 0.13f);
+
+        const float bx = rx + (tile - outerW) * 0.5f;
+        const float by = ry - outerH - tile * 0.10f;
+
+        const float pad = std::max(1.0f, std::floor(tile * 0.035f));
+        const float innerX = bx + pad;
+        const float innerY = by + pad;
+        const float innerW = std::max(0.0f, outerW - pad * 2.0f);
+        const float innerH = std::max(1.0f, outerH - pad * 2.0f);
+
+        DrawRectangleV(
+            Vector2{bx, by},
+            Vector2{outerW, outerH},
+            withAlpha(Color{18, 18, 18, 230}, alpha)
+        );
+
+        DrawRectangleV(
+            Vector2{innerX, innerY},
+            Vector2{innerW, innerH},
+            withAlpha(Color{70, 20, 20, 230}, alpha)
+        );
+
+        DrawRectangleV(
+            Vector2{innerX, innerY},
+            Vector2{innerW * frac, innerH},
+            withAlpha(hpColor(frac), alpha)
+        );
+
+        DrawRectangleLinesEx(
+            Rectangle{bx, by, outerW, outerH},
+            std::max(1.0f, std::floor(tile * 0.035f)),
+            withAlpha(Color{5, 5, 5, 255}, alpha)
+        );
+    }
+
+    static Color withAlpha(Color color, float alpha)
+    {
+        alpha = std::max(0.0f, std::min(1.0f, alpha));
+        color.a = static_cast<unsigned char>(static_cast<float>(color.a) * alpha);
+        return color;
+    }
+
+    static Color hpColor(float frac)
+    {
+        frac = std::max(0.0f, std::min(1.0f, frac));
+
+        const unsigned char r = static_cast<unsigned char>(255.0f * (1.0f - frac));
+        const unsigned char g = static_cast<unsigned char>(220.0f * frac);
+        const unsigned char b = 40;
+
+        return Color{r, g, b, 255};
+    }
+
+    static bool isHealthBarUnit(const modlib::Entity *entity)
+    {
+        if (entity == nullptr) {
+            return false;
+        }
+
+        if (entity->getType() == modlib::Entity::BasicTypes::ROOT) {
+            return false;
+        }
+
+        const auto *health = dynamic_cast<const EC::Stats::Health *>(entity);
+        return health != nullptr;
     }
 
     void rebuildDebugOverlays()
