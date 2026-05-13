@@ -131,9 +131,9 @@ class PersonClient : public ClientBase
 		const int8_t sx = sign(target.x - m_pos.x);
 		const int8_t sy = sign(target.y - m_pos.y);
 
-		if (sendMoveIfUseful(sx, sy)) {
-			return m_alive;
-		}
+		// if (sendMoveIfUseful(sx, sy)) {
+			// return m_alive;
+		// }
 		if (std::abs(target.x - m_pos.x) >= std::abs(target.y - m_pos.y)) {
 			if (sendMoveIfUseful(sx, 0)) {
 				return m_alive;

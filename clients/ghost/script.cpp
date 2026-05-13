@@ -39,11 +39,10 @@ class GhostClient : public ClientBase
 	};
 
 	struct Seen
-	{
-		Pos pos;
-		uint32_t id = 0;
-		uint32_t team_id = 0;
-	};
+		{
+			Pos pos;
+			uint32_t id = 0;
+		};
 
 	std::mt19937 m_rng{std::random_device{}()};
 
@@ -82,9 +81,6 @@ class GhostClient : public ClientBase
 			if (!bmsg::SV_ghost_tick::decode(msg)) {
 				return false;
 			}
-			if (!requestWorldInfo()) {
-				return false;
-			}
 			return act();
 		}
 		if (type == "hp") {
@@ -110,19 +106,7 @@ class GhostClient : public ClientBase
 			if (!sees) {
 				return false;
 			}
-			if (sees->teamId == kPacmanTeam) {
-				rememberTarget({sees->x, sees->y}, sees->who, sees->teamId);
-			}
-			return true;
-		}
-		if (type == "where") {
-			const auto where = bmsg::SV_ghost_where::decode(msg);
-			if (!where) {
-				return false;
-			}
-			if (where->teamId == kPacmanTeam) {
-				rememberTarget({where->x, where->y}, where->who, where->teamId);
-			}
+			rememberTarget({sees->x, sees->y}, sees->who);
 			return true;
 		}
 		if (type == "wall") {
@@ -136,22 +120,16 @@ class GhostClient : public ClientBase
 		return true;
 	}
 
-	bool requestWorldInfo()
-	{
-		return sendMessage(bmsg::CL_ghost_where{kPacmanTeam}) && sendMessage(bmsg::CL_ghost_sees{});
-	}
-
-	void rememberTarget(Pos pos, uint32_t id, uint32_t team_id)
+	void rememberTarget(Pos pos, uint32_t id)
 	{
 		const auto it = std::find_if(m_visible.begin(), m_visible.end(),
 		                             [id](const Seen &seen) { return seen.id == id; });
 
 		if (it != m_visible.end()) {
 			it->pos = pos;
-			it->team_id = team_id;
 			return;
 		}
-		m_visible.push_back({pos, id, team_id});
+		m_visible.push_back({pos, id});
 	}
 
 	bool act()
@@ -236,9 +214,9 @@ class GhostClient : public ClientBase
 		const int8_t dx = sign(target.x - m_pos.x);
 		const int8_t dy = sign(target.y - m_pos.y);
 
-		if (sendMoveIfUseful(dx, dy)) {
-			return m_alive;
-		}
+		// if (sendMoveIfUseful(dx, dy)) {
+		// 	return m_alive;
+		// }
 		if (sendMoveIfUseful(dx, 0)) {
 			return m_alive;
 		}
@@ -275,9 +253,7 @@ class GhostClient : public ClientBase
 		sendMoveIfUseful(static_cast<int8_t>(move.x), static_cast<int8_t>(move.y));
 		return m_alive;
 	}
-
-	static constexpr uint32_t kPacmanTeam = 0;
-};
+	};
 
 int main(int argc, char **argv)
 {

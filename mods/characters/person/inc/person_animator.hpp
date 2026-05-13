@@ -11,7 +11,7 @@
 #include <string_view>
 
 //TODO unify tile size between different persons and map
-constexpr float kTilePixels = 40.0f;
+constexpr float kTilePixels = 16.0f;
 
 namespace body {
 

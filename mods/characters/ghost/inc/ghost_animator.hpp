@@ -11,12 +11,12 @@
 #include <string_view>
 #include <unordered_map>
 
-constexpr float kGhostTilePixels = 40.0f;
+constexpr float kGhostTilePixels = 16.0f;
 
 namespace gh_body {
 
 struct Config {
-	static constexpr Rectf kClip = {0, 0, 16, 16};
+	static constexpr Rectf kClip = {0, 0, 14, 14};
 	static constexpr Vec2f kSize = {kGhostTilePixels, kGhostTilePixels};
 };
 

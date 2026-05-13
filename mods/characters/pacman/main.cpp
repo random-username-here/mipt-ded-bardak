@@ -104,17 +104,6 @@ public:
 				return;
 			}
 			manager.receiveMoveCommand(cl, move_cmd.value());
-		} else if (m.header()->type == "where") {
-			const auto where_cmd = bmsg::CL_pacman_where::decode(m);
-			if (!where_cmd) {
-				return;
-			}
-			manager.receiveWhereCommand(cl, where_cmd.value());
-		} else if (m.header()->type == "sees") {
-			if (!bmsg::CL_pacman_sees::decode(m)) {
-				return;
-			}
-			manager.receiveSeesCommand(cl);
 		}
 	}
 

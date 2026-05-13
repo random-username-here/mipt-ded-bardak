@@ -10,6 +10,18 @@
 #include "person_proto.hpp"
 #include <iostream>
 
+namespace {
+
+inline bool isAliveEntityForPerson(modlib::Entity *entity)
+{
+    if (auto *health = dynamic_cast<EC::Stats::Health *>(entity)) {
+        return health->getCurrentHP() > 0;
+    }
+    return true;
+}
+
+}
+
 class PersonManager {
     Timer        *timer_=nullptr;
     Level        *map_=nullptr;
@@ -100,10 +112,15 @@ public:
         auto size = map_->getSize();
 
         for (auto &[cl, ps] : people_) {
+            cl->send(bmsg::SV_person_hp { ps.ctl.hp() });
+            if (!ps.ctl.alive()) {
+                ps.ctl.destroy();
+                continue;
+            }
+
             Vec2i ps_pos = ps.ctl.pos();
 
             cl->send(bmsg::SV_person_at { ps_pos.x, ps_pos.y });
-            cl->send(bmsg::SV_person_hp { ps.ctl.hp() });
 
             for (int dx = -4; dx <= 4; ++dx) {
                 for (int dy = -4; dy <= 4; ++dy) {
@@ -117,7 +134,7 @@ public:
                         cl->send(bmsg::SV_person_wall { x, y });
 
                     for (auto &[id, entity] : tile->getEntityList()) {
-                        if (entity != ps.ctl.person()) {
+                        if (entity != ps.ctl.person() && isAliveEntityForPerson(entity)) {
                             cl->send(bmsg::SV_person_sees { x, y, (uint32_t)entity->getID() });
                         }
                     }

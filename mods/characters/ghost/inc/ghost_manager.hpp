@@ -2,6 +2,7 @@
 
 #include "ghost_animator.hpp"
 #include "ghost_controller.hpp"
+#include "pacman/inc/pacman.hpp"
 #include "BmServerModule.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
@@ -15,21 +16,13 @@
 namespace {
 
 constexpr int kVisionRadius = 4;
-constexpr uint64_t kGhostTeam = 1;
-constexpr uint32_t kPacmanTeamProtocol = 0;
 
-inline uint32_t protocolTeamIdForGhost(modlib::Entity *e)
+inline bool isAliveEntityForGhost(modlib::Entity *e)
 {
-	if (e == nullptr) {
-		return 0;
+	if (auto *health = dynamic_cast<EC::Stats::Health *>(e)) {
+		return health->getCurrentHP() > 0;
 	}
-	if (auto *g = dynamic_cast<Ghost *>(e)) {
-		return static_cast<uint32_t>(g->teamId());
-	}
-	if (e->getType() == modlib::Entity::Type("pacman")) {
-		return kPacmanTeamProtocol;
-	}
-	return 0;
+	return true;
 }
 
 } // namespace
@@ -45,8 +38,8 @@ class GhostManager {
 		GhostAnimator anim;
 
 		GhostUtils(Level *map, BmClient *client, anim::AnimationManager *animator,
-		           modlib::AssetManager *assets, uint64_t team_id)
-		    : ctl(map, client, team_id)
+		           modlib::AssetManager *assets)
+		    : ctl(map, client)
 		    , anim(&ctl, animator, assets)
 		{}
 	};
@@ -99,16 +92,6 @@ public:
 		it->second.ctl.attack(atk_cmd.whom, m_tick);
 	}
 
-	void receiveWhereCommand(BmClient *client, bmsg::CL_ghost_where where_cmd)
-	{
-		sendWhereFor(client, where_cmd.teamId);
-	}
-
-	void receiveSeesCommand(BmClient *client)
-	{
-		sendVisionFor(client);
-	}
-
 	size_t count(BmClient *client) const
 	{
 		return ghosts_.count(client);
@@ -121,7 +104,7 @@ public:
 			return;
 		}
 
-		ghosts_.try_emplace(client, map_, client, animator_, assets_, kGhostTeam);
+		ghosts_.try_emplace(client, map_, client, animator_, assets_);
 	}
 
   private:
@@ -130,36 +113,35 @@ public:
 		++m_tick;
 
 		for (auto &[cl, gs] : ghosts_) {
-			const Vec2i ppos = gs.ctl.pos();
-			cl->send(bmsg::SV_ghost_tick{});
-			cl->send(bmsg::SV_ghost_at{ppos.x, ppos.y});
 			cl->send(bmsg::SV_ghost_hp{gs.ctl.hp()});
+			if (!gs.ctl.alive()) {
+				gs.ctl.destroy();
+				continue;
+			}
+
+			const Vec2i ppos = gs.ctl.pos();
+			cl->send(bmsg::SV_ghost_at{ppos.x, ppos.y});
+			sendVisibleWalls(cl, gs.ctl.pos());
+			sendVisibleTargets(cl);
+			cl->send(bmsg::SV_ghost_tick{});
 		}
 
 		timer_->setTimer(1, [this]() { sendPeriodicState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
 	}
 
-	void sendWhereFor(BmClient *client, uint32_t team_id)
+	void sendVisibleTargets(BmClient *client)
 	{
-		for (const auto &[id, ent] : map_->getEntityList()) {
-			(void)id;
-			const uint32_t tid = protocolTeamIdForGhost(ent);
-			if (tid != team_id) {
+		for (const auto &[_, ent] : map_->getEntityList()) {
+			if (!isAliveEntityForGhost(ent) || dynamic_cast<Pacman *>(ent) == nullptr) {
 				continue;
 			}
 			const Vec2i p = ent->getPosition();
-			client->send(bmsg::SV_ghost_where{p.x, p.y, static_cast<uint32_t>(ent->getID()), tid});
+			client->send(bmsg::SV_ghost_sees{p.x, p.y, static_cast<uint32_t>(ent->getID())});
 		}
 	}
 
-	void sendVisionFor(BmClient *client)
+	void sendVisibleWalls(BmClient *client, Vec2i origin)
 	{
-		const auto it = ghosts_.find(client);
-		if (it == ghosts_.end()) {
-			return;
-		}
-
-		const Vec2i origin = it->second.ctl.pos();
 		const auto size = map_->getSize();
 
 		for (int dx = -kVisionRadius; dx <= kVisionRadius; ++dx) {
@@ -171,20 +153,8 @@ public:
 				}
 
 				Tile *tile = map_->getTile({x, y});
-				if (tile == nullptr) {
-					continue;
-				}
-
-				if (tile->getType() == Tile::BasicTypes::WALL) {
+				if (tile && tile->getType() == Tile::BasicTypes::WALL) {
 					client->send(bmsg::SV_ghost_wall{x, y});
-				}
-
-				for (const auto &[eid, entity] : tile->getEntityList()) {
-					(void)eid;
-					if (entity != it->second.ctl.ghost()) {
-						client->send(bmsg::SV_ghost_sees{x, y, static_cast<uint32_t>(entity->getID()),
-						                              protocolTeamIdForGhost(entity)});
-					}
 				}
 			}
 		}
