@@ -1,0 +1,319 @@
+#include "client-core/base/client_base.hpp"
+#include "paladin_proto.hpp"
+#include "unit_ai.hpp"
+
+#include <exception>
+#include <iostream>
+#include <string>
+#include <unordered_set>
+
+class PaladinClient : public ClientBase {
+    static constexpr int32_t kAegisThresholdHp = 35;
+
+    bool    m_alive = true;
+    int32_t m_hp = 0;
+    UnitAi  m_ai{AiRangeKind::Moore};
+    std::unordered_set<std::string> m_items;
+    std::unordered_set<std::string> m_abilities;
+
+public:
+    PaladinClient(const std::string &ini)
+        : ClientBase(ini)
+    {
+        registerOnPrefix("paladin", [this](const PanFrame &frame) {
+            return handlePaladinFrame(frame);
+        });
+    }
+
+private:
+    std::string_view roleName() const override
+    {
+        return "paladin";
+    }
+
+    bool keepRunning() const override
+    {
+        return m_alive;
+    }
+
+    bool handlePaladinFrame(const PanFrame &frame)
+    {
+        const std::string raw = frame.rawMessage();
+        bmsg::RawMessage msg(raw);
+        const std::string_view type = frame.type();
+
+        if (type == "tick") {
+            if (!bmsg::SV_paladin_tick::decode(msg)) {
+                return false;
+            }
+
+            return actOnTick();
+        }
+
+        if (type == "hp") {
+            const auto hp = bmsg::SV_paladin_hp::decode(msg);
+            if (!hp) {
+                return false;
+            }
+
+            m_hp = hp->val;
+            m_alive = m_hp > 0;
+            return m_alive;
+        }
+
+        if (type == "at") {
+            const auto at = bmsg::SV_paladin_at::decode(msg);
+            if (!at) {
+                return false;
+            }
+
+            m_ai.self = {at->x, at->y};
+            m_ai.haveSelf = true;
+            return true;
+        }
+
+        if (type == "root") {
+            const auto root = bmsg::SV_paladin_root::decode(msg);
+            if (!root) {
+                return false;
+            }
+
+            m_ai.roots.push_back({{root->x, root->y}, root->who, "root"});
+            return true;
+        }
+
+        if (type == "enemy") {
+            const auto enemy = bmsg::SV_paladin_enemy::decode(msg);
+            if (!enemy) {
+                return false;
+            }
+
+            m_ai.enemies.push_back({
+                {enemy->x, enemy->y},
+                enemy->who,
+                std::string(std::string_view(enemy->kind))
+            });
+            return true;
+        }
+
+        if (type == "wall") {
+            const auto wall = bmsg::SV_paladin_wall::decode(msg);
+            if (!wall) {
+                return false;
+            }
+
+            m_ai.walls.insert({wall->x, wall->y});
+            return true;
+        }
+
+        if (type == "item") {
+            const auto item = bmsg::SV_paladin_item::decode(msg);
+            if (!item) {
+                return false;
+            }
+
+            m_items.insert(std::string(item->id));
+            return true;
+        }
+
+        if (type == "ability") {
+            const auto ability = bmsg::SV_paladin_ability::decode(msg);
+            if (!ability) {
+                return false;
+            }
+
+            m_abilities.insert(std::string(ability->id));
+            return true;
+        }
+
+        return true;
+    }
+
+    bool actOnTick()
+    {
+        if (!m_alive) {
+            return false;
+        }
+
+        if (!m_ai.haveSelf) {
+            m_ai.clearVisible();
+            return true;
+        }
+
+        if (tryUseAegis()) {
+            m_ai.clearVisible();
+            return m_alive;
+        }
+
+        if (tryUseOnEnemy()) {
+            m_ai.clearVisible();
+            return m_alive;
+        }
+
+        if (tryMoveTowardEnemy()) {
+            m_ai.clearVisible();
+            return m_alive;
+        }
+
+        if (tryUseOnRoot()) {
+            m_ai.clearVisible();
+            return m_alive;
+        }
+
+        if (tryMoveTowardRoot()) {
+            m_ai.clearVisible();
+            return m_alive;
+        }
+
+        const bool ok = wander();
+        m_ai.clearVisible();
+        return ok;
+    }
+
+    bool tryUseOnEnemy()
+    {
+        if (canUseJudgement()) {
+            const auto enemy = m_ai.firstEnemyInRange();
+            if (enemy && sendUse("judgement", enemy->id)) {
+                return true;
+            }
+        }
+
+        if (!canUseSmite()) {
+            return false;
+        }
+
+        const auto enemy = m_ai.firstEnemyInRange();
+        if (!enemy) {
+            return false;
+        }
+
+        return sendUse("smite", enemy->id);
+    }
+
+    bool tryUseAegis()
+    {
+        if (m_hp <= 0) {
+            return false;
+        }
+        if (m_hp > kAegisThresholdHp) {
+            return false;
+        }
+        if (!canUseAegis()) {
+            return false;
+        }
+
+        return sendUse("aegis", 0);
+    }
+
+    bool tryUseOnRoot()
+    {
+        if (canUseJudgement()) {
+            const auto root = m_ai.firstRootInRange();
+            if (root && sendUse("judgement", root->id)) {
+                return true;
+            }
+        }
+
+        if (!canUseSmite()) {
+            return false;
+        }
+
+        const auto root = m_ai.firstRootInRange();
+        if (!root) {
+            return false;
+        }
+
+        return sendUse("smite", root->id);
+    }
+
+    bool tryMoveTowardEnemy()
+    {
+        const auto step = m_ai.stepTowardEnemyRange();
+        if (!step) {
+            return false;
+        }
+
+        return sendMove(*step);
+    }
+
+    bool tryMoveTowardRoot()
+    {
+        const auto step = m_ai.stepTowardRootRange();
+        if (!step) {
+            return false;
+        }
+
+        return sendMove(*step);
+    }
+
+    bool wander()
+    {
+        const auto step = m_ai.randomStep();
+        if (!step) {
+            return true;
+        }
+
+        return sendMove(*step);
+    }
+
+    bool sendUse(std::string_view ability, uint32_t target)
+    {
+        if (!sendMessage(bmsg::CL_paladin_use{ability, target})) {
+            std::cerr << "send paladin use failed\n";
+            m_alive = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    bool sendMove(AiPos step)
+    {
+        if (step.x == 0 && step.y == 0) {
+            return false;
+        }
+
+        if (!sendMessage(bmsg::CL_paladin_move{
+                static_cast<int8_t>(step.x),
+                static_cast<int8_t>(step.y)
+            })) {
+            std::cerr << "send paladin move failed\n";
+            m_alive = false;
+            return false;
+        }
+
+        return true;
+    }
+
+    bool canUseSmite() const
+    {
+        return m_abilities.count("smite") != 0 && m_items.count("warhammer") != 0;
+    }
+
+    bool canUseAegis() const
+    {
+        return m_abilities.count("aegis") != 0 && m_items.count("tower_shield") != 0;
+    }
+
+    bool canUseJudgement() const
+    {
+        return m_abilities.count("judgement") != 0 && m_items.count("relic_seal") != 0;
+    }
+};
+
+int main(int argc, char **argv)
+{
+    if (argc != 2) {
+        std::cerr << "usage: " << argv[0] << " INI\n";
+        return 1;
+    }
+
+    try {
+        return PaladinClient(argv[1]).run() ? 0 : 1;
+    }
+    catch (const std::exception &err) {
+        std::cerr << err.what() << '\n';
+        return 1;
+    }
+}
