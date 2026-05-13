@@ -93,6 +93,7 @@ class Pacman : public ClientBase
 			}
 			m_pos = {at->x, at->y};
 			m_have_pos = true;
+			m_walls.clear();
 			return true;
 		}
 		if (type == "sees") {
@@ -138,12 +139,13 @@ class Pacman : public ClientBase
 
 	bool runAwayFromGhosts()
 	{
-		static constexpr std::array<Pos, 4> dirs{{
+		std::array<Pos, 4> dirs{{
 		    {1, 0},
 		    {-1, 0},
 		    {0, 1},
 		    {0, -1},
 		}};
+		std::shuffle(dirs.begin(), dirs.end(), m_rng);
 
 		std::vector<Pos> best_moves;
 		int32_t best_score = std::numeric_limits<int32_t>::min();
@@ -194,12 +196,13 @@ class Pacman : public ClientBase
 
 	bool randomMove()
 	{
-		static constexpr std::array<Pos, 4> dirs{{
+		std::array<Pos, 4> dirs{{
 		    {1, 0},
 		    {-1, 0},
 		    {0, 1},
 		    {0, -1},
 		}};
+		std::shuffle(dirs.begin(), dirs.end(), m_rng);
 
 		std::vector<Pos> legal_moves;
 		for (const Pos dir : dirs) {

@@ -47,7 +47,7 @@ const auto Grass3 = Asset<tile::Config>("m.g.3",  ASSETS_DIR "/map/tile_grass_3.
 const auto Grass4 = Asset<tile::Config>("m.g.4",  ASSETS_DIR "/map/tile_grass_4.png");
 const auto Grass5 = Asset<tile::Config>("m.g.5",  ASSETS_DIR "/map/tile_grass_5.png");
 const auto Grass6 = Asset<tile::Config>("m.g.6",  ASSETS_DIR "/map/tile_grass_6.png");
-const auto Wall   = Ground;
+const auto Wall   = Asset<tile::Config>("m.wall", ASSETS_DIR "/map/spikes.png");
 
 }
 
