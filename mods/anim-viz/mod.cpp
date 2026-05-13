@@ -7,7 +7,6 @@
 #include "modlib_manager.hpp"
 #include "raylib.h"
 #include <algorithm>
-#include <cmath>
 #include <ctime>
 #include <iostream>
 #include <mutex>
@@ -18,6 +17,9 @@
 using modlib::Vec2f;
 
 using TextureID = size_t;
+
+constexpr float kRenderScale       = 2.0f;
+constexpr int   kLogicalTilePixels = 16;
 
 struct AnimatedObject {
     anim::SpriteBySlot sprites;
@@ -58,16 +60,28 @@ class AnimatedVisualization : public modlib::BmServerModule {
     }
 
     void windowThread() {
-        InitWindow(800, 800, "Animation-based visualizer");
-        SetTargetFPS(60);
-		while (true) {
-			BeginDrawing();
-			ClearBackground(BLACK);
+        const modlib::Vec2i mapSize = m_map->getSize();
 
-			drawObjects();
-			
-			EndDrawing();
-		}
+        const int windowW = std::max(
+            1,
+            static_cast<int>(mapSize.x * kLogicalTilePixels * kRenderScale)
+        );
+        const int windowH = std::max(
+            1,
+            static_cast<int>(mapSize.y * kLogicalTilePixels * kRenderScale)
+        );
+
+        InitWindow(windowW, windowH, "Animation-based visualizer");
+        SetTargetFPS(60);
+
+        while (true) {
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            drawObjects();
+
+            EndDrawing();
+        }
     }
 
 	template <typename TMap, typename TCmp, typename TAct>
@@ -130,23 +144,23 @@ class AnimatedVisualization : public modlib::BmServerModule {
         }
 
         Rectangle src = {
-			.x      = sprite->clip.x,
-			.y      = sprite->clip.y,
-			.width  = sprite->clip.w,
-			.height = sprite->clip.h,
-		};
+            .x      = sprite->clip.x,
+            .y      = sprite->clip.y,
+            .width  = sprite->clip.w,
+            .height = sprite->clip.h,
+        };
 
         Rectangle dst = {
-			.x      = obj.pos.x + s.pos.x + sprite->offset.x,
-			.y      = obj.pos.y + s.pos.y + sprite->offset.y,
-			.width  = sprite->size.x,
-			.height = sprite->size.y,
-		};
+            .x      = (obj.pos.x + s.pos.x + sprite->offset.x) * kRenderScale,
+            .y      = (obj.pos.y + s.pos.y + sprite->offset.y) * kRenderScale,
+            .width  = sprite->size.x * kRenderScale,
+            .height = sprite->size.y * kRenderScale,
+        };
 
-		Vector2 origin = {
-			.x = sprite->origin.x,
-			.y = sprite->origin.y
-		};
+        Vector2 origin = {
+            .x = sprite->origin.x * kRenderScale,
+            .y = sprite->origin.y * kRenderScale
+        };
 
         if (s.forceWhite) {
             DrawRectanglePro(dst, origin, s.rotation, WHITE);

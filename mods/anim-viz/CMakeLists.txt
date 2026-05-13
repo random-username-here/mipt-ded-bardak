@@ -1,7 +1,7 @@
 project(viz-animated)
 
 add_library(viz-animated MODULE mod.cpp)
-target_link_libraries(viz-animated PRIVATE modlib modlib-ifc)
+target_link_libraries(viz-animated PRIVATE modlib modlib-ifc map-core)
 set_target_properties(viz-animated PROPERTIES OUTPUT_NAME "isd.bardak.anim-viz" PREFIX "" SUFFIX ".mod")
 
 find_package(raylib QUIET)
