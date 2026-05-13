@@ -32,6 +32,14 @@ inline uint32_t protocolTeamId(modlib::Entity *e)
 	return 0;
 }
 
+inline bool isAliveEntityForPacman(modlib::Entity *e)
+{
+	if (auto *health = dynamic_cast<EC::Stats::Health *>(e)) {
+		return health->getCurrentHP() > 0;
+	}
+	return true;
+}
+
 } // namespace
 
 class PacmanManager {
@@ -120,10 +128,15 @@ public:
 		++m_tick;
 
 		for (auto &[cl, ps] : pacmen_) {
+			cl->send(bmsg::SV_pacman_hp{ps.ctl.hp()});
+			if (!ps.ctl.alive()) {
+				ps.ctl.destroy();
+				continue;
+			}
+
 			const Vec2i ppos = ps.ctl.pos();
 			cl->send(bmsg::SV_pacman_tick{});
 			cl->send(bmsg::SV_pacman_at{ppos.x, ppos.y});
-			cl->send(bmsg::SV_pacman_hp{ps.ctl.hp()});
 		}
 
 		timer_->setTimer(1, [this]() { sendPeriodicState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
@@ -131,8 +144,10 @@ public:
 
 	void sendWhereFor(BmClient *client, uint32_t team_id)
 	{
-		for (const auto &[id, ent] : map_->getEntityList()) {
-			(void)id;
+		for (const auto &[_, ent] : map_->getEntityList()) {
+			if (!isAliveEntityForPacman(ent)) {
+				continue;
+			}
 			const uint32_t tid = protocolTeamId(ent);
 			if (tid != team_id) {
 				continue;
@@ -146,6 +161,9 @@ public:
 	{
 		const auto it = pacmen_.find(client);
 		if (it == pacmen_.end()) {
+			return;
+		}
+		if (!it->second.ctl.alive()) {
 			return;
 		}
 
@@ -171,7 +189,7 @@ public:
 
 				for (const auto &[eid, entity] : tile->getEntityList()) {
 					(void)eid;
-					if (entity != it->second.ctl.pacman()) {
+					if (entity != it->second.ctl.pacman() && isAliveEntityForPacman(entity)) {
 						client->send(bmsg::SV_pacman_sees{x, y, static_cast<uint32_t>(entity->getID()),
 						                                  protocolTeamId(entity)});
 					}

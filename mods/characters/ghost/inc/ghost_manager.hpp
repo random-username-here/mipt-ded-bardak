@@ -32,6 +32,14 @@ inline uint32_t protocolTeamIdForGhost(modlib::Entity *e)
 	return 0;
 }
 
+inline bool isAliveEntityForGhost(modlib::Entity *e)
+{
+	if (auto *health = dynamic_cast<EC::Stats::Health *>(e)) {
+		return health->getCurrentHP() > 0;
+	}
+	return true;
+}
+
 } // namespace
 
 class GhostManager {
@@ -130,10 +138,15 @@ public:
 		++m_tick;
 
 		for (auto &[cl, gs] : ghosts_) {
+			cl->send(bmsg::SV_ghost_hp{gs.ctl.hp()});
+			if (!gs.ctl.alive()) {
+				gs.ctl.destroy();
+				continue;
+			}
+
 			const Vec2i ppos = gs.ctl.pos();
 			cl->send(bmsg::SV_ghost_tick{});
 			cl->send(bmsg::SV_ghost_at{ppos.x, ppos.y});
-			cl->send(bmsg::SV_ghost_hp{gs.ctl.hp()});
 		}
 
 		timer_->setTimer(1, [this]() { sendPeriodicState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
@@ -141,8 +154,10 @@ public:
 
 	void sendWhereFor(BmClient *client, uint32_t team_id)
 	{
-		for (const auto &[id, ent] : map_->getEntityList()) {
-			(void)id;
+		for (const auto &[_, ent] : map_->getEntityList()) {
+			if (!isAliveEntityForGhost(ent)) {
+				continue;
+			}
 			const uint32_t tid = protocolTeamIdForGhost(ent);
 			if (tid != team_id) {
 				continue;
@@ -156,6 +171,9 @@ public:
 	{
 		const auto it = ghosts_.find(client);
 		if (it == ghosts_.end()) {
+			return;
+		}
+		if (!it->second.ctl.alive()) {
 			return;
 		}
 
@@ -181,7 +199,7 @@ public:
 
 				for (const auto &[eid, entity] : tile->getEntityList()) {
 					(void)eid;
-					if (entity != it->second.ctl.ghost()) {
+					if (entity != it->second.ctl.ghost() && isAliveEntityForGhost(entity)) {
 						client->send(bmsg::SV_ghost_sees{x, y, static_cast<uint32_t>(entity->getID()),
 						                              protocolTeamIdForGhost(entity)});
 					}

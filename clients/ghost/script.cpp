@@ -236,9 +236,9 @@ class GhostClient : public ClientBase
 		const int8_t dx = sign(target.x - m_pos.x);
 		const int8_t dy = sign(target.y - m_pos.y);
 
-		if (sendMoveIfUseful(dx, dy)) {
-			return m_alive;
-		}
+		// if (sendMoveIfUseful(dx, dy)) {
+		// 	return m_alive;
+		// }
 		if (sendMoveIfUseful(dx, 0)) {
 			return m_alive;
 		}

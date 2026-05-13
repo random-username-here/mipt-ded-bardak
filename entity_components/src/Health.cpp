@@ -43,9 +43,10 @@ Stats::Health::inflictDmg (
     Stats::Health::HP damage
 )
 {
+    const bool wasAlive = m_currentHP > 0;
     m_currentHP = std::max((HP)0, m_currentHP - damage);
     EvDamaged.emit(damage);
-    if (m_currentHP == 0) EvDeath.emit();
+    if (wasAlive && m_currentHP == 0) EvDeath.emit();
     return m_currentHP;
 }
 
