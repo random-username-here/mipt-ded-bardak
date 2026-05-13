@@ -417,7 +417,7 @@ private:
     {
         if (auto *target = m_ctl->map()->getEntity(static_cast<modlib::Entity::ID>(targetId))) {
             const modlib::Vec2i raw = target->getPosition() - m_ctl->hunter()->getPosition();
-            if (combat_grid::inArcherRange(m_ctl->hunter()->getPosition(), target->getPosition())) {
+            if (inHunterRange(m_ctl->hunter()->getPosition(), target->getPosition())) {
                 return raw;
             }
         }

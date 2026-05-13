@@ -9,6 +9,27 @@
 #include <optional>
 #include <string_view>
 
+inline bool inHunterRange(modlib::Vec2i from, modlib::Vec2i to)
+{
+    const int dx = combat_grid::iabs(from.x - to.x);
+    const int dy = combat_grid::iabs(from.y - to.y);
+
+    if (dx == 0 && dy == 0) {
+        return false;
+    }
+
+    /*
+     * Literal 5x5 mask:
+     *
+     * 0 1 1 1 0
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 0 1 1 1 0
+     */
+    return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
+}
+
 class HunterCtl {
     static constexpr uint64_t kMoveCdTicks  = 1;
     static constexpr uint64_t kVolleyCdTicks = 2;
@@ -127,7 +148,7 @@ private:
         }
 
         const Vec2i delta = target->getPosition() - hunter_->getPosition();
-        if (!combat_grid::inArcherRange(hunter_->getPosition(), target->getPosition())) {
+        if (!inHunterRange(hunter_->getPosition(), target->getPosition())) {
             return false;
         }
 
@@ -198,7 +219,7 @@ private:
         if (!combat_grid::isCombatant(target)) {
             return false;
         }
-        if (!combat_grid::inArcherRange(hunter_->getPosition(), target->getPosition())) {
+        if (!inHunterRange(hunter_->getPosition(), target->getPosition())) {
             return false;
         }
 

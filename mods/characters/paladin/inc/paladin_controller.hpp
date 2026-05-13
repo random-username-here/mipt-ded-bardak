@@ -8,6 +8,27 @@
 #include <memory>
 #include <string_view>
 
+inline bool inPaladinRange(modlib::Vec2i from, modlib::Vec2i to)
+{
+    const int dx = combat_grid::iabs(from.x - to.x);
+    const int dy = combat_grid::iabs(from.y - to.y);
+
+    if (dx == 0 && dy == 0) {
+        return false;
+    }
+
+    /*
+     * Literal 5x5 mask:
+     *
+     * 0 1 1 1 0
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 0 1 1 1 0
+     */
+    return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
+}
+
 class PaladinCtl {
     static constexpr uint64_t kMoveCdTicks   = 2;
     static constexpr uint64_t kSmiteCdTicks     = 3;
@@ -179,7 +200,7 @@ private:
         }
 
         const Vec2i delta = target->getPosition() - paladin_->getPosition();
-        if (!combat_grid::inArcherRange(paladin_->getPosition(), target->getPosition())) {
+        if (!inPaladinRange(paladin_->getPosition(), target->getPosition())) {
             return false;
         }
 
