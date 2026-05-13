@@ -10,18 +10,20 @@
 
 class PaladinCtl {
     static constexpr uint64_t kMoveCdTicks   = 2;
-    static constexpr uint64_t kSmiteCdTicks  = 2;
-    static constexpr uint64_t kAegisCdTicks  = 6;
-    static constexpr int      kSmiteDamage   = 16;
-    static constexpr int      kSmiteSplash   = 6;
-    static constexpr int      kSmiteLifesteal = 4;
-    static constexpr int      kAegisHeal     = 18;
+    static constexpr uint64_t kSmiteCdTicks     = 3;
+    static constexpr uint64_t kAegisCdTicks     = 8;
+    static constexpr uint64_t kJudgementCdTicks = 4;
+    static constexpr int      kSmiteDamage      = 10;
+    static constexpr int      kJudgementDamage  = 8;
+    static constexpr int      kJudgementVsRoot  = 14;
+    static constexpr int      kAegisHeal        = 10;
 
     Level *map_ = nullptr;
     std::unique_ptr<Paladin> paladin_ = nullptr;
     uint64_t m_nextMoveTick   = 0;
     uint64_t m_nextSmiteTick  = 0;
     uint64_t m_nextAegisTick  = 0;
+    uint64_t m_nextJudgementTick = 0;
 
 public:
     PaladinCtl() = default;
@@ -75,6 +77,9 @@ public:
         }
         if (ability == "aegis") {
             return useAegis(curTick);
+        }
+        if (ability == "judgement") {
+            return useJudgement(targetId, curTick);
         }
 
         return false;
@@ -139,39 +144,6 @@ private:
         paladin_->EvAttack.emit(id);
         health->inflictDmg(kSmiteDamage);
 
-        // Holy shockwave: smite splashes nearby combatants around the target.
-        const Vec2i center = target->getPosition();
-        const auto size = map_->getSize();
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dy = -1; dy <= 1; ++dy) {
-                if (dx == 0 && dy == 0) {
-                    continue;
-                }
-                const Vec2i at{center.x + dx, center.y + dy};
-                if (at.x < 0 || at.y < 0 || at.x >= size.x || at.y >= size.y) {
-                    continue;
-                }
-                Tile *tile = map_->getTile(at);
-                if (tile == nullptr) {
-                    continue;
-                }
-                for (const auto &[entityId, entity] : tile->getEntityList()) {
-                    (void)entityId;
-                    if (entity == nullptr || entity == paladin_.get()) {
-                        continue;
-                    }
-                    if (!combat_grid::isCombatant(entity)) {
-                        continue;
-                    }
-                    auto *nearHealth = dynamic_cast<EC::Stats::Health *>(entity);
-                    if (nearHealth != nullptr && nearHealth->getCurrentHP() > 0) {
-                        nearHealth->inflictDmg(kSmiteSplash);
-                    }
-                }
-            }
-        }
-
-        paladin_->heal(kSmiteLifesteal);
         m_nextSmiteTick = curTick + kSmiteCdTicks + 1;
         return true;
     }
@@ -189,6 +161,40 @@ private:
 
         paladin_->heal(kAegisHeal);
         m_nextAegisTick = curTick + kAegisCdTicks + 1;
+        return true;
+    }
+
+    bool useJudgement(size_t whom, uint64_t curTick)
+    {
+        assert(paladin_);
+        assert(map_);
+
+        if (curTick < m_nextJudgementTick) {
+            return false;
+        }
+
+        auto *target = map_->getEntity(static_cast<modlib::Entity::ID>(whom));
+        if (target == nullptr || target == paladin_.get()) {
+            return false;
+        }
+
+        const Vec2i delta = target->getPosition() - paladin_->getPosition();
+        if (!combat_grid::inArcherRange(paladin_->getPosition(), target->getPosition())) {
+            return false;
+        }
+
+        auto *health = dynamic_cast<EC::Stats::Health *>(target);
+        if (health == nullptr || health->getCurrentHP() <= 0) {
+            return false;
+        }
+
+        paladin_->rotate(paladinDirFromDelta(delta));
+        paladin_->EvAttack.emit(target->getID());
+
+        const int damage = combat_grid::isRoot(target) ? kJudgementVsRoot : kJudgementDamage;
+        health->inflictDmg(damage);
+
+        m_nextJudgementTick = curTick + kJudgementCdTicks + 1;
         return true;
     }
 

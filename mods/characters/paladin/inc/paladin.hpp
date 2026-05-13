@@ -32,9 +32,9 @@ class Paladin :
     virtual public EC::Stats::Attack
 {
 public:
-    static constexpr int MAX_HP     = 120;
-    static constexpr int CURRENT_HP = 120;
-    static constexpr int STRENGTH   = 12;
+    static constexpr int MAX_HP     = 90;
+    static constexpr int CURRENT_HP = 90;
+    static constexpr int STRENGTH   = 9;
     static constexpr Type PALADIN_TYPE = "paladin";
 
 private:
@@ -55,7 +55,18 @@ public:
             "warhammer",
             {
                 modlib::AbilityDef("smite"),
+            }
+        ));
+        inventory_.addItem(modlib::ItemDef(
+            "tower_shield",
+            {
                 modlib::AbilityDef("aegis"),
+            }
+        ));
+        inventory_.addItem(modlib::ItemDef(
+            "relic_seal",
+            {
+                modlib::AbilityDef("judgement"),
             }
         ));
     }

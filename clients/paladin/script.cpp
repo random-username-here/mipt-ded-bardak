@@ -8,7 +8,7 @@
 #include <unordered_set>
 
 class PaladinClient : public ClientBase {
-    static constexpr int32_t kAegisThresholdHp = 55;
+    static constexpr int32_t kAegisThresholdHp = 35;
 
     bool    m_alive = true;
     int32_t m_hp = 0;
@@ -172,7 +172,14 @@ private:
 
     bool tryUseOnEnemy()
     {
-        if (m_abilities.count("smite") == 0) {
+        if (canUseJudgement()) {
+            const auto enemy = m_ai.firstEnemyInRange();
+            if (enemy && sendUse("judgement", enemy->id)) {
+                return true;
+            }
+        }
+
+        if (!canUseSmite()) {
             return false;
         }
 
@@ -192,7 +199,7 @@ private:
         if (m_hp > kAegisThresholdHp) {
             return false;
         }
-        if (m_abilities.count("aegis") == 0) {
+        if (!canUseAegis()) {
             return false;
         }
 
@@ -201,7 +208,14 @@ private:
 
     bool tryUseOnRoot()
     {
-        if (m_abilities.count("smite") == 0) {
+        if (canUseJudgement()) {
+            const auto root = m_ai.firstRootInRange();
+            if (root && sendUse("judgement", root->id)) {
+                return true;
+            }
+        }
+
+        if (!canUseSmite()) {
             return false;
         }
 
@@ -270,6 +284,21 @@ private:
         }
 
         return true;
+    }
+
+    bool canUseSmite() const
+    {
+        return m_abilities.count("smite") != 0 && m_items.count("warhammer") != 0;
+    }
+
+    bool canUseAegis() const
+    {
+        return m_abilities.count("aegis") != 0 && m_items.count("tower_shield") != 0;
+    }
+
+    bool canUseJudgement() const
+    {
+        return m_abilities.count("judgement") != 0 && m_items.count("relic_seal") != 0;
     }
 };
 
