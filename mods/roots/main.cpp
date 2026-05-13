@@ -1,6 +1,7 @@
 #include "Animator.hpp"
 #include "AssetManager.hpp"
 #include "Map.hpp"
+#include "Roots.hpp"
 #include "Timer.hpp"
 #include "Vec2.hpp"
 #include "modlib_manager.hpp"
@@ -11,6 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <array>
 
 namespace {
 
@@ -22,6 +24,18 @@ struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 16, 16};
     static constexpr modlib::Vec2f kSize = {kTilePixels, kTilePixels};
 };
+
+namespace root_grow {
+
+struct Config {
+    static constexpr modlib::Rectf kClip = {0, 0, 16, 16};
+    static constexpr modlib::Vec2f kSize = {kTilePixels, kTilePixels};
+};
+
+constexpr int kZ = 1;
+static constexpr float kFrameSeconds = 0.045f;
+
+} // namespace root_grow
 
 constexpr int kObjectLayer = 1;
 constexpr int kZ = 0;
@@ -36,6 +50,23 @@ static const modlib::SpriteAsset Root = {
     .file = ASSETS_DIR "/entities/root.png",
     .clip = root_sprite::Config::kClip,
     .size = root_sprite::Config::kSize,
+};
+
+inline modlib::SpriteAsset growSprite(std::string_view id, int col)
+{
+    return {
+        .id   = id,
+        .file = ASSETS_DIR "/units/mage/anim_root_grow.png",
+        .clip = {static_cast<float>(col * 16), 0, 16, 16},
+        .size = root_sprite::root_grow::Config::kSize,
+    };
+}
+
+static const std::array<modlib::SpriteAsset, 4> Grow = {
+    growSprite("root.g.1", 0),
+    growSprite("root.g.2", 1),
+    growSprite("root.g.3", 2),
+    growSprite("root.g.4", 3),
 };
 
 } // namespace root_assets
@@ -63,13 +94,13 @@ class RootAnimator {
     anim::SpriteSlotID      m_slot   = 0;
 
     struct {
-        anim::AnimationID idle = anim::NO_ANIMATION;
-        anim::AnimationID hit = anim::NO_ANIMATION;
+        anim::AnimationID idle  = anim::NO_ANIMATION;
+        anim::AnimationID hit   = anim::NO_ANIMATION;
         anim::AnimationID death = anim::NO_ANIMATION;
     } m_anims;
 
 public:
-    RootAnimator(Root *root, anim::AnimationManager *anim, modlib::AssetManager *assets)
+    RootAnimator(Root *root, anim::AnimationManager *anim, modlib::AssetManager *assets, bool grow)
         : m_root(root), m_anim(anim), m_assets(assets)
     {
         assert(m_root);
@@ -81,13 +112,35 @@ public:
         registerAssets();
         buildAnimations();
         subscribe();
-        animateIdle();
+        if (grow) {
+            animateGrow();
+        } else {
+            animateIdle();
+        }
+    }
+
+    void animateGrow()
+    {
+        auto *animation = m_anim->newAnimation();
+
+        for (const auto &grow : root_assets::Grow) {
+            animation->addStep<anim::SetAssetStep>(m_slot, grow.id, root_sprite::root_grow::kZ);
+            animation->addStep<anim::Step>(root_sprite::root_grow::kFrameSeconds, root_sprite::root_grow::kFrameSeconds);
+        }
+
+        animation->addStep<anim::SetAssetStep>(m_slot, root_assets::Root.id, root_sprite::kZ);
+        animation->finishBuild();
+
+        m_anim->play(m_object, pixelPosition(m_root->getPosition()), root_sprite::kObjectLayer, animation->id());
     }
 
 private:
     void registerAssets()
     {
         m_assets->registerSprite(root_assets::Root);
+        for (const auto &asset : root_assets::Grow) {
+            m_assets->registerSprite(asset);
+        }
     }
 
     void buildAnimations()
@@ -160,7 +213,7 @@ struct RootEntry {
     std::unique_ptr<RootAnimator> animator;
 };
 
-class RootsModule final : public Mod {
+class RootsModule final : public Mod, public modlib::RootSystem {
     modlib::Level          *m_map    = nullptr;
     modlib::Timer          *m_timer  = nullptr;
     anim::AnimationManager *m_anim   = nullptr;
@@ -195,6 +248,34 @@ public:
         );
     }
 
+    modlib::Entity::ID spawnRoot(modlib::Vec2i pos, bool animateGrow) override
+    {
+        modlib::Tile *tile = m_map->getTile(pos);
+        if (tile == nullptr || tile->getType() == modlib::Tile::BasicTypes::WALL) {
+            return modlib::RootSystem::INVALID_ROOT_ID;
+        }
+
+        for (const auto &[id, entity] : tile->getEntityList()) {
+            (void)id;
+
+            if (entity != nullptr) {
+                return modlib::RootSystem::INVALID_ROOT_ID;
+            }
+        }
+
+        auto root = std::make_unique<Root>(tile);
+        const modlib::Entity::ID id = m_map->newEntity(root.get(), tile);
+
+        root->EvDeath.subscribe([this, id]() {
+            m_pendingRemoval.insert(id);
+        });
+
+        auto animator = std::make_unique<RootAnimator>(root.get(), m_anim, m_assets, animateGrow);
+        m_roots.emplace(id, RootEntry{std::move(root), std::move(animator)});
+
+        return id;
+    }
+
 private:
     void spawnDefaults()
     {
@@ -212,26 +293,8 @@ private:
         };
 
         for (const modlib::Vec2i pos : positions) {
-            spawnRoot(pos);
+            spawnRoot(pos, false);
         }
-    }
-
-    void spawnRoot(modlib::Vec2i pos)
-    {
-        modlib::Tile *tile = m_map->getTile(pos);
-        if (tile == nullptr || tile->getType() == modlib::Tile::BasicTypes::WALL) {
-            return;
-        }
-
-        auto root = std::make_unique<Root>(tile);
-        const modlib::Entity::ID id = m_map->newEntity(root.get(), tile);
-
-        root->EvDeath.subscribe([this, id]() {
-            m_pendingRemoval.insert(id);
-        });
-
-        auto animator = std::make_unique<RootAnimator>(root.get(), m_anim, m_assets);
-        m_roots.emplace(id, RootEntry{std::move(root), std::move(animator)});
     }
 
     void sweepDeadRoots()

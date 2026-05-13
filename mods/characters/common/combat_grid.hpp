@@ -2,7 +2,6 @@
 
 #include "Map.hpp"
 
-#include <string_view>
 #include <vector>
 
 namespace combat_grid {
@@ -14,22 +13,11 @@ inline int iabs(int v)
 
 inline bool visibleOffset(int dx, int dy)
 {
-    /*
-     * Literal 7x7 mask:
-     *
-     * 0 0 1 1 1 0 0
-     * 0 1 1 1 1 1 0
-     * 1 1 1 1 1 1 1
-     * 1 1 1 1 1 1 1
-     * 1 1 1 1 1 1 1
-     * 0 1 1 1 1 1 0
-     * 0 0 1 1 1 0 0
-     */
-    if (dx < -3 || dx > 3 || dy < -3 || dy > 3) {
+    if (dx < -5 || dx > 5 || dy < -5 || dy > 5) {
         return false;
     }
 
-    return dx * dx + dy * dy <= 10;
+    return dx * dx + dy * dy <= 26;
 }
 
 inline bool visible(modlib::Vec2i from, modlib::Vec2i to)
@@ -118,12 +106,28 @@ inline bool inArcherRange(modlib::Vec2i from, modlib::Vec2i to)
     return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
 }
 
+inline bool inMageFlameRange(modlib::Vec2i from, modlib::Vec2i to)
+{
+    const int dx = iabs(from.x - to.x);
+    const int dy = iabs(from.y - to.y);
+    const int manhattan = dx + dy;
+
+    /*
+     * 0 0 1 0 0
+     * 0 1 1 1 0
+     * 1 1 0 1 1
+     * 0 1 1 1 0
+     * 0 0 1 0 0
+     */
+    return manhattan > 0 && manhattan <= 2;
+}
+
 inline std::vector<modlib::Vec2i> visibleOffsets()
 {
     std::vector<modlib::Vec2i> out;
 
-    for (int dx = -3; dx <= 3; ++dx) {
-        for (int dy = -3; dy <= 3; ++dy) {
+    for (int dx = -5; dx <= 5; ++dx) {
+        for (int dy = -5; dy <= 5; ++dy) {
             if (visibleOffset(dx, dy)) {
                 out.push_back({dx, dy});
             }

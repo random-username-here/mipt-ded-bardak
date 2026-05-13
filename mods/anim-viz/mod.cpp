@@ -609,16 +609,17 @@ class AnimatedVisualization : public modlib::BmServerModule {
             return false;
         }
 
-        const std::string_view type = entity->getType();
+        const bmsg::Char64 type = entity->getType();
 
-        return type == "knight" ||
-               type == "rogue" ||
-               type == "archer";
+        return type == bmsg::Char64("knight") ||
+               type == bmsg::Char64("rogue")  ||
+               type == bmsg::Char64("archer") ||
+               type == bmsg::Char64("mage");
     }
 
     static std::vector<modlib::Vec2i> attackOffsetsFor(const modlib::Entity *entity)
     {
-        const std::string_view type = entity->getType();
+        const bmsg::Char64 type = entity->getType();
 
         std::vector<modlib::Vec2i> out;
 
@@ -649,6 +650,19 @@ class AnimatedVisualization : public modlib::BmServerModule {
             for (int dx = -2; dx <= 2; ++dx) {
                 for (int dy = -2; dy <= 2; ++dy) {
                     if (combat_grid::inArcherRange({0, 0}, {dx, dy})) {
+                        out.push_back({dx, dy});
+                    }
+                }
+            }
+
+            return out;
+        }
+
+        if (type == "mage") {
+            for (int dx = -2; dx <= 2; ++dx) {
+                for (int dy = -2; dy <= 2; ++dy) {
+                    if (combat_grid::inArcherRange({0, 0}, {dx, dy}) ||
+                            combat_grid::inMageFlameRange({0, 0}, {dx, dy})) {
                         out.push_back({dx, dy});
                     }
                 }

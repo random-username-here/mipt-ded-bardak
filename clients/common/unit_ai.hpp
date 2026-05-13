@@ -47,6 +47,7 @@ enum class AiRangeKind {
     Moore,
     VonNeumann,
     ArcherCircle,
+    MageFlameStar,
 };
 
 inline int aiAbs(int32_t v)
@@ -74,6 +75,10 @@ inline bool aiInRange(AiPos from, AiPos to, AiRangeKind range)
 
     if (range == AiRangeKind::ArcherCircle) {
         return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
+    }
+
+    if (range == AiRangeKind::MageFlameStar) {
+        return dx + dy <= 2;
     }
 
     return dx + dy == 1;
