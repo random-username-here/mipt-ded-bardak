@@ -98,11 +98,7 @@ public:
             }
 
             // Face target (in case the direction got out of sync).
-            if (entity->getPosition().x < origin.x) {
-                tank_->rotate(TankDir::left);
-            } else if (entity->getPosition().x > origin.x) {
-                tank_->rotate(TankDir::right);
-            }
+            tank_->rotate(tankDirFromDelta(entity->getPosition() - origin));
 
             const modlib::Entity::ID targetId = entity->getID();
             tank_->EvAttack.emit(targetId);

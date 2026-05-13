@@ -17,8 +17,19 @@ enum class TankDir : int8_t {
 
 inline TankDir tankDirFromClient(int8_t dir)
 {
-    // API: 0 - left, 1 - right
-    return dir == 0 ? TankDir::left : TankDir::right;
+    // API: 0 - left, 1 - right, 2 - down, 3 - up
+    switch (dir) {
+    case 0:
+        return TankDir::left;
+    case 1:
+        return TankDir::right;
+    case 2:
+        return TankDir::down;
+    case 3:
+        return TankDir::up;
+    default:
+        return TankDir::right;
+    }
 }
 
 inline TankDir tankDirFromDelta(Vec2i delta)
