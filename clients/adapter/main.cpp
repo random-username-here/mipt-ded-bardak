@@ -1,22 +1,84 @@
+#include <cstdio>
+#include <cstdlib>
+#include <ext/stdio_filebuf.h>
+#include <istream>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <iostream>
 #include <unistd.h>
 #include "client-core/base/client_base.hpp"
 
+class AdapterClient : public ClientBase {
+public:
+    AdapterClient(const std::string &ini, const char *prefix) : ClientBase(ini) {
+        registerOnPrefix(prefix, [this](const PanFrame &frame) {
+            return 0;
+        });
+    }
+};
 
-int
-main (
-    int    argc,
-    char** argv
-)
-{
-    if (argc < 3)
-    {
+int main(int argc, char **argv) {
+    if (argc < 3) {
         std::cerr << "usage: \"" << argv[0] << " *path2script* *settings.ini*" << std::endl;
+        return EXIT_FAILURE;
     }
 
-    int pipeIn [2];
-    int pipeOut[2];
+    int pipe2ch[2];
+    int pipe4ch[2];
 
+    if (pipe(pipe2ch) || pipe(pipe4ch)) {
+        perror("could not open pipe");
+        abort();
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        perror("fork failed");
+
+        close(pipe2ch[0]);
+        close(pipe2ch[1]);
+        close(pipe4ch[0]);
+        close(pipe4ch[1]);
+
+        abort();
+    }
+
+    if (pid == 0) { // child
+        if (dup2(pipe2ch[0], STDIN_FILENO) == -1) {
+            perror("dup2");
+            abort();
+        }
+        close(pipe2ch[1]);
+
+        if (dup2(pipe4ch[1], STDOUT_FILENO) == -1) {
+            perror("dup2");
+            abort();
+        }
+        close(pipe4ch[0]);
+
+        execlp(argv[1], argv[1], NULL);
+        perror("execlp failed");
+
+        close(pipe2ch[0]);
+        close(pipe4ch[1]);
+
+        abort();
+    }
+
+    // parent
+    close(pipe2ch[0]);
+    close(pipe4ch[1]);
+
+    int to_child   = pipe2ch[1];
+    int from_child = pipe4ch[0];
+
+    __gnu_cxx::stdio_filebuf<char> inbuf (from_child, std::ios::in );
+    __gnu_cxx::stdio_filebuf<char> outbuf(to_child,   std::ios::out);
+    std::istream s2ch(&inbuf );
+    std::ostream s4ch(&outbuf);
+
+    std::string prefix;
+    s2ch >> prefix;
+
+    std::cout << "prefix: " << prefix << '\n';
 }
