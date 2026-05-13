@@ -73,14 +73,14 @@ public:
         it->second.ctl.move(moveCmd.dx, moveCmd.dy, m_tick);
     }
 
-    void receiveAttackCommand(BmClient *client, bmsg::CL_knight_attack atkCmd)
+    void receiveUseCommand(BmClient *client, bmsg::CL_knight_use useCmd)
     {
         auto it = knights_.find(client);
         if (it == knights_.end()) {
             return;
         }
 
-        it->second.ctl.attack(atkCmd.whom, m_tick);
+        it->second.ctl.useAbility(useCmd.ability, useCmd.target, m_tick);
     }
 
     size_t count(BmClient *client) const
@@ -112,11 +112,23 @@ private:
 
             sendRoots(client);
             sendWalls(client, size);
+            sendInventory(client, knight.ctl.knight()->inventory());
 
             client->send(bmsg::SV_knight_tick{});
         }
 
         timer_->setTimer(1, [this]() { sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
+    }
+
+    void sendInventory(BmClient *client, const modlib::Inventory &inventory)
+    {
+        for (const auto &item : inventory.items()) {
+            client->send(bmsg::SV_knight_item{item.id});
+        }
+
+        for (const auto &ability : inventory.abilities()) {
+            client->send(bmsg::SV_knight_ability{ability.id});
+        }
     }
 
     void sendRoots(BmClient *client)

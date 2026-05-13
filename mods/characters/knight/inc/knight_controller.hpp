@@ -5,10 +5,11 @@
 #include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <string_view>
 
 class KnightCtl {
     static constexpr uint64_t kMoveCdTicks   = 1;
-    static constexpr uint64_t kAttackCdTicks = 1;
+    static constexpr uint64_t kSlashCdTicks  = 1;
     static constexpr int      kAttackDamage  = 10;
 
     Level *map_ = nullptr;
@@ -55,34 +56,19 @@ public:
         m_nextMoveTick = curTick + kMoveCdTicks;
     }
 
-    void attack(size_t whom, uint64_t curTick)
+    bool useAbility(std::string_view ability, size_t targetId, uint64_t curTick)
     {
         assert(knight_);
-        assert(map_);
 
-        if (curTick < m_nextAttackTick) {
-            return;
+        if (!knight_->inventory().hasAbility(ability)) {
+            return false;
         }
 
-        auto *target = map_->getEntity(static_cast<modlib::Entity::ID>(whom));
-        if (target == nullptr || target == knight_.get()) {
-            return;
+        if (ability == "slash") {
+            return useSlash(targetId, curTick);
         }
 
-        const Vec2i delta = target->getPosition() - knight_->getPosition();
-        if (std::abs(delta.x) + std::abs(delta.y) != 1) {
-            return;
-        }
-
-        knight_->rotate(knightDirFromDelta(delta));
-
-        if (auto *health = dynamic_cast<EC::Stats::Health *>(target)) {
-            const modlib::Entity::ID targetId = target->getID();
-            health->inflictDmg(kAttackDamage);
-            knight_->EvAttack.emit(targetId);
-        }
-
-        m_nextAttackTick = curTick + kAttackCdTicks;
+        return false;
     }
 
     void destroy()
@@ -114,6 +100,37 @@ public:
     }
 
 private:
+    bool useSlash(size_t whom, uint64_t curTick)
+    {
+        assert(knight_);
+        assert(map_);
+
+        if (curTick < m_nextAttackTick) {
+            return false;
+        }
+
+        auto *target = map_->getEntity(static_cast<modlib::Entity::ID>(whom));
+        if (target == nullptr || target == knight_.get()) {
+            return false;
+        }
+
+        const Vec2i delta = target->getPosition() - knight_->getPosition();
+        if (std::abs(delta.x) + std::abs(delta.y) != 1) {
+            return false;
+        }
+
+        knight_->rotate(knightDirFromDelta(delta));
+
+        if (auto *health = dynamic_cast<EC::Stats::Health *>(target)) {
+            const modlib::Entity::ID id = target->getID();
+            health->inflictDmg(kAttackDamage);
+            knight_->EvAttack.emit(id);
+        }
+
+        m_nextAttackTick = curTick + kSlashCdTicks;
+        return true;
+    }
+
     Vec2i randomWalkablePosition() const
     {
         const auto sz = map_->getSize();

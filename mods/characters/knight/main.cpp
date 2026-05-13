@@ -89,13 +89,13 @@ public:
             return;
         }
 
-        if (message.header()->type == "attack") {
-            const auto attack = bmsg::CL_knight_attack::decode(message);
-            if (attack) {
-                manager.receiveAttackCommand(client, *attack);
+        if (message.header()->type == "use") {
+            const auto use = bmsg::CL_knight_use::decode(message);
+            if (use) {
+                manager.receiveUseCommand(client, *use);
             }
             return;
-        }
+}
     }
 
 private:

@@ -54,8 +54,10 @@ private:
     bool    m_havePos = false;
     int32_t m_hp = 0;
     Pos     m_pos{};
-    std::vector<RootInfo> m_roots;
+    std::vector       <RootInfo>       m_roots;
     std::unordered_set<Pos, Pos::Hash> m_walls;
+    std::unordered_set<std::string>    m_items;
+    std::unordered_set<std::string>    m_abilities;
 
 public:
     KnightClient(const std::string &ini)
@@ -123,6 +125,23 @@ private:
             m_walls.insert({wall->x, wall->y});
             return true;
         }
+        if (type == "item") {
+            const auto item = bmsg::SV_knight_item::decode(msg);
+            if (!item) {
+                return false;
+            }
+            m_items.insert(std::string(item->id));
+            return true;
+        }
+
+        if (type == "ability") {
+            const auto ability = bmsg::SV_knight_ability::decode(msg);
+            if (!ability) {
+                return false;
+            }
+            m_abilities.insert(std::string(ability->id));
+            return true;
+        }
         return true;
     }
 
@@ -148,7 +167,7 @@ private:
             return true;
         }
 
-        if (attackAdjacentRoot()) {
+        if (slashAdjacentRoot()) {
             clearTickRoots();
             return m_alive;
         }
@@ -163,8 +182,12 @@ private:
         return ok;
     }
 
-    bool attackAdjacentRoot()
+    bool slashAdjacentRoot()
     {
+        if (m_abilities.count("slash") == 0) {
+            return false;
+        }
+
         const auto it = std::find_if(m_roots.begin(), m_roots.end(), [this](const RootInfo &root) {
             return manhattan(m_pos, root.pos) == 1;
         });
@@ -173,10 +196,11 @@ private:
             return false;
         }
 
-        if (!sendMessage(bmsg::CL_knight_attack{it->id})) {
-            std::cerr << "send attack failed\n";
+        if (!sendMessage(bmsg::CL_knight_use{"slash", it->id})) {
+            std::cerr << "send slash failed\n";
             m_alive = false;
         }
+
         return true;
     }
 

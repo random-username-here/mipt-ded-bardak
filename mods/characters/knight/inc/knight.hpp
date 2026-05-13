@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BmServerModule.hpp"
+#include "Inventory.hpp"
 #include "Map.hpp"
 
 #include <cstdlib>
@@ -39,6 +40,7 @@ public:
 private:
     Level    *map_ = nullptr;
     KnightDir dir_ = KnightDir::down;
+    modlib::Inventory inventory_;
 
 public:
     Knight(Level *map, Tile *tile, modlib::BmClient *client)
@@ -48,6 +50,13 @@ public:
         , map_(map)
     {
         (void)client;
+
+        inventory_.addItem(modlib::ItemDef(
+            "sword",
+            {
+                modlib::AbilityDef("slash"),
+            }
+        ));
     }
 
     void rotate(KnightDir dir)
@@ -63,5 +72,15 @@ public:
     Level *map()
     {
         return map_;
+    }
+
+    modlib::Inventory &inventory()
+    {
+        return inventory_;
+    }
+
+    const modlib::Inventory &inventory() const
+    {
+        return inventory_;
     }
 };
