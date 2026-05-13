@@ -46,6 +46,7 @@ struct AiSeenEntity {
 enum class AiRangeKind {
     Moore,
     VonNeumann,
+    ArcherCircle,
 };
 
 inline int aiAbs(int32_t v)
@@ -63,8 +64,16 @@ inline bool aiInRange(AiPos from, AiPos to, AiRangeKind range)
     const int dx = aiAbs(from.x - to.x);
     const int dy = aiAbs(from.y - to.y);
 
+    if (dx == 0 && dy == 0) {
+        return false;
+    }
+
     if (range == AiRangeKind::Moore) {
-        return dx <= 1 && dy <= 1 && (dx + dy) > 0;
+        return dx <= 1 && dy <= 1;
+    }
+
+    if (range == AiRangeKind::ArcherCircle) {
+        return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
     }
 
     return dx + dy == 1;

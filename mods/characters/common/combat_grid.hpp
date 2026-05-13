@@ -91,6 +91,27 @@ inline bool inVonNeumannRange(modlib::Vec2i from, modlib::Vec2i to)
     return iabs(from.x - to.x) + iabs(from.y - to.y) == 1;
 }
 
+inline bool inArcherRange(modlib::Vec2i from, modlib::Vec2i to)
+{
+    const int dx = iabs(from.x - to.x);
+    const int dy = iabs(from.y - to.y);
+
+    if (dx == 0 && dy == 0) {
+        return false;
+    }
+
+    /*
+     * Literal 5x5 mask:
+     *
+     * 0 1 1 1 0
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 1 1 1 1 1
+     * 0 1 1 1 0
+     */
+    return dx <= 2 && dy <= 2 && !(dx == 2 && dy == 2);
+}
+
 inline std::vector<modlib::Vec2i> visibleOffsets()
 {
     std::vector<modlib::Vec2i> out;
