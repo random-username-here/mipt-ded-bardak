@@ -1,6 +1,7 @@
 #pragma once
 
 #include "knight.hpp"
+#include "combat_grid.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -47,7 +48,7 @@ public:
 
         const Vec2i delta{dx, dy};
         const Vec2i newPos = knight_->getPosition() + delta;
-        if (!map_->isWalkable(newPos)) {
+        if (!combat_grid::canEnter(map_, newPos, knight_.get())) {
             return;
         }
 
@@ -115,7 +116,7 @@ private:
         }
 
         const Vec2i delta = target->getPosition() - knight_->getPosition();
-        if (std::abs(delta.x) + std::abs(delta.y) != 1) {
+        if (!combat_grid::inMooreRange(knight_->getPosition(), target->getPosition())) {
             return false;
         }
 
@@ -138,7 +139,7 @@ private:
 
         for (int attempt = 0; attempt < 256; ++attempt) {
             const Vec2i pos{std::rand() % sz.x, std::rand() % sz.y};
-            if (map_->isWalkable(pos)) {
+            if (combat_grid::canEnter(map_, pos, knight_.get())) {
                 return pos;
             }
         }
@@ -146,7 +147,7 @@ private:
         for (int x = 0; x < sz.x; ++x) {
             for (int y = 0; y < sz.y; ++y) {
                 const Vec2i pos{x, y};
-                if (map_->isWalkable(pos)) {
+                if (combat_grid::canEnter(map_, pos, knight_.get())) {
                     return pos;
                 }
             }

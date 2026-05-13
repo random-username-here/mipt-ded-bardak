@@ -300,10 +300,16 @@ private:
     {
         if (auto *target = m_ctl->map()->getEntity(static_cast<modlib::Entity::ID>(targetId))) {
             const modlib::Vec2i raw = target->getPosition() - m_ctl->knight()->getPosition();
-            if (std::abs(raw.x) + std::abs(raw.y) == 1) {
-                return raw;
+
+            if (std::abs(raw.x) <= 1 && std::abs(raw.y) <= 1 && (std::abs(raw.x) + std::abs(raw.y)) > 0) {
+                if (raw.x != 0) {
+                    return {raw.x, 0};
+                }
+
+                return {0, raw.y};
             }
         }
+
         return dirDelta(m_ctl->knight()->dir());
     }
 

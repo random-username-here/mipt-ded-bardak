@@ -29,6 +29,7 @@ add_executable(knight_client script.cpp ${KNIGHT_PROTO_OUTPUTS})
 target_include_directories(knight_client PRIVATE
     "${GENERATED_PROTO_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}/proto"
+    "${CMAKE_SOURCE_DIR}/clients/common"
 )
 target_link_libraries(knight_client PRIVATE client-core)
 

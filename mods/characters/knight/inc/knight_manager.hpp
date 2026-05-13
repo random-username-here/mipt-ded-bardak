@@ -6,6 +6,7 @@
 #include "knight_animator.hpp"
 #include "knight_controller.hpp"
 #include "knight_proto.hpp"
+#include "combat_grid.hpp"
 
 #include <iostream>
 #include <unordered_map>
@@ -110,8 +111,7 @@ private:
             client->send(bmsg::SV_knight_at{pos.x, pos.y});
             client->send(bmsg::SV_knight_hp{knight.ctl.hp()});
 
-            sendRoots(client);
-            sendWalls(client, size);
+            sendVisible(client, knight.ctl);
             sendInventory(client, knight.ctl.knight()->inventory());
 
             client->send(bmsg::SV_knight_tick{});
@@ -131,29 +131,50 @@ private:
         }
     }
 
-    void sendRoots(BmClient *client)
+    void sendVisible(BmClient *client, KnightCtl &ctl)
     {
-        for (const auto &[id, entity] : map_->getEntityList()) {
-            (void)id;
-            if (entity == nullptr || entity->getType() != modlib::Entity::BasicTypes::ROOT) {
+        const Vec2i selfPos = ctl.pos();
+        const Vec2i size = map_->getSize();
+
+        for (const Vec2i off : combat_grid::visibleOffsets()) {
+            const Vec2i pos{selfPos.x + off.x, selfPos.y + off.y};
+
+            if (pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y) {
                 continue;
             }
-            const Vec2i rootPos = entity->getPosition();
-            client->send(bmsg::SV_knight_root{
-                rootPos.x,
-                rootPos.y,
-                static_cast<uint32_t>(entity->getID())
-            });
-        }
-    }
 
-    void sendWalls(BmClient *client, Vec2i size)
-    {
-        for (int x = 0; x < size.x; ++x) {
-            for (int y = 0; y < size.y; ++y) {
-                Tile *tile = map_->getTile({x, y});
-                if (tile != nullptr && tile->getType() == Tile::BasicTypes::WALL) {
-                    client->send(bmsg::SV_knight_wall{x, y});
+            Tile *tile = map_->getTile(pos);
+            if (tile == nullptr) {
+                continue;
+            }
+
+            if (tile->getType() == Tile::BasicTypes::WALL) {
+                client->send(bmsg::SV_knight_wall{pos.x, pos.y});
+            }
+
+            for (const auto &[id, entity] : tile->getEntityList()) {
+                (void)id;
+
+                if (entity == nullptr || entity == ctl.knight()) {
+                    continue;
+                }
+
+                if (combat_grid::isRoot(entity)) {
+                    client->send(bmsg::SV_knight_root{
+                        pos.x,
+                        pos.y,
+                        static_cast<uint32_t>(entity->getID())
+                    });
+                    continue;
+                }
+
+                if (combat_grid::isCombatant(entity)) {
+                    client->send(bmsg::SV_knight_enemy{
+                        pos.x,
+                        pos.y,
+                        static_cast<uint32_t>(entity->getID()),
+                        combat_grid::entityTypeName(entity)
+                    });
                 }
             }
         }
