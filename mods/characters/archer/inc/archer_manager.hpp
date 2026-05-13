@@ -11,12 +11,20 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <string>
+#include <vector>
 
 class ArcherManager {
     Timer *timer_ = nullptr;
     Level *map_   = nullptr;
     anim::AnimationManager *animator_ = nullptr;
     modlib::AssetManager   *assets_   = nullptr;
+
+    struct PendingUse {
+        BmClient *client = nullptr;
+        std::string ability;
+        size_t target = 0;
+    };
 
     struct ArcherUtils {
         ArcherCtl ctl;
@@ -34,6 +42,7 @@ class ArcherManager {
     };
 
     std::unordered_map<BmClient *, ArcherUtils> archers_;
+    std::vector<PendingUse> m_pendingUses;
     uint64_t m_tick = 0;
 
 public:
@@ -62,6 +71,15 @@ public:
 
     void resolve()
     {
+        timer_->setTimer(
+            1,
+            [this]() {
+                processPendingUses();
+            },
+            modlib::Timer::Stage::ON_UPDATE,
+            modlib::Timer::Type::CYCLE
+        );
+
         timer_->setTimer(1, [this]() { sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
@@ -77,12 +95,15 @@ public:
 
     void receiveUseCommand(BmClient *client, bmsg::CL_archer_use useCmd)
     {
-        auto it = archers_.find(client);
-        if (it == archers_.end()) {
+        if (archers_.find(client) == archers_.end()) {
             return;
         }
 
-        it->second.ctl.useAbility(useCmd.ability, useCmd.target, m_tick);
+        m_pendingUses.push_back(PendingUse{
+            .client  = client,
+            .ability = std::string(useCmd.ability),
+            .target  = useCmd.target,
+        });
     }
 
     size_t count(BmClient *client) const
@@ -101,6 +122,21 @@ public:
     }
 
 private:
+    void processPendingUses()
+    {
+        std::vector<PendingUse> pending;
+        pending.swap(m_pendingUses);
+
+        for (const PendingUse &cmd : pending) {
+            auto it = archers_.find(cmd.client);
+            if (it == archers_.end()) {
+                continue;
+            }
+
+            it->second.ctl.useAbility(cmd.ability, cmd.target, m_tick);
+        }
+    }
+
     void sendState()
     {
         ++m_tick;
