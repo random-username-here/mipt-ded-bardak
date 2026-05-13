@@ -54,10 +54,10 @@ Asset(std::string_view id, const std::string &file)
 
 const auto Idle = Asset<gh_body::Config>("gh.idle", ASSETS_DIR "/units/ghost/down.png");
 const auto Death = Asset<gh_body::Config>("gh.death", ASSETS_DIR "/units/ghost/dead.png");
-const auto RunDown = Asset<gh_body::Config>("gh.run.d", ASSETS_DIR "/units/ghost/down.png");
-const auto RunUp = Asset<gh_body::Config>("gh.run.u", ASSETS_DIR "/units/ghost/up.png");
-const auto RunLeft = Asset<gh_body::Config>("gh.run.l", ASSETS_DIR "/units/ghost/left.png");
-const auto RunRight = Asset<gh_body::Config>("gh.run.r", ASSETS_DIR "/units/ghost/right.png");
+const auto Down = Asset<gh_body::Config>("gh.run.d", ASSETS_DIR "/units/ghost/down.png");
+const auto Up = Asset<gh_body::Config>("gh.run.u", ASSETS_DIR "/units/ghost/up.png");
+const auto Left = Asset<gh_body::Config>("gh.run.l", ASSETS_DIR "/units/ghost/left.png");
+const auto Right = Asset<gh_body::Config>("gh.run.r", ASSETS_DIR "/units/ghost/right.png");
 const auto Slash1 = Asset<gh_slash::Config>("gh.slh.1", ASSETS_DIR "/units/ghost/slash_01.png");
 const auto Slash2 = Asset<gh_slash::Config>("gh.slh.2", ASSETS_DIR "/units/ghost/slash_02.png");
 const auto Slash3 = Asset<gh_slash::Config>("gh.slh.3", ASSETS_DIR "/units/ghost/slash_03.png");
@@ -105,10 +105,10 @@ private:
 	{
 		m_assets->registerSprite(gh_assets::Idle);
 		m_assets->registerSprite(gh_assets::Death);
-		m_assets->registerSprite(gh_assets::RunDown);
-		m_assets->registerSprite(gh_assets::RunLeft);
-		m_assets->registerSprite(gh_assets::RunUp);
-		m_assets->registerSprite(gh_assets::RunRight);
+		m_assets->registerSprite(gh_assets::Down);
+		m_assets->registerSprite(gh_assets::Left);
+		m_assets->registerSprite(gh_assets::Up);
+		m_assets->registerSprite(gh_assets::Right);
 		m_assets->registerSprite(gh_assets::Slash1);
 		m_assets->registerSprite(gh_assets::Slash2);
 		m_assets->registerSprite(gh_assets::Slash3);
@@ -172,10 +172,10 @@ private:
 	{
 		m_anims.idle = buildIdleAnimation();
 		m_anims.death = buildDeathAnimation();
-		m_anims.move_d = buildMoveAnimation(gh_assets::RunDown, {0, 1});
-		m_anims.move_u = buildMoveAnimation(gh_assets::RunUp, {0, -1});
-		m_anims.move_l = buildMoveAnimation(gh_assets::RunLeft, {-1, 0});
-		m_anims.move_r = buildMoveAnimation(gh_assets::RunRight, {1, 0});
+		m_anims.move_d = buildMoveAnimation(gh_assets::Down, {0, 1});
+		m_anims.move_u = buildMoveAnimation(gh_assets::Up, {0, -1});
+		m_anims.move_l = buildMoveAnimation(gh_assets::Left, {-1, 0});
+		m_anims.move_r = buildMoveAnimation(gh_assets::Right, {1, 0});
 	}
 
 	anim::AnimationID buildIdleAnimation()
@@ -206,7 +206,6 @@ private:
 		    m_body_slot,
 		    to,
 		    anim::easing::easeInOutQuart);
-		animation->addStep<anim::SetAssetStep>(m_body_slot, gh_assets::Idle.id, gh_body::kZ);
 		animation->finishBuild();
 		return animation->id();
 	}
