@@ -5,6 +5,7 @@
 #include "Timer.hpp"
 #include "Vec2.hpp"
 #include "modlib_manager.hpp"
+#include "combat_grid.hpp"
 #include "raylib.h"
 #include <algorithm>
 #include <ctime>
@@ -20,6 +21,9 @@ using TextureID = size_t;
 
 constexpr float kRenderScale       = 2.0f;
 constexpr int   kLogicalTilePixels = 16;
+constexpr int   kOverlaySplitLayer = 0;
+constexpr Color kVisibilityOverlayColor = { 40, 120, 255, 55};
+constexpr Color kAttackOverlayColor     = {255,  40,  40, 70};
 
 static constexpr const char *kWhiteFlashFragShader = R"(
 #version 330
@@ -53,6 +57,10 @@ struct AnimatedObject {
     int layer;
 };
 
+struct DebugTile {
+    modlib::Vec2i pos;
+};
+
 Vector2 v2v(modlib::Vec2f v) {
     return Vector2 { .x = v.x, .y = v.y };
 }
@@ -72,6 +80,10 @@ class AnimatedVisualization : public modlib::BmServerModule {
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
     std::unordered_map<TextureID, Texture2D> m_textures;
     Shader m_whiteFlashShader{};
+    std::vector<DebugTile> m_debugVisibleTiles;
+    std::vector<DebugTile> m_debugAttackTiles;
+    bool m_showDebugVisibility = false;
+    bool m_showDebugAttack = false;
     std::mutex m_lock;
 
     float m_startTime = 0;
@@ -99,6 +111,14 @@ class AnimatedVisualization : public modlib::BmServerModule {
         SetTargetFPS(60);
 
         while (true) {
+            if (IsKeyPressed(KEY_V)) {
+                m_showDebugVisibility = !m_showDebugVisibility;
+            }
+
+            if (IsKeyPressed(KEY_A)) {
+                m_showDebugAttack = !m_showDebugAttack;
+            }
+
             BeginDrawing();
             ClearBackground(BLACK);
 
@@ -126,20 +146,37 @@ class AnimatedVisualization : public modlib::BmServerModule {
 		}
 	}
 
-	void drawObjects() {
-		std::lock_guard<std::mutex> lock(m_lock);
+    void drawObjects() {
+        rebuildDebugOverlays();
 
-		auto cmp = [](auto* lhs, auto* rhs) {
-			return lhs->layer < rhs->layer;
-		};
+        std::lock_guard<std::mutex> lock(m_lock);
 
-		auto action = [this](auto* ao) {
-			processSteps(*ao);
-			drawSprites(*ao);
-		};
+        std::vector<AnimatedObject*> sorted;
+        sorted.reserve(m_objs.size());
 
-		forEachInSorted(m_objs, cmp, action);
-	}
+        for (auto &[_, obj] : m_objs) {
+            processSteps(obj);
+            sorted.push_back(&obj);
+        }
+
+        std::sort(sorted.begin(), sorted.end(), [](auto *lhs, auto *rhs) {
+            return lhs->layer < rhs->layer;
+        });
+
+        for (AnimatedObject *obj : sorted) {
+            if (obj->layer < kOverlaySplitLayer) {
+                drawSprites(*obj);
+            }
+        }
+
+        drawDebugOverlays();
+
+        for (AnimatedObject *obj : sorted) {
+            if (obj->layer >= kOverlaySplitLayer) {
+                drawSprites(*obj);
+            }
+        }
+    }
 
     void drawSprites(const AnimatedObject &obj) {
 		auto cmp = [](auto* lhs, auto* rhs) {
@@ -293,6 +330,128 @@ class AnimatedVisualization : public modlib::BmServerModule {
         for (auto [step, startTime] : obj.runningSteps) {
             applyStep(obj, step, step->stepTime ? (now - startTime) / step->stepTime : 0);
         }
+    }
+
+    void drawDebugOverlays()
+    {
+        if (m_showDebugVisibility) {
+            for (const DebugTile &tile : m_debugVisibleTiles) {
+                drawTileOverlay(tile.pos, kVisibilityOverlayColor);
+            }
+        }
+
+        if (m_showDebugAttack) {
+            for (const DebugTile &tile : m_debugAttackTiles) {
+                drawTileOverlay(tile.pos, kAttackOverlayColor);
+            }
+        }
+    }
+
+    void drawTileOverlay(modlib::Vec2i pos, Color color)
+    {
+        Rectangle dst = {
+            .x      = pos.x * kLogicalTilePixels * kRenderScale,
+            .y      = pos.y * kLogicalTilePixels * kRenderScale,
+            .width  =         kLogicalTilePixels * kRenderScale,
+            .height =         kLogicalTilePixels * kRenderScale,
+        };
+
+        DrawRectangleRec(dst, color);
+    }
+
+    void rebuildDebugOverlays()
+    {
+        std::vector<DebugTile> visible;
+        std::vector<DebugTile> attack;
+
+        const modlib::Vec2i size = m_map->getSize();
+
+        for (const auto &[id, entity] : m_map->getEntityList()) {
+            (void)id;
+
+            if (entity == nullptr || !isDebugPlayer(entity)) {
+                continue;
+            }
+
+            const modlib::Vec2i origin = entity->getPosition();
+
+            for (const modlib::Vec2i off : combat_grid::visibleOffsets()) {
+                const modlib::Vec2i pos{origin.x + off.x, origin.y + off.y};
+
+                if (insideMap(pos, size)) {
+                    visible.push_back({pos});
+                }
+            }
+
+            for (const modlib::Vec2i off : attackOffsetsFor(entity)) {
+                const modlib::Vec2i pos{origin.x + off.x, origin.y + off.y};
+
+                if (insideMap(pos, size)) {
+                    attack.push_back({pos});
+                }
+            }
+        }
+
+        m_debugVisibleTiles = std::move(visible);
+        m_debugAttackTiles = std::move(attack);
+    }
+
+    static bool insideMap(modlib::Vec2i pos, modlib::Vec2i size)
+    {
+        return pos.x >= 0 && pos.y >= 0 && pos.x < size.x && pos.y < size.y;
+    }
+
+    static bool isDebugPlayer(const modlib::Entity *entity)
+    {
+        const std::string_view type = entity->getType();
+
+        return type == "knight" ||
+               type == "rogue"  ||
+               type == "archer";
+    }
+
+    static std::vector<modlib::Vec2i> attackOffsetsFor(const modlib::Entity *entity)
+    {
+        const std::string_view type = entity->getType();
+
+        std::vector<modlib::Vec2i> out;
+
+        if (type == "knight") {
+            for (int dx = -1; dx <= 1; ++dx) {
+                for (int dy = -1; dy <= 1; ++dy) {
+                    if (dx == 0 && dy == 0) {
+                        continue;
+                    }
+
+                    out.push_back({dx, dy});
+                }
+            }
+
+            return out;
+        }
+
+        if (type == "rogue") {
+            return {
+                { 1,  0},
+                {-1,  0},
+                { 0,  1},
+                { 0, -1},
+            };
+        }
+
+        if (type == "archer") {
+            for (int dx = -2; dx <= 2; ++dx) {
+                for (int dy = -2; dy <= 2; ++dy) {
+                    if (combat_grid::inArcherRange({0, 0}, {dx, dy})) {
+                        out.push_back({dx, dy});
+                    }
+                }
+            }
+
+            return out;
+        }
+
+        return out;
     }
 
     const anim::Animation *animationByID(anim::AnimationID id) {
