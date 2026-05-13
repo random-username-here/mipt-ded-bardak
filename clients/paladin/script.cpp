@@ -184,7 +184,6 @@ private:
         return sendUse("smite", enemy->id);
     }
 
-    bool tryUseOnRoot()
     bool tryUseAegis()
     {
         if (m_hp <= 0) {
@@ -200,6 +199,7 @@ private:
         return sendUse("aegis", 0);
     }
 
+    bool tryUseOnRoot()
     {
         if (m_abilities.count("smite") == 0) {
             return false;
