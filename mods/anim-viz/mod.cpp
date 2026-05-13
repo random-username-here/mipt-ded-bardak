@@ -48,6 +48,11 @@ void main()
 }
 )";
 
+static float snapSourcePixel(float v)
+{
+    return std::round(v);
+}
+
 struct AnimatedObject {
     anim::SpriteBySlot sprites;
     std::unordered_map<const anim::Step*, float> runningSteps; // step -> start time
@@ -224,16 +229,19 @@ class AnimatedVisualization : public modlib::BmServerModule {
             .height = sprite->clip.h,
         };
 
+        const float logicalX = snapSourcePixel(obj.pos.x + s.pos.x + sprite->offset.x);
+        const float logicalY = snapSourcePixel(obj.pos.y + s.pos.y + sprite->offset.y);
+
         Rectangle dst = {
-            .x      = (obj.pos.x + s.pos.x + sprite->offset.x) * kRenderScale,
-            .y      = (obj.pos.y + s.pos.y + sprite->offset.y) * kRenderScale,
-            .width  = sprite->size.x * kRenderScale,
-            .height = sprite->size.y * kRenderScale,
+            .x      = logicalX * kRenderScale,
+            .y      = logicalY * kRenderScale,
+            .width  = snapSourcePixel(sprite->size.x) * kRenderScale,
+            .height = snapSourcePixel(sprite->size.y) * kRenderScale,
         };
 
         Vector2 origin = {
-            .x = sprite->origin.x * kRenderScale,
-            .y = sprite->origin.y * kRenderScale
+            .x = snapSourcePixel(sprite->origin.x) * kRenderScale,
+            .y = snapSourcePixel(sprite->origin.y) * kRenderScale
         };
 
         if (s.forceWhite && m_whiteFlashShader.id != 0) {
