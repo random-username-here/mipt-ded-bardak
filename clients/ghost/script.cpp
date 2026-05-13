@@ -8,9 +8,12 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <limits>
+#include <queue>
 #include <random>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -39,10 +42,18 @@ class GhostClient : public ClientBase
 	};
 
 	struct Seen
-		{
-			Pos pos;
-			uint32_t id = 0;
-		};
+	{
+		Pos pos;
+		uint32_t id = 0;
+	};
+
+	struct Bounds
+	{
+		int32_t min_x = 0;
+		int32_t max_x = 0;
+		int32_t min_y = 0;
+		int32_t max_y = 0;
+	};
 
 	std::mt19937 m_rng{std::random_device{}()};
 
@@ -99,6 +110,7 @@ class GhostClient : public ClientBase
 			}
 			m_pos = {at->x, at->y};
 			m_have_pos = true;
+			m_walls.clear();
 			return true;
 		}
 		if (type == "sees") {
@@ -175,20 +187,65 @@ class GhostClient : public ClientBase
 		return std::abs(pos.x - m_pos.x) <= 1 && std::abs(pos.y - m_pos.y) <= 1;
 	}
 
-	static int8_t sign(int32_t value)
-	{
-		if (value > 0) {
-			return 1;
-		}
-		if (value < 0) {
-			return -1;
-		}
-		return 0;
-	}
-
 	bool knownWall(Pos pos) const
 	{
 		return m_walls.count(pos) != 0;
+	}
+
+	bool knownBounds(Bounds &bounds) const
+	{
+		if (m_walls.empty()) {
+			return false;
+		}
+
+		bounds.min_x = bounds.max_x = m_walls.begin()->x;
+		bounds.min_y = bounds.max_y = m_walls.begin()->y;
+		for (const Pos wall : m_walls) {
+			bounds.min_x = std::min(bounds.min_x, wall.x);
+			bounds.max_x = std::max(bounds.max_x, wall.x);
+			bounds.min_y = std::min(bounds.min_y, wall.y);
+			bounds.max_y = std::max(bounds.max_y, wall.y);
+		}
+		return true;
+	}
+
+	static bool inBounds(Pos pos, Bounds bounds)
+	{
+		return pos.x >= bounds.min_x && pos.x <= bounds.max_x &&
+		       pos.y >= bounds.min_y && pos.y <= bounds.max_y;
+	}
+
+	bool legalMove(Pos dir) const
+	{
+		if (!m_have_pos) {
+			return true;
+		}
+
+		const Pos next{m_pos.x + dir.x, m_pos.y + dir.y};
+		Bounds bounds;
+		if (knownBounds(bounds) && !inBounds(next, bounds)) {
+			return false;
+		}
+		return !knownWall(next);
+	}
+
+	std::vector<Pos> legalDirections()
+	{
+		std::array<Pos, 4> dirs{{
+		    {1, 0},
+		    {-1, 0},
+		    {0, 1},
+		    {0, -1},
+		}};
+		std::shuffle(dirs.begin(), dirs.end(), m_rng);
+
+		std::vector<Pos> result;
+		for (const Pos dir : dirs) {
+			if (legalMove(dir)) {
+				result.push_back(dir);
+			}
+		}
+		return result;
 	}
 
 	bool sendMoveIfUseful(int8_t dx, int8_t dy)
@@ -197,8 +254,7 @@ class GhostClient : public ClientBase
 			return false;
 		}
 
-		const Pos next{m_pos.x + dx, m_pos.y + dy};
-		if (m_have_pos && knownWall(next)) {
+		if (!legalMove({dx, dy})) {
 			return false;
 		}
 
@@ -211,24 +267,55 @@ class GhostClient : public ClientBase
 
 	bool moveToward(Pos target)
 	{
-		const int8_t dx = sign(target.x - m_pos.x);
-		const int8_t dy = sign(target.y - m_pos.y);
-
-		// if (sendMoveIfUseful(dx, dy)) {
-		// 	return m_alive;
-		// }
-		if (sendMoveIfUseful(dx, 0)) {
-			return m_alive;
-		}
-		if (sendMoveIfUseful(0, dy)) {
-			return m_alive;
+		const std::vector<Pos> moves = rankedMovesToward(target);
+		if (moves.empty()) {
+			return true;
 		}
 
-		return randomMove();
+		const Pos move = moves.front();
+		sendMoveIfUseful(static_cast<int8_t>(move.x), static_cast<int8_t>(move.y));
+		return m_alive;
 	}
 
-	bool randomMove()
+	std::vector<Pos> rankedMovesToward(Pos target)
 	{
+		std::vector<Pos> legal = legalDirections();
+		if (legal.empty()) {
+			return {};
+		}
+
+		const auto distance = distanceFromTarget(target);
+		int32_t best = std::numeric_limits<int32_t>::max();
+		std::vector<Pos> best_moves;
+
+		for (const Pos dir : legal) {
+			const Pos next{m_pos.x + dir.x, m_pos.y + dir.y};
+			const auto it = distance.find(next);
+			const int32_t score = it == distance.end()
+			    ? manhattanFrom(next, target)
+			    : it->second;
+
+			if (score < best) {
+				best = score;
+				best_moves.clear();
+				best_moves.push_back(dir);
+			} else if (score == best) {
+				best_moves.push_back(dir);
+			}
+		}
+
+		std::shuffle(best_moves.begin(), best_moves.end(), m_rng);
+		return best_moves;
+	}
+
+	std::unordered_map<Pos, int32_t, Pos::Hash> distanceFromTarget(Pos target) const
+	{
+		std::unordered_map<Pos, int32_t, Pos::Hash> distance;
+		Bounds bounds;
+		if (!knownBounds(bounds) || !inBounds(target, bounds) || knownWall(target)) {
+			return distance;
+		}
+
 		static constexpr std::array<Pos, 4> dirs{{
 		    {1, 0},
 		    {-1, 0},
@@ -236,20 +323,42 @@ class GhostClient : public ClientBase
 		    {0, -1},
 		}};
 
-		std::vector<Pos> legal_moves;
-		for (const Pos dir : dirs) {
-			const Pos next{m_pos.x + dir.x, m_pos.y + dir.y};
-			if (!m_have_pos || !knownWall(next)) {
-				legal_moves.push_back(dir);
+		std::queue<Pos> queue;
+		distance.emplace(target, 0);
+		queue.push(target);
+
+		while (!queue.empty()) {
+			const Pos current = queue.front();
+			queue.pop();
+			const int32_t next_distance = distance.at(current) + 1;
+
+			for (const Pos dir : dirs) {
+				const Pos next{current.x + dir.x, current.y + dir.y};
+				if (!inBounds(next, bounds) || knownWall(next) || distance.count(next) != 0) {
+					continue;
+				}
+
+				distance.emplace(next, next_distance);
+				queue.push(next);
 			}
 		}
 
+		return distance;
+	}
+
+	static int32_t manhattanFrom(Pos from, Pos to)
+	{
+		return std::abs(from.x - to.x) + std::abs(from.y - to.y);
+	}
+
+	bool randomMove()
+	{
+		const std::vector<Pos> legal_moves = legalDirections();
 		if (legal_moves.empty()) {
 			return true;
 		}
 
-		std::uniform_int_distribution<std::size_t> dist(0, legal_moves.size() - 1);
-		const Pos move = legal_moves[dist(m_rng)];
+		const Pos move = legal_moves.front();
 		sendMoveIfUseful(static_cast<int8_t>(move.x), static_cast<int8_t>(move.y));
 		return m_alive;
 	}

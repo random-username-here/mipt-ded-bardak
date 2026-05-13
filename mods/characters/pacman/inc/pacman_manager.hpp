@@ -15,14 +15,17 @@
 
 namespace {
 
-constexpr int kVisionRadius = 4;
-
-inline bool isAliveEntityForPacman(modlib::Entity *e)
+bool isAliveEntityForPacman(modlib::Entity *e)
 {
 	if (auto *health = dynamic_cast<EC::Stats::Health *>(e)) {
 		return health->getCurrentHP() > 0;
 	}
 	return true;
+}
+
+bool isBlockedTileForPacman(Tile *tile)
+{
+	return tile && tile->getType() == Tile::BasicTypes::WALL;
 }
 
 } // namespace
@@ -111,7 +114,7 @@ public:
 
 			const Vec2i ppos = ps.ctl.pos();
 			cl->send(bmsg::SV_pacman_at{ppos.x, ppos.y});
-			sendVisibleWalls(cl, ps.ctl.pos());
+			sendAllBlockedTiles(cl);
 			sendVisibleThreats(cl);
 			cl->send(bmsg::SV_pacman_tick{});
 		}
@@ -130,22 +133,23 @@ public:
 		}
 	}
 
-	void sendVisibleWalls(BmClient *client, Vec2i origin)
+	void sendAllBlockedTiles(BmClient *client)
 	{
 		const auto size = map_->getSize();
 
-		for (int dx = -kVisionRadius; dx <= kVisionRadius; ++dx) {
-			for (int dy = -kVisionRadius; dy <= kVisionRadius; ++dy) {
-				const int x = origin.x + dx;
-				const int y = origin.y + dy;
-				if (x < 0 || y < 0 || x >= size.x || y >= size.y) {
-					continue;
-				}
-
+		for (int x = 0; x < size.x; ++x) {
+			for (int y = 0; y < size.y; ++y) {
 				Tile *tile = map_->getTile({x, y});
-				if (tile && tile->getType() == Tile::BasicTypes::WALL) {
+				if (isBlockedTileForPacman(tile)) {
 					client->send(bmsg::SV_pacman_wall{x, y});
 				}
+			}
+		}
+
+		for (const auto &[_, ent] : map_->getEntityList()) {
+			if (ent && ent->getType() == modlib::Entity::BasicTypes::ROOT) {
+				const Vec2i p = ent->getPosition();
+				client->send(bmsg::SV_pacman_wall{p.x, p.y});
 			}
 		}
 	}
