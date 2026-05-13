@@ -168,6 +168,8 @@ class RootsModule final : public Mod {
     std::unordered_map<modlib::Entity::ID, RootEntry> m_roots;
     std::unordered_set<modlib::Entity::ID> m_pendingRemoval;
 
+    bool m_spawned = false;
+
 public:
     std::string_view id()    const override { return "ashww.bardak.roots"; }
     std::string_view brief() const override { return "Static damageable blocking roots"; }
@@ -183,13 +185,24 @@ public:
 
     void onDepsResolved(ModManager *) override
     {
-        spawnDefaults();
-        m_timer->setTimer(1, [this]() { sweepDeadRoots(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
+        m_timer->setTimer(
+            1,
+            [this]() {
+                spawnDefaults();
+                sweepDeadRoots();
+            },
+            modlib::Timer::Stage::ON_UPDATE_DONE
+        );
     }
 
 private:
     void spawnDefaults()
     {
+        if (m_spawned) {
+            return;
+        }
+        m_spawned = true;
+
         static const std::vector<modlib::Vec2i> positions = {
             { 4,  4},
             { 8,  5},
