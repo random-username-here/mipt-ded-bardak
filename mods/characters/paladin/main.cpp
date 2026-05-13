@@ -22,7 +22,7 @@ class PaladinModule final : public BmServerModule {
     PaladinManager manager;
 
 public:
-    std::string_view id()    const override { return "ashww.bardak.uctl.paladin"; }
+    std::string_view id()    const override { return "nellor.bardak.uctl.paladin"; }
     std::string_view brief() const override { return "Unit controller for paladin"; }
     ModVersion version()     const override { return ModVersion(0, 0, 1); }
 

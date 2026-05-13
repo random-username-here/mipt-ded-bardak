@@ -21,7 +21,7 @@ class HunterModule final : public BmServerModule {
     HunterManager           manager;
 
 public:
-    std::string_view id()    const override { return "ashww.bardak.uctl.hunter"; }
+    std::string_view id()    const override { return "nellor.bardak.uctl.hunter"; }
     std::string_view brief() const override { return "Unit controller for hunter"; }
     ModVersion version()     const override { return ModVersion(0, 0, 1); }
 
