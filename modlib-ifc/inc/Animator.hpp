@@ -105,6 +105,36 @@ class DelSpriteStep : public Step {
 	}
 };
 
+/** Set sprite position immediately. */
+class SetPosStep : public Step {
+    SpriteSlotID slot;
+    Vec2f pos;
+
+  public:
+    SetPosStep(SpriteSlotID s, Vec2f p) : slot(s), pos(p) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        auto &spr = sprites[slot];
+        spr.pos     = pos;
+        spr.lastPos = pos;
+    }
+};
+
+/** Set sprite rotation immediately. Angle is in degrees. */
+class SetRotationStep : public Step {
+    SpriteSlotID slot;
+    float        angle;
+
+  public:
+    SetRotationStep(SpriteSlotID s, float a) : slot(s), angle(a) {}
+
+    void apply(SpriteBySlot& sprites) const {
+        auto &spr = sprites[slot];
+        spr.rotation     = angle;
+        spr.lastRotation = angle;
+    }
+};
+
 /** Draw sprite as a solid white shape until changed back. */
 class SetWhiteStep : public Step {
     SpriteSlotID slot;

@@ -58,7 +58,7 @@ inline modlib::SpriteAsset slashSprite(std::string_view id, int col)
         .file = ASSETS_DIR "/units/knight/anim_slash.png",
         .clip = {static_cast<float>(col * 32), 0, 32, 32},
         .size = knight_slash::Config::kSize,
-        .origin = {8, 8},
+        .origin = {16, 16},
     };
 }
 
@@ -227,14 +227,15 @@ private:
     {
         const modlib::Vec2i delta = dirDelta(dir);
         const modlib::Vec2f slashOffset(
-            delta.x * kKnightTilePixels,
-            delta.y * kKnightTilePixels
+            delta.x * kKnightTilePixels + kKnightTilePixels * 0.5f,
+            delta.y * kKnightTilePixels + kKnightTilePixels * 0.5f
         );
 
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_bodySlot, hit.id, knight_body::kZ);
         animation->addStep<anim::Step>(knight_body::kAttackPoseSeconds, knight_body::kAttackPoseSeconds);
-        animation->addStep<anim::PosStep>(0.0f, 0.0f, m_slashSlot, slashOffset);
+        animation->addStep<anim::SetPosStep>(m_slashSlot, slashOffset);
+        animation->addStep<anim::SetRotationStep>(m_slashSlot, slashRotationDeg(dir));
         for (const auto &slash : knight_assets::Slash) {
             animation->addStep<anim::SetAssetStep>(m_slashSlot, slash.id, knight_slash::kZ);
             animation->addStep<anim::Step>(knight_slash::kFrameSeconds, knight_slash::kFrameSeconds);
@@ -263,6 +264,21 @@ private:
     static int dirIndex(KnightDir dir)
     {
         return static_cast<int>(dir);
+    }
+
+    static float slashRotationDeg(KnightDir dir)
+    {
+        switch (dir) {
+        case KnightDir::right:
+            return 0.0f;
+        case KnightDir::down:
+            return 90.0f;
+        case KnightDir::left:
+            return 180.0f;
+        case KnightDir::up:
+            return -90.0f;
+        }
+        return 0.0f;
     }
 
     static modlib::Vec2i dirDelta(KnightDir dir)
