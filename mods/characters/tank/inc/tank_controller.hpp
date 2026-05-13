@@ -6,12 +6,21 @@
 #include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 class TankCtl {
+public:
+    struct ShotRequest {
+        Vec2i origin;
+        Vec2i pos;
+        TankDir dir;
+        modlib::Entity::ID ownerId;
+    };
+
+private:
     static constexpr uint64_t kMoveCdTicks  = 1;
     static constexpr uint64_t kShootCdTicks = 2;
-    static constexpr int      kShootDamage  = 10;
 
     Level *map_ = nullptr;
     std::unique_ptr<Tank> tank_ = nullptr;
@@ -63,52 +72,39 @@ public:
         tank_->rotate(tankDirFromClient(dir));
     }
 
-    bool shoot(uint64_t curTick)
+    std::optional<ShotRequest> shoot(uint64_t curTick)
     {
         assert(tank_);
         assert(map_);
 
         if (tank_->getCurrentHP() <= 0) {
-            return false;
+            return std::nullopt;
         }
         if (curTick < m_nextShootTick) {
-            return false;
+            return std::nullopt;
         }
 
         const Vec2i origin = tank_->getPosition();
-        const Vec2i targetPos = origin + tankDirDelta(tank_->dir());
+        const TankDir dir = tank_->dir();
+        const Vec2i targetPos = origin + tankDirDelta(dir);
 
         Tile *tile = map_->getTile(targetPos);
         if (!tile) {
-            return false;
+            return std::nullopt;
+        }
+        if (tile->getType() == Tile::BasicTypes::WALL) {
+            return std::nullopt;
         }
 
-        for (const auto &[id, entity] : tile->getEntityList()) {
-            (void)id;
-            if (entity == nullptr || entity == tank_.get()) {
-                continue;
-            }
-            if (!combat_grid::isCombatant(entity)) {
-                continue;
-            }
+        tank_->emitShoot();
+        m_nextShootTick = curTick + kShootCdTicks + 1;
 
-            auto *health = dynamic_cast<EC::Stats::Health *>(entity);
-            if (health == nullptr || health->getCurrentHP() <= 0) {
-                continue;
-            }
-
-            // Face target (in case the direction got out of sync).
-            tank_->rotate(tankDirFromDelta(entity->getPosition() - origin));
-
-            const modlib::Entity::ID targetId = entity->getID();
-            tank_->EvAttack.emit(targetId);
-            health->inflictDmg(kShootDamage);
-
-            m_nextShootTick = curTick + kShootCdTicks + 1;
-            return true;
-        }
-
-        return false;
+        return ShotRequest{
+            .origin = origin,
+            .pos = targetPos,
+            .dir = dir,
+            .ownerId = tank_->getID(),
+        };
     }
 
     void destroy()
@@ -127,6 +123,12 @@ public:
     {
         assert(tank_);
         return static_cast<int32_t>(tank_->getCurrentHP());
+    }
+
+    modlib::Entity::ID id() const
+    {
+        assert(tank_);
+        return tank_->getID();
     }
 
     Tank *tank()

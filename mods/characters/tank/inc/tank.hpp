@@ -1,9 +1,10 @@
 #pragma once
 
 #include "BmServerModule.hpp"
-#include "Map.hpp"
 #include "Event.hpp"
+#include "Map.hpp"
 
+#include <cstdint>
 #include <cstdlib>
 
 using namespace modlib;
@@ -76,8 +77,8 @@ private:
 public:
     using Damage = EC::Stats::Attack::Damage;
 
-    // Emitted when the tank changes facing direction.
     Event<TankDir> EvRotated;
+    Event<TankDir> EvShoot;
 
     Tank(Level *map, Tile *tile, modlib::BmClient *client)
         : Entity(TANK_TYPE, tile)
@@ -95,6 +96,11 @@ public:
         }
         dir_ = dir;
         EvRotated.emit(dir_);
+    }
+
+    void emitShoot()
+    {
+        EvShoot.emit(dir_);
     }
 
     TankDir dir() const
