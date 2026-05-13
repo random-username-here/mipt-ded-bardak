@@ -40,6 +40,24 @@ static constexpr float kMinFlySeconds = 0.08f;
 
 } // namespace archer_arrow
 
+namespace archer_spawn {
+
+struct Config {
+    static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
+    static constexpr modlib::Vec2f kSize = {kArcherTilePixels * 2.0f, kArcherTilePixels * 2.0f};
+};
+
+constexpr int kZ = 4;
+static constexpr float kFrameSeconds = 0.045f;
+
+} // namespace archer_spawn
+
+namespace archer_dead {
+
+constexpr int kZ = -4;
+
+} // namespace archer_dead
+
 namespace archer_assets {
 
 inline modlib::SpriteAsset sheetSprite(std::string_view id, const std::string &file, int col)
@@ -81,6 +99,33 @@ static const modlib::SpriteAsset Arrow = {
     .origin = {8, 8},
 };
 
+inline modlib::SpriteAsset spawnSprite(std::string_view id, int col)
+{
+    return {
+        .id     = id,
+        .file   = ASSETS_DIR "/units/archer/anim_spawn.png",
+        .clip   = {static_cast<float>(col * 32), 0, 32, 32},
+        .size   = archer_spawn::Config::kSize,
+        .origin = {8, 8},
+    };
+}
+
+static const modlib::SpriteAsset Dead = {
+    .id   = "a.dead",
+    .file = ASSETS_DIR "/units/archer/archer_dead.png",
+    .clip = archer_body::Config::kClip,
+    .size = archer_body::Config::kSize,
+};
+
+static const std::array<modlib::SpriteAsset, 6> Spawn = {
+    spawnSprite("a.sp.1", 0),
+    spawnSprite("a.sp.2", 1),
+    spawnSprite("a.sp.3", 2),
+    spawnSprite("a.sp.4", 3),
+    spawnSprite("a.sp.5", 4),
+    spawnSprite("a.sp.6", 5),
+};
+
 } // namespace archer_assets
 
 class ArcherAnimator {
@@ -89,6 +134,8 @@ class ArcherAnimator {
     modlib::AssetManager   *m_assets = nullptr;
     anim::AnimatedObjectID  m_object      = anim::NO_ANIMATION_OBJECT;
     anim::AnimatedObjectID  m_flashObject = anim::NO_ANIMATION_OBJECT;
+    anim::AnimatedObjectID  m_spawnObject = anim::NO_ANIMATION_OBJECT;
+    anim::SpriteSlotID      m_spawnSlot = 0;
     anim::SpriteSlotID      m_flashSlot = 0;
     anim::SpriteSlotID      m_bodySlot  = 0;
     anim::SpriteSlotID      m_arrowSlot = 0;
@@ -107,20 +154,27 @@ public:
     {
         m_object      = m_anim->newObject();
         m_flashObject = m_anim->newObject();
+        m_spawnObject = m_anim->newObject();
 
         m_bodySlot  = m_anim->newSpriteSlot();
         m_arrowSlot = m_anim->newSpriteSlot();
         m_flashSlot = m_anim->newSpriteSlot();
+        m_spawnSlot = m_anim->newSpriteSlot();
 
         registerAssets();
         buildAnimations();
         subscribeOnEvents();
         animateIdle();
+        animateSpawn();
     }
 
 private:
     void registerAssets()
     {
+        m_assets->registerSprite(archer_assets::Dead);
+        for (const auto &asset : archer_assets::Spawn) {
+            m_assets->registerSprite(asset);
+        }
         for (const auto &asset : archer_assets::Idle) {
             m_assets->registerSprite(asset);
         }
@@ -156,6 +210,43 @@ private:
         m_ctl->archer()->EvDamaged.subscribe([this](EC::Stats::Health::HP) {
             animateHitFlash();
         });
+        m_ctl->archer()->EvDeath.subscribe([this]() {
+            animateDeath();
+        });
+    }
+
+    void animateSpawn()
+    {
+        auto *animation = m_anim->newAnimation();
+
+        for (const auto &spawn : archer_assets::Spawn) {
+            animation->addStep<anim::SetAssetStep>(m_spawnSlot, spawn.id, archer_spawn::kZ);
+            animation->addStep<anim::Step>(archer_spawn::kFrameSeconds, archer_spawn::kFrameSeconds);
+        }
+
+        animation->addStep<anim::DelSpriteStep>(m_spawnSlot);
+        animation->finishBuild();
+
+        m_anim->play(
+            m_spawnObject,
+            currentPixelPosition(),
+            archer_body::kObjectLayer + 2,
+            animation->id()
+        );
+    }
+
+    void animateDeath()
+    {
+        auto *animation = m_anim->newAnimation();
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, archer_assets::Dead.id, archer_dead::kZ);
+        animation->finishBuild();
+
+        m_anim->play(
+            m_object,
+            currentPixelPosition(),
+            archer_body::kObjectLayer - 1,
+            animation->id()
+        );
     }
 
     void animateIdle()
@@ -165,12 +256,18 @@ private:
 
     void animateMove(modlib::Vec2i delta)
     {
+        if (m_ctl->archer()->getCurrentHP() <= 0) {
+            return;
+        }
         const modlib::Vec2f oldPosition = pixelPosition(m_ctl->archer()->getPosition() - delta);
         m_anim->play(m_object, oldPosition, archer_body::kObjectLayer, moveAnimation(archerDirFromDelta(delta)));
     }
 
     void animateShoot(Archer::Damage targetId)
     {
+        if (m_ctl->archer()->getCurrentHP() <= 0) {
+            return;
+        }
         const modlib::Vec2i delta = attackDelta(targetId);
         const ArcherDir dir = archerDirFromDelta(delta);
         const anim::AnimationID shoot = buildShootAnimation(
@@ -184,6 +281,9 @@ private:
 
     void animateHitFlash()
     {
+        if (m_ctl->archer()->getCurrentHP() <= 0) {
+            return;
+        }
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(
             m_flashSlot,

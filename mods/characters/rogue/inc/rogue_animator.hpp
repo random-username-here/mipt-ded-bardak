@@ -39,6 +39,24 @@ static constexpr float kFrameSeconds = 0.035f;
 
 } // namespace rogue_slice
 
+namespace rogue_spawn {
+
+struct Config {
+    static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
+    static constexpr modlib::Vec2f kSize = {kRogueTilePixels * 2.0f, kRogueTilePixels * 2.0f};
+};
+
+constexpr int kZ = 4;
+static constexpr float kFrameSeconds = 0.045f;
+
+} // namespace rogue_spawn
+
+namespace rogue_dead {
+
+constexpr int kZ = -4;
+
+} // namespace rogue_dead
+
 namespace rogue_assets {
 
 inline modlib::SpriteAsset sheetSprite(std::string_view id, const std::string &file, int col)
@@ -90,6 +108,33 @@ static const std::array<modlib::SpriteAsset, 4> Slice = {
     sliceSprite("r.sl.4", 3),
 };
 
+inline modlib::SpriteAsset spawnSprite(std::string_view id, int col)
+{
+    return {
+        .id     = id,
+        .file   = ASSETS_DIR "/units/rogue/anim_spawn.png",
+        .clip   = {static_cast<float>(col * 32), 0, 32, 32},
+        .size   = rogue_spawn::Config::kSize,
+        .origin = {8, 8},
+    };
+}
+
+static const modlib::SpriteAsset Dead = {
+    .id   = "r.dead",
+    .file = ASSETS_DIR "/units/rogue/skull_dead.png",
+    .clip = rogue_body::Config::kClip,
+    .size = rogue_body::Config::kSize,
+};
+
+static const std::array<modlib::SpriteAsset, 6> Spawn = {
+    spawnSprite("r.sp.1", 0),
+    spawnSprite("r.sp.2", 1),
+    spawnSprite("r.sp.3", 2),
+    spawnSprite("r.sp.4", 3),
+    spawnSprite("r.sp.5", 4),
+    spawnSprite("r.sp.6", 5),
+};
+
 } // namespace rogue_assets
 
 class RogueAnimator {
@@ -98,6 +143,8 @@ class RogueAnimator {
     modlib::AssetManager   *m_assets = nullptr;
     anim::AnimatedObjectID  m_object      = anim::NO_ANIMATION_OBJECT;
     anim::AnimatedObjectID  m_flashObject = anim::NO_ANIMATION_OBJECT;
+    anim::AnimatedObjectID  m_spawnObject = anim::NO_ANIMATION_OBJECT;
+    anim::SpriteSlotID      m_spawnSlot = 0;
     anim::SpriteSlotID      m_flashSlot = 0;
     anim::SpriteSlotID      m_bodySlot  = 0;
     anim::SpriteSlotID      m_sliceSlot = 0;
@@ -116,20 +163,27 @@ public:
     {
         m_object      = m_anim->newObject();
         m_flashObject = m_anim->newObject();
+        m_spawnObject = m_anim->newObject();
 
         m_bodySlot  = m_anim->newSpriteSlot();
         m_sliceSlot = m_anim->newSpriteSlot();
         m_flashSlot = m_anim->newSpriteSlot();
+        m_spawnSlot = m_anim->newSpriteSlot();
 
         registerAssets();
         buildAnimations();
         subscribeOnEvents();
         animateIdle();
+        animateSpawn();
     }
 
 private:
     void registerAssets()
     {
+        m_assets->registerSprite(rogue_assets::Dead);
+        for (const auto &asset : rogue_assets::Spawn) {
+            m_assets->registerSprite(asset);
+        }
         for (const auto &asset : rogue_assets::Idle) {
             m_assets->registerSprite(asset);
         }
@@ -167,6 +221,43 @@ private:
         m_ctl->rogue()->EvDamaged.subscribe([this](EC::Stats::Health::HP) {
             animateHitFlash();
         });
+        m_ctl->rogue()->EvDeath.subscribe([this]() {
+            animateDeath();
+        });
+    }
+
+    void animateSpawn()
+    {
+        auto *animation = m_anim->newAnimation();
+
+        for (const auto &spawn : rogue_assets::Spawn) {
+            animation->addStep<anim::SetAssetStep>(m_spawnSlot, spawn.id, rogue_spawn::kZ);
+            animation->addStep<anim::Step>(rogue_spawn::kFrameSeconds, rogue_spawn::kFrameSeconds);
+        }
+
+        animation->addStep<anim::DelSpriteStep>(m_spawnSlot);
+        animation->finishBuild();
+
+        m_anim->play(
+            m_spawnObject,
+            currentPixelPosition(),
+            rogue_body::kObjectLayer + 2,
+            animation->id()
+        );
+    }
+
+    void animateDeath()
+    {
+        auto *animation = m_anim->newAnimation();
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, rogue_assets::Dead.id, rogue_dead::kZ);
+        animation->finishBuild();
+
+        m_anim->play(
+            m_object,
+            currentPixelPosition(),
+            rogue_body::kObjectLayer - 1,
+            animation->id()
+        );
     }
 
     void animateIdle()
@@ -176,18 +267,27 @@ private:
 
     void animateMove(modlib::Vec2i delta)
     {
+        if (m_ctl->rogue()->getCurrentHP() <= 0) {
+            return;
+        }
         const modlib::Vec2f oldPosition = pixelPosition(m_ctl->rogue()->getPosition() - delta);
         m_anim->play(m_object, oldPosition, rogue_body::kObjectLayer, moveAnimation(rogueDirFromDelta(delta)));
     }
 
     void animateAttack(Rogue::Damage targetId)
     {
+        if (m_ctl->rogue()->getCurrentHP() <= 0) {
+            return;
+        }
         const modlib::Vec2i delta = attackDelta(targetId);
         m_anim->play(m_object, currentPixelPosition(), rogue_body::kObjectLayer, attackAnimation(rogueDirFromDelta(delta)));
     }
 
     void animateHitFlash()
     {
+        if (m_ctl->rogue()->getCurrentHP() <= 0) {
+            return;
+        }
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(
             m_flashSlot,

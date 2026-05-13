@@ -403,10 +403,14 @@ class AnimatedVisualization : public modlib::BmServerModule {
 
     static bool isDebugPlayer(const modlib::Entity *entity)
     {
+        if (!combat_grid::isAliveHealth(entity)) {
+            return false;
+        }
+
         const std::string_view type = entity->getType();
 
         return type == "knight" ||
-               type == "rogue"  ||
+               type == "rogue" ||
                type == "archer";
     }
 

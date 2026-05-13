@@ -42,9 +42,15 @@ inline bool isRoot(const modlib::Entity *entity)
     return entity && entity->getType() == modlib::Entity::BasicTypes::ROOT;
 }
 
+inline bool isAliveHealth(const modlib::Entity *entity)
+{
+    const auto *health = dynamic_cast<const EC::Stats::Health *>(entity);
+    return health != nullptr && health->getCurrentHP() > 0;
+}
+
 inline bool isCombatant(const modlib::Entity *entity)
 {
-    return entity && !isRoot(entity) && dynamic_cast<const EC::Stats::Health *>(entity) != nullptr;
+    return entity && !isRoot(entity) && isAliveHealth(entity);
 }
 
 inline bool blocksMovement(const modlib::Entity *entity)
