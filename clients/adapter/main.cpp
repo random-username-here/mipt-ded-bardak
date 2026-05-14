@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <ext/stdio_filebuf.h>
 #include <istream>
+#include <ostream>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <iostream>
@@ -101,14 +103,9 @@ int main (
     int fd2ch = pipe2ch[1];
     int fd4ch = pipe4ch[0];
 
-    __gnu_cxx::stdio_filebuf<char> inbuf  (fd4ch, std::ios::in );
     __gnu_cxx::stdio_filebuf<char> outbuf (fd2ch, std::ios::out);
+    __gnu_cxx::stdio_filebuf<char> inbuf  (fd4ch, std::ios::in );
     
-    std::istream s2ch (&inbuf );
-    std::ostream s4ch (&outbuf);
-
-    std::string prefix;
-    s2ch >> prefix;
-
-    std::cout << "prefix: " << prefix << '\n';
+    std::ostream s2ch (&outbuf );
+    std::istream s4ch (&inbuf);
 }
