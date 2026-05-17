@@ -68,14 +68,12 @@ public:
 protected:
     bool send (int sig) const;
 
-private:
-    
-
-    Status m_status;
-    pid_t  m_child;
-
     int m_fd2ch;
     int m_fd4ch;
+
+private:
+    Status m_status;
+    pid_t  m_child;
 
     __gnu_cxx::stdio_filebuf<char> m_outbuf;
     __gnu_cxx::stdio_filebuf<char> m_inbuf;
