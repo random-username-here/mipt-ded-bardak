@@ -3,8 +3,7 @@ project(adapter_client)
 
 add_executable(adapter_client
     main.cpp
-    proxy/src/main.cpp
-    proxy/src/signals.cpp
+    proxy/proxy.cpp
 )
 
 target_link_libraries(adapter_client PRIVATE client-core)

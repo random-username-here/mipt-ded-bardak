@@ -31,7 +31,7 @@ public:
 
     bool freeze    () noexcept;
     bool run       () noexcept;
-    int terminate ();
+    int  terminate ();
     int  stop      ();
 
     void fd (int descr[2]) const;
