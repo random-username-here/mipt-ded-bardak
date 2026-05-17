@@ -160,6 +160,12 @@ Proxy::fd (
     descr[1] = m_fd2ch;
 }
 
+pid_t
+Proxy::pid () const
+{
+    return m_child;
+}
+
 
 void 
 Proxy::flush ()
