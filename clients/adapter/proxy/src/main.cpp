@@ -1,6 +1,7 @@
 #include "../inc.hpp"
 #include <cerrno>
 #include <ostream>
+#include <stdexcept>
 #include <string_view>
 #include <system_error>
 #include <unistd.h>
@@ -135,4 +136,21 @@ Proxy::~Proxy ()
 
     close (m_fd2ch);
     close (m_fd4ch);
+}
+
+
+void
+Proxy::fd (
+    int descr[2]
+) const
+{
+    if (descr == nullptr)
+    {
+        throw std::invalid_argument (
+            "provided nullptr"
+        );
+    }
+
+    descr[0] = m_fd4ch;
+    descr[1] = m_fd2ch;
 }

@@ -32,7 +32,9 @@ public:
     bool terminate () noexcept;
     int  stop      () noexcept;
 
+    void fd (int descr[2]) const;
 
+    
 
     template <typename T>
     Proxy& 
