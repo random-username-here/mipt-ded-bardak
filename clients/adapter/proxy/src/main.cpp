@@ -1,8 +1,10 @@
-#include "../inc.hpp"
+#include "../proxy.hpp"
 #include <cerrno>
+#include <cstddef>
 #include <ostream>
 #include <stdexcept>
 #include <string_view>
+#include <sys/types.h>
 #include <system_error>
 #include <unistd.h>
 
@@ -153,4 +155,40 @@ Proxy::fd (
 
     descr[0] = m_fd4ch;
     descr[1] = m_fd2ch;
+}
+
+
+void 
+Proxy::flush ()
+{
+    m_s2ch.flush ();
+}
+
+
+ssize_t
+Proxy::write (
+    const void* buf,
+    size_t size
+)
+{
+    m_s2ch.flush ();
+    
+    return ::write(
+        m_fd2ch,
+        buf,
+        size
+    );
+}
+
+ssize_t
+Proxy::read (
+    void* buf,
+    size_t size
+)
+{
+    return ::read(
+        m_fd4ch,
+        buf,
+        size
+    );
 }

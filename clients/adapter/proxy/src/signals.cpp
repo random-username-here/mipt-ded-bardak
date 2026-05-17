@@ -1,7 +1,8 @@
-#include "../inc.hpp"
+#include "../proxy.hpp"
 #include <csignal>
 #include <cstdio>
 #include <sys/wait.h>
+#include <system_error>
 
 
 bool
@@ -38,12 +39,21 @@ Proxy::run () noexcept
 }
 
 int
-Proxy::stop () noexcept
+Proxy::stop ()
 {
-    kill (
-        m_child,
-        SIGKILL
-    );
+    if (
+        kill (
+            m_child,
+            SIGKILL
+        ) != 0
+    )
+    {
+        throw std::system_error (
+            errno,
+            std::system_category (),
+            "kill() failed"
+        );
+    }
 
     int status;
     waitpid (
@@ -56,13 +66,22 @@ Proxy::stop () noexcept
     return status;
 }
 
-bool
-Proxy::terminate () noexcept
+int
+Proxy::terminate ()
 {
-    kill (
-        m_child,
-        SIGTERM
-    );
+    if (
+        kill (
+            m_child,
+            SIGTERM
+        ) != 0
+    )
+    {
+        throw std::system_error (
+            errno,
+            std::system_category (),
+            "kill() failed"
+        );
+    }
 
     int status;
     waitpid (

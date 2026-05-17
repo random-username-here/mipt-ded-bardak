@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstddef>
 #include <ext/stdio_filebuf.h>
 #include <istream>
 #include <ostream>
 #include <string_view>
+#include <sys/types.h>
 
 
 class Proxy
@@ -29,12 +31,14 @@ public:
 
     bool freeze    () noexcept;
     bool run       () noexcept;
-    bool terminate () noexcept;
-    int  stop      () noexcept;
+    int terminate ();
+    int  stop      ();
 
     void fd (int descr[2]) const;
 
-    
+    ssize_t write (const void* buf, size_t size);
+    ssize_t read  (      void* buf, size_t size);
+    void   flush ();
 
     template <typename T>
     Proxy& 
@@ -64,8 +68,6 @@ public:
         m_s4ch >> value;
         return *this;
     }
-
-
 
 protected:
     bool send (int sig) const;
