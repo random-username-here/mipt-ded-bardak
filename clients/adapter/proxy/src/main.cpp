@@ -29,8 +29,8 @@ Proxy::Proxy (
         );
     }
 
-    pid_t pid = fork ();
-    if (  pid == -1)
+    m_child = fork ();
+    if (  m_child == -1)
     {
         perror ("fork() failed");
 
@@ -46,7 +46,7 @@ Proxy::Proxy (
         );
     }
 
-    if (pid == 0)   // child
+    if (m_child == 0)   // child
     {
         if (
             dup2 (
