@@ -59,17 +59,20 @@ Proxy::stop () noexcept
 bool
 Proxy::terminate () noexcept
 {
-    if (
-        send (
-            SIGTERM
-        )
-    )
-    {
-        m_status = Status::STOPPED;
-        return true;
-    }
+    kill (
+        m_child,
+        SIGTERM
+    );
 
-    return false;
+    int status;
+    waitpid (
+        m_child,
+        &status,
+        0
+    );
+
+    m_status = Status::STOPPED;
+    return status;
 }
 
 bool
