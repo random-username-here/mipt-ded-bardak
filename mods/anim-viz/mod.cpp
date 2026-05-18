@@ -2,6 +2,7 @@
 #include "AssetManager.hpp"
 #include "BmServerModule.hpp"
 #include "Map.hpp"
+#include "Lobby.hpp"
 #include "Timer.hpp"
 #include "Vec2.hpp"
 #include "modlib_manager.hpp"
@@ -11,6 +12,7 @@
 #include <ctime>
 #include <iostream>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
@@ -86,10 +88,12 @@ class AnimatedVisualization : public modlib::BmServerModule {
     std::string_view brief() const override { return "Raylib-based visualization based on animated objects"; }
     ModVersion version() const override { return ModVersion(0, 0, 1); }
 
-    modlib::Level *m_map;
-    modlib::Timer *m_timer;
-    anim::AnimationManager *m_anim;
+    modlib::Lobby        *m_lobby = nullptr;
+    modlib::Level        *m_map;
+    modlib::Timer        *m_timer;
     modlib::AssetManager *m_assets;
+
+    anim::AnimationManager *m_anim;
     std::thread m_winThread;
     std::unordered_map<anim::AnimatedObjectID, AnimatedObject> m_objs;
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
@@ -98,6 +102,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
     std::vector<DebugTile> m_debugVisibleTiles;
     std::vector<DebugTile> m_debugAttackTiles;
     std::vector<HealthBarFade> m_healthBarFades;
+    std::string m_lobbyLine;
+    std::string m_resultLine;
     bool m_showDebugVisibility = false;
     bool m_showDebugAttack = false;
     std::mutex m_lock;
@@ -139,6 +145,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
             ClearBackground(BLACK);
 
             drawObjects();
+            drawLobbyOverlay();
 
             EndDrawing();
         }
@@ -161,6 +168,26 @@ class AnimatedVisualization : public modlib::BmServerModule {
 			action(obj);
 		}
 	}
+
+    void drawLobbyOverlay() {
+        std::string lobbyLine;
+        std::string resultLine;
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+            lobbyLine  = m_lobbyLine;
+            resultLine = m_resultLine;
+        }
+
+        if (!lobbyLine.empty()) {
+            DrawText(lobbyLine.c_str(), 34, 30, 20, RAYWHITE);
+        }
+
+        if (!resultLine.empty()) {
+            const int fontSize = 28;
+            const int width = MeasureText(resultLine.c_str(), fontSize);
+            DrawText(resultLine.c_str(), (GetScreenWidth() - width) / 2, 44, fontSize, RAYWHITE);
+        }
+    }
 
     void drawObjects() {
         rebuildDebugOverlays();
@@ -688,10 +715,12 @@ class AnimatedVisualization : public modlib::BmServerModule {
     }
 
     void onResolveDeps(ModManager *mm) override {
-        m_map = mm->requireAnyOfType<modlib::Level>("Visualization needs a Level");
-        m_timer = mm->requireAnyOfType<modlib::Timer>("Visualization needs a Timer");
-        m_anim = mm->requireAnyOfType<anim::AnimationManager>("Visualization needs Animator");
+        m_map    = mm->requireAnyOfType<modlib::Level>("Visualization needs a Level");
+        m_timer  = mm->requireAnyOfType<modlib::Timer>("Visualization needs a Timer");
+        m_anim   = mm->requireAnyOfType<anim::AnimationManager>("Visualization needs Animator");
         m_assets = mm->requireAnyOfType<modlib::AssetManager>("Visualization needs AssetManager");
+        m_lobby  = mm->anyOfType<modlib::Lobby>();
+
         m_startTime = curTime();
     }
 
@@ -718,7 +747,32 @@ class AnimatedVisualization : public modlib::BmServerModule {
         m_anim->onPlay().subscribe([this](anim::AnimatedObjectID obj, anim::Vec2f off, int lyr, anim::AnimationID an){
             playAnimation(obj, off, lyr, an);
         });
+
+        if (m_lobby == nullptr) return;
+
+        m_lobby->EvClientQueued.subscribe([this](const modlib::LobbyQueuedInfo &info) {
+            std::lock_guard<std::mutex> lock(m_lock);
+            m_lobbyLine = "Lobby: " + std::to_string(info.waiting) + "/" + std::to_string(info.required) + " waiting";
+        });
+
+        m_lobby->EvGameStarted.subscribe([this](const modlib::LobbyGameStartedInfo &info) {
+            std::lock_guard<std::mutex> lock(m_lock);
+            m_lobbyLine = "Match #" + std::to_string(info.matchId) + " started";
+            m_resultLine.clear();
+        });
+
+        m_lobby->EvGameEnded.subscribe([this](const modlib::LobbyGameEndedInfo &info) {
+            std::lock_guard<std::mutex> lock(m_lock);
+            if (info.result == "winner") {
+                m_resultLine = "Winner: client " + std::to_string(info.winnerClientId) + " (" + info.winnerRoleId + ")";
+            } else {
+                m_resultLine = "Draw";
+            }
+            m_lobbyLine = "Waiting for next match";
+        });
     }
 };
 
-extern "C" Mod* modlib_create(ModManager*) { return new AnimatedVisualization(); }
+extern "C" Mod *modlib_create(ModManager *) {
+    return new AnimatedVisualization();
+}
