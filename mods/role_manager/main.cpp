@@ -1,4 +1,5 @@
 #include "RoleMgr.hpp"
+#include "Lobby.hpp"
 #include "binmsg.hpp"
 #include "modlib_manager.hpp"
 #include "role_proto.hpp"
@@ -12,7 +13,9 @@
 
 class RoleMgrImpl final : public modlib::RoleMgr
 {
-  public:
+    modlib::Lobby *lobby_ = nullptr;
+
+public:
 	std::string_view id() const override
 	{
 		return "sevsol.bardak.role_mgr";
@@ -57,24 +60,37 @@ class RoleMgrImpl final : public modlib::RoleMgr
 		return roleOf(client) == roleId;
 	}
 
-	bool selectRole(modlib::BmClient *client, std::string_view roleId) override
-	{
-		const auto role = roles_.find(std::string(roleId));
-		if (role == roles_.end() || selected_.count(client->id()) != 0) {
-			return false;
-		}
+    bool selectRole(modlib::BmClient *client, std::string_view roleId) override
+    {
+        const auto role = roles_.find(std::string(roleId));
+        if (role == roles_.end() || selected_.count(client->id()) != 0) {
+            return false;
+        }
 
-		selected_[client->id()] = role->second.info.id;
-		try {
-			role->second.onSelected(client);
-		}
-		catch (...) {
-			selected_.erase(client->id());
-			throw;
-		}
+        selected_[client->id()] = role->second.info.id;
+        try {
+            if (lobby_ != nullptr) {
+                const modlib::ClientRoleInfo info = role->second.info;
+                const OnSelected onSelected = role->second.onSelected;
+                if (!lobby_->enqueue(client, info, [client, info, onSelected]() {
+                    onSelected(client);
+                    client->send(bmsg::SV_role_chosen{info.id});
+                })) {
+                    selected_.erase(client->id());
+                    return false;
+                }
+                return true;
+            }
 
-		return true;
-	}
+            role->second.onSelected(client);
+        }
+        catch (...) {
+            selected_.erase(client->id());
+            throw;
+        }
+
+        return true;
+    }
 
 	void forEachRole(const RoleVisitor &visitor) const override
 	{
@@ -82,6 +98,11 @@ class RoleMgrImpl final : public modlib::RoleMgr
 			visitor(role.info);
 		}
 	}
+
+    void onResolveDeps(ModManager *mm) override
+    {
+        lobby_ = mm->anyOfType<modlib::Lobby>();
+    }
 
 	void onSetup(modlib::BmServer *server) override
 	{
@@ -128,7 +149,9 @@ class RoleMgrImpl final : public modlib::RoleMgr
 			return;
 		}
 
-		client->send(bmsg::SV_role_chosen{choose->id});
+        if (lobby_ == nullptr) {
+            client->send(bmsg::SV_role_chosen{choose->id});
+        }
 	}
 
   private:
