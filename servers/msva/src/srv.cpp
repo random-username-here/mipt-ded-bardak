@@ -30,6 +30,10 @@ LogStream ClientImpl::logg() {
 }
 
 void ClientImpl::send(bmsg::RawMessage m) {
+    if (m_disconnecting || m_fd < 0) {
+        return;
+    }
+
     {
         auto l = logg();
         m_server->m_pan->userptr = &l.stream();
@@ -107,6 +111,56 @@ void ServerImpl::m_srvMessage(ClientImpl *, bmsg::RawMessage msg) {
     return;
 }
 
+void ServerImpl::setConfigValue(std::string_view key, std::string_view value) {
+    m_config[std::string(key)] = std::string(value);
+}
+
+std::optional<std::string> ServerImpl::configValue(std::string_view key) const {
+    auto it = m_config.find(std::string(key));
+    if (it == m_config.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+void ServerImpl::disconnectClient(modlib::BmClient *client) {
+    if (client == nullptr) {
+        return;
+    }
+
+    disconnectClient(client->id());
+}
+
+void ServerImpl::disconnectClient(size_t clientId) {
+    auto it = m_clients.find(clientId);
+    if (it == m_clients.end()) {
+        return;
+    }
+
+    m_disconnect(it->second.get());
+}
+
+void ServerImpl::m_disconnect(ClientImpl *cl) {
+    if (cl == nullptr || cl->m_disconnecting) {
+        return;
+    }
+
+    cl->m_disconnecting = true;
+    cl->logg() << ESC_MGN << "Client disconnect\n" << ESC_RST;
+
+    if (cl->m_fd >= 0) {
+        epoll_ctl(m_epollFd, EPOLL_CTL_DEL, cl->m_fd, NULL);
+        close(cl->m_fd);
+        cl->m_fd = -1;
+    }
+
+    for (auto i : m_plugins) {
+        i->onDisconnect(cl);
+    }
+
+    m_clients.erase(cl->m_id);
+}
+
 void ServerImpl::m_onConnect(ClientImpl * cl) {
     cl->send(bmsg::SV_srv_name {m_name});
     cl->send(bmsg::SV_srv_id {(uint32_t) cl->m_id});
@@ -155,14 +209,24 @@ void ServerImpl::m_addToEpoll(ClientImpl *cl, int fd, uint32_t flags) {
 
 void ServerImpl::m_incoming(ClientImpl *cl, std::string_view data) {
     cl->m_partialMsg += data;
-maybe_again:
-    bmsg::RawMessage m(cl->m_partialMsg);
-    if (!m.header()) return;
-    size_t len = sizeof(bmsg::Header) + m.header()->len;
-    if (len <= cl->m_partialMsg.size()) {
+
+    while (true) {
+        bmsg::RawMessage m(cl->m_partialMsg);
+        if (!m.header()) {
+            break;
+        }
+
+        const size_t len = sizeof(bmsg::Header) + m.header()->len;
+        if (len > cl->m_partialMsg.size()) {
+            break;
+        }
+
         m_processMessage(cl, bmsg::RawMessage(cl->m_partialMsg.substr(0, len)));
         cl->m_partialMsg = cl->m_partialMsg.substr(len);
-        goto maybe_again;
+
+        if (m_clients.find(cl->m_id) == m_clients.end()) {
+            break;
+        }
     }
 }
 
@@ -251,18 +315,20 @@ void ServerImpl::mainloop() {
         }
         if (ev.events & EPOLLIN) {
             ClientImpl *cl = (ClientImpl*) ev.data.ptr;
+            const size_t clientId = cl->m_id;
+
             int n = read(cl->m_fd, buf, sizeof(buf));
-            if (n > 0)
+            if (n > 0) {
                 m_incoming(cl, std::string_view(buf, n));
+            }
+
+            if (m_clients.find(clientId) == m_clients.end()) {
+                continue;
+            }
         }
         if (ev.events & (EPOLLRDHUP | EPOLLHUP)) {
             ClientImpl *cl = (ClientImpl*) ev.data.ptr;
-            cl->logg() << ESC_MGN << "Client disconnect\n" << ESC_RST;
-            for (auto i : m_plugins)
-                i->onDisconnect(cl);
-            epoll_ctl(m_epollFd, EPOLL_CTL_DEL, cl->m_fd, NULL);
-            close(cl->m_fd);
-            m_clients.erase(cl->m_id);
+            m_disconnect(cl);
         }
     }
 }

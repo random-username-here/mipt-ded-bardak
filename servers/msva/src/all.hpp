@@ -2,12 +2,17 @@
 #include "binmsg.hpp"
 #include "modlib_manager.hpp"
 #include "libpan.h"
+
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <netinet/in.h>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <unordered_map>
+#include <vector>
+
 #include "Timer.hpp"
 #include "msva_api.hpp"
 
@@ -32,6 +37,7 @@ class ClientImpl : public Client {
     size_t m_id;
     sockaddr_in m_addr;
     size_t m_seq = 1;
+    bool m_disconnecting = false;
 
 
     ClientImpl(ServerImpl *s, int fd, size_t id, sockaddr_in addr) : m_fd(fd), m_server(s),  m_id(id), m_addr(addr) {}
@@ -75,12 +81,14 @@ class ServerImpl : public Server {
     LogFunc m_logCallback;
     bool m_ttylog = true;
     std::optional<std::ofstream> m_fileLogger;
+    std::unordered_map<std::string, std::string> m_config;
 
     void m_addToEpoll(ClientImpl *cl, int fd, uint32_t flags);
     void m_incoming(ClientImpl *cl, std::string_view data);
     void m_processMessage(ClientImpl *cl, bmsg::RawMessage msg);
     void m_srvMessage(ClientImpl *cl, bmsg::RawMessage msg);
     void m_onConnect(ClientImpl *cl);
+    void m_disconnect(ClientImpl *cl);
 
 public:
     
@@ -90,8 +98,11 @@ public:
     void listenPrefix(std::string_view pref, modlib::BmServerModule *mod) override;
     void listenAll(modlib::BmServerModule *mod) override;
     void forAllClients(const std::function<void(modlib::BmClient *)> cb) override {
-        for (auto &[id, cl] : m_clients)
-            cb(cl.get());
+        for (auto &[id, cl] : m_clients) {
+            if (!cl->m_disconnecting) {
+                cb(cl.get());
+            }
+        }
     }
 
     ServerImpl(ModManager *mm, PAN *pan);
@@ -104,6 +115,10 @@ public:
     LogFunc logCallback() override { return m_logCallback; };
     void setTTYLogs(bool enabled) override { m_ttylog = enabled; };
     void setLogFile(const std::string &s) { m_fileLogger = std::ofstream(s); }
+    void setConfigValue(std::string_view key, std::string_view value) override;
+    std::optional<std::string> configValue(std::string_view key) const override;
+    void disconnectClient(modlib::BmClient *client) override;
+    void disconnectClient(size_t clientId) override;
     void mainloop();
 
     ServerImpl(const ServerImpl &s) = delete;
