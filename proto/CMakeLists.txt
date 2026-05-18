@@ -15,6 +15,7 @@ endfunction()
 
 generate_pan_proto(specs/proto/srv.pan srv_proto.hpp)
 generate_pan_proto(specs/proto/role.pan role_proto.hpp)
+generate_pan_proto(specs/proto/lobby.pan lobby_proto.hpp)
 generate_pan_proto(specs/proto/gmap.pan gmap_proto.hpp)
 generate_pan_proto(specs/proto/turns.pan turns_proto.hpp)
 
