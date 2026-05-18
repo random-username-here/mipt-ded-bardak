@@ -129,6 +129,8 @@ Proxy::Proxy (
         m_fd4ch,
         std::ios::in
     );
+
+    m_status = Status::RUNNING;
 }
 
 Proxy::~Proxy ()
