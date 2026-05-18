@@ -16,7 +16,7 @@ struct ServerConfig
 {
     std::string host;
     std::string port;
-    
+
     ServerConfig()
     : host("localhost")
     , port("3000")
@@ -31,10 +31,10 @@ iniHandler
     const char* section,
     const char* name,
     const char* value
-) 
+)
 {
     ServerConfig* config = (ServerConfig*)user;
-    
+
     if (
         section == NULL ||
         strlen(section) == 0
@@ -45,10 +45,10 @@ iniHandler
                 name,
                 "host"
             ) == 0
-        ) 
+        )
         {
             config->host = value;
-        } 
+        }
         else if (
             strcmp(
                 name,
@@ -59,7 +59,7 @@ iniHandler
             config->port = value;
         }
     }
-    
+
     return 1;
 }
 
@@ -73,7 +73,7 @@ bool iniParse (
         iniHandler,
         &config
     );
-    
+
     if (result < 0) {
         std::cerr << "[Error] Cant open file " << filename << std::endl;
         return false;
@@ -81,7 +81,7 @@ bool iniParse (
         std::cerr << "[Error] Error in string: " << result << std::endl;
         return false;
     }
-    
+
     return true;
 }
 
@@ -112,9 +112,9 @@ int main(int argc, char* argv[])
             argv[1]
         );
         std::cout << "[Log] Process started: pid = " << proxy.pid () << std::endl;
-        
+
         std::atomic<bool> running {true};
-        
+
         std::thread S2Ch (
             [&]()
             {
@@ -122,11 +122,11 @@ int main(int argc, char* argv[])
                 {
                     PanFrame frame;
                     auto status = conn.readFrame(frame);
-                    
+
                     if (status == TcpConnection::IoStatus::OK)
                     {
                         proxy.write (
-                            frame.payload.data(), 
+                            frame.payload.data(),
                             frame.payload.size()
                         );
                         proxy.flush ();
@@ -139,19 +139,19 @@ int main(int argc, char* argv[])
                 }
             }
         );
-        
+
         std::thread Ch2S (
             [&]()
             {
                 std::array<uint8_t, BUFSIZ> buffer;
-                
+
                 while (running)
                 {
                     ssize_t read = proxy.read(
                         buffer.data (),
                         buffer.size ()
                     );
-                    
+
                     if (read > 0)
                     {
                         PanFrame frame;
@@ -159,7 +159,7 @@ int main(int argc, char* argv[])
                             buffer.begin(),
                             buffer.begin() + read
                         );
-                        
+
                         if (conn.writeRaw(frame.rawMessage()) != TcpConnection::IoStatus::OK)
                         {
                             running = false;
@@ -174,10 +174,10 @@ int main(int argc, char* argv[])
                 }
             }
         );
-        
+
         S2Ch.join ();
         Ch2S.join ();
-        
+
     }
     catch (const std::exception& e)
     {

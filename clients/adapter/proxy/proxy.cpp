@@ -22,7 +22,7 @@ Proxy::Proxy (
     int pipe4ch[2];
 
     if (
-        pipe (pipe2ch) || 
+        pipe (pipe2ch) ||
         pipe (pipe4ch)
     )
     {
@@ -61,7 +61,7 @@ Proxy::Proxy (
         )
         {
             perror ("dup2() failed");
-            
+
             close (pipe2ch[0]);
             close (pipe2ch[1]);
             close (pipe4ch[0]);
@@ -128,7 +128,7 @@ Proxy::Proxy (
     m_inbuf  = __gnu_cxx::stdio_filebuf<char> (
         m_fd4ch,
         std::ios::in
-    ); 
+    );
 }
 
 
@@ -167,7 +167,7 @@ Proxy::pid () const
 }
 
 
-void 
+void
 Proxy::flush ()
 {
     m_s2ch.flush ();
@@ -181,7 +181,7 @@ Proxy::write (
 )
 {
     m_s2ch.flush ();
-    
+
     return ::write(
         m_fd2ch,
         buf,
@@ -224,7 +224,7 @@ bool
 Proxy::run () noexcept
 {
     if (
-        m_status == Status::FREEZED && 
+        m_status == Status::FREEZED &&
         send (
             SIGCONT
         )

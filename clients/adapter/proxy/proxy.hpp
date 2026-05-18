@@ -42,7 +42,7 @@ public:
     void   flush ();
 
     template <typename T>
-    Proxy& 
+    Proxy&
     operator<< (
         const T& value
     )
@@ -51,7 +51,7 @@ public:
         return *this;
     }
 
-    Proxy& 
+    Proxy&
     operator<< (
         std::ostream& (*pf)(std::ostream&)
     )
