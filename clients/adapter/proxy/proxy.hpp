@@ -34,12 +34,12 @@ public:
     int  terminate ();
     int  stop      ();
 
-    void fd   (int descr[2]) const;
+    void  fd  (int descr[2]) const;
     pid_t pid (            ) const;
 
     ssize_t write (const void* buf, size_t size);
     ssize_t read  (      void* buf, size_t size);
-    void   flush ();
+    void    flush ();
 
     template <typename T>
     Proxy&

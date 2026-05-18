@@ -35,7 +35,7 @@ Proxy::Proxy (
     }
 
     m_child = fork ();
-    if (  m_child == -1)
+    if (m_child == -1)
     {
         perror ("fork() failed");
 
@@ -51,7 +51,7 @@ Proxy::Proxy (
         );
     }
 
-    if (m_child == 0)   // child
+    if (m_child == 0)  // child
     {
         if (
             dup2 (
@@ -131,7 +131,6 @@ Proxy::Proxy (
     );
 }
 
-
 Proxy::~Proxy ()
 {
     if (m_status != Status::STOPPED)
@@ -142,7 +141,6 @@ Proxy::~Proxy ()
     close (m_fd2ch);
     close (m_fd4ch);
 }
-
 
 void
 Proxy::fd (
@@ -166,13 +164,11 @@ Proxy::pid () const
     return m_child;
 }
 
-
 void
 Proxy::flush ()
 {
     m_s2ch.flush ();
 }
-
 
 ssize_t
 Proxy::write (
@@ -201,8 +197,6 @@ Proxy::read (
         size
     );
 }
-
-
 
 bool
 Proxy::freeze () noexcept
