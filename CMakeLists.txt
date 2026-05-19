@@ -39,6 +39,7 @@ add_subdirectory(mods/timer)
 add_subdirectory(mods/map)
 add_subdirectory(mods/roots)
 add_subdirectory(mods/assets)
+add_subdirectory(mods/sfx)
 add_subdirectory(entity_components)
 add_subdirectory(mods/animator)
 

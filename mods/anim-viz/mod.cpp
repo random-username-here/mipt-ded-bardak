@@ -2,6 +2,7 @@
 #include "AssetManager.hpp"
 #include "BmServerModule.hpp"
 #include "Map.hpp"
+#include "Sfx.hpp"
 #include "Lobby.hpp"
 #include "Timer.hpp"
 #include "Vec2.hpp"
@@ -16,6 +17,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 
 using modlib::Vec2f;
 
@@ -50,8 +52,23 @@ void main()
 }
 )";
 
-static float snapSourcePixel(float v)
-{
+static bool endsWith(std::string_view value, std::string_view suffix) {
+    return value.size() >= suffix.size() && value.substr(value.size() - suffix.size()) == suffix;
+}
+
+static const char *raylibSoundExt(std::string_view file) {
+    if (endsWith(file, ".ogg")) {
+        return ".ogg";
+    }
+
+    if (endsWith(file, ".mp3")) {
+        return ".mp3";
+    }
+
+    return ".wav";
+}
+
+static float snapSourcePixel(float v) {
     return std::round(v);
 }
 
@@ -67,6 +84,11 @@ struct AnimatedObject {
 
 struct DebugTile {
     modlib::Vec2i pos;
+};
+
+struct QueuedSound {
+    sfx::Cue cue;
+    float playAt = 0.0f;
 };
 
 struct HealthBarFade {
@@ -92,16 +114,21 @@ class AnimatedVisualization : public modlib::BmServerModule {
     modlib::Level        *m_map;
     modlib::Timer        *m_timer;
     modlib::AssetManager *m_assets;
+    sfx::SoundManager    *m_sfx = nullptr;
 
     anim::AnimationManager *m_anim;
     std::thread m_winThread;
     std::unordered_map<anim::AnimatedObjectID, AnimatedObject> m_objs;
     std::unordered_map<anim::AnimationID, const anim::Animation*> m_anims;
     std::unordered_map<TextureID, Texture2D> m_textures;
+    std::unordered_map<uint64_t, Sound> m_sounds;
+    std::optional<Music> m_bgm;
+    float m_bgmVolume = 0.35f;
     Shader m_whiteFlashShader{};
-    std::vector<DebugTile> m_debugVisibleTiles;
-    std::vector<DebugTile> m_debugAttackTiles;
+    std::vector<DebugTile>     m_debugVisibleTiles;
+    std::vector<DebugTile>     m_debugAttackTiles;
     std::vector<HealthBarFade> m_healthBarFades;
+    std::vector<QueuedSound>   m_soundQueue;
     std::string m_lobbyLine;
     std::string m_resultLine;
     bool m_showDebugVisibility = false;
@@ -129,6 +156,8 @@ class AnimatedVisualization : public modlib::BmServerModule {
         );
 
         InitWindow(windowW, windowH, "Animation-based visualizer");
+        InitAudioDevice();
+        loadAndPlayBgm();
         m_whiteFlashShader = LoadShaderFromMemory(nullptr, kWhiteFlashFragShader);
         SetTargetFPS(60);
 
@@ -141,6 +170,9 @@ class AnimatedVisualization : public modlib::BmServerModule {
                 m_showDebugAttack = !m_showDebugAttack;
             }
 
+            updateBgm();
+            playQueuedSounds();
+
             BeginDrawing();
             ClearBackground(BLACK);
 
@@ -149,6 +181,22 @@ class AnimatedVisualization : public modlib::BmServerModule {
 
             EndDrawing();
         }
+
+        UnloadShader(m_whiteFlashShader);
+
+        if (m_bgm) {
+            StopMusicStream(*m_bgm);
+            UnloadMusicStream(*m_bgm);
+            m_bgm.reset();
+        }
+
+        for (auto &[id, sound] : m_sounds) {
+            (void)id;
+            UnloadSound(sound);
+        }
+        m_sounds.clear();
+
+        CloseAudioDevice();
     }
 
 	template <typename TMap, typename TCmp, typename TAct>
@@ -186,6 +234,122 @@ class AnimatedVisualization : public modlib::BmServerModule {
             const int fontSize = 28;
             const int width = MeasureText(resultLine.c_str(), fontSize);
             DrawText(resultLine.c_str(), (GetScreenWidth() - width) / 2, 44, fontSize, RAYWHITE);
+        }
+    }
+
+    void enqueueSound(const sfx::Cue &cue) {
+        std::lock_guard<std::mutex> lock(m_lock);
+
+        QueuedSound queued;
+        queued.cue = cue;
+        queued.playAt = curTime() + std::max(0.0f, cue.delaySeconds);
+
+        m_soundQueue.push_back(queued);
+    }
+
+    void playQueuedSounds() {
+        const float now = curTime();
+
+        std::vector<sfx::Cue> due;
+
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+
+            auto it = m_soundQueue.begin();
+            while (it != m_soundQueue.end()) {
+                if (it->playAt <= now) {
+                    due.push_back(it->cue);
+                    it = m_soundQueue.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        for (const sfx::Cue &cue : due) {
+            Sound *sound = soundFor(cue.id);
+            if (sound == nullptr) {
+                continue;
+            }
+
+            SetSoundVolume(*sound, std::max(0.0f, cue.volume));
+            SetSoundPitch(*sound, std::max(0.01f, cue.pitch));
+            PlaySound(*sound);
+        }
+    }
+
+    Sound *soundFor(modlib::SoundID id) {
+        const uint64_t key = id.as_u64;
+
+        auto loaded = m_sounds.find(key);
+        if (loaded != m_sounds.end()) {
+            return &loaded->second;
+        }
+
+        const auto asset = m_assets->sound(id);
+        if (!asset) {
+            return nullptr;
+        }
+
+        const auto raw = m_assets->bytes(id);
+        if (!raw) {
+            return nullptr;
+        }
+
+        Wave wave = LoadWaveFromMemory(
+            raylibSoundExt(asset->file),
+            reinterpret_cast<const unsigned char *>(raw->data()),
+            static_cast<int>(raw->size())
+        );
+
+        if (wave.frameCount == 0) {
+            return nullptr;
+        }
+
+        Sound sound = LoadSoundFromWave(wave);
+        UnloadWave(wave);
+
+        if (sound.frameCount == 0) {
+            return nullptr;
+        }
+
+        auto inserted = m_sounds.try_emplace(key, sound);
+        return &inserted.first->second;
+    }
+
+    void loadAndPlayBgm() {
+        const auto asset = m_assets->music(bmsg::Char64("bgm"));
+        if (!asset) {
+            return;
+        }
+
+        const auto raw = m_assets->bytes(asset->id);
+        if (!raw) {
+            return;
+        }
+
+        Music music = LoadMusicStreamFromMemory(
+            raylibSoundExt(asset->file),
+            reinterpret_cast<const unsigned char *>(raw->data()),
+            static_cast<int>(raw->size())
+        );
+
+        if (music.ctxData == nullptr) {
+            return;
+        }
+
+        music.looping = asset->loop;
+        m_bgmVolume = asset->volume;
+
+        SetMusicVolume(music, m_bgmVolume);
+        PlayMusicStream(music);
+
+        m_bgm = music;
+    }
+
+    void updateBgm() {
+        if (m_bgm) {
+            UpdateMusicStream(*m_bgm);
         }
     }
 
@@ -719,6 +883,7 @@ class AnimatedVisualization : public modlib::BmServerModule {
         m_timer  = mm->requireAnyOfType<modlib::Timer>("Visualization needs a Timer");
         m_anim   = mm->requireAnyOfType<anim::AnimationManager>("Visualization needs Animator");
         m_assets = mm->requireAnyOfType<modlib::AssetManager>("Visualization needs AssetManager");
+        m_sfx    = mm->anyOfType<sfx::SoundManager>();
         m_lobby  = mm->anyOfType<modlib::Lobby>();
 
         m_startTime = curTime();
@@ -747,6 +912,11 @@ class AnimatedVisualization : public modlib::BmServerModule {
         m_anim->onPlay().subscribe([this](anim::AnimatedObjectID obj, anim::Vec2f off, int lyr, anim::AnimationID an){
             playAnimation(obj, off, lyr, an);
         });
+        if (m_sfx != nullptr) {
+            m_sfx->onPlay().subscribe([this](const sfx::Cue &cue) {
+                enqueueSound(cue);
+            });
+        }
 
         if (m_lobby == nullptr) return;
 
