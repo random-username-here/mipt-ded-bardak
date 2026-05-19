@@ -1,0 +1,610 @@
+dim BRAIN_PORT;
+dim sock;
+
+dim alive;
+dim hp;
+dim have_self;
+dim self_x;
+dim self_y;
+dim has_slash;
+dim rng;
+
+dim n_enemy;
+dim ex 32;
+dim ey 32;
+dim eid 32;
+
+dim n_root;
+dim rx 32;
+dim ry 32;
+dim rid 32;
+
+dim n_wall;
+dim wx 512;
+dim wy 512;
+
+dim visited 4096;
+dim parent 4096;
+dim qcell 4096;
+
+dim act_kind;
+dim act_dx;
+dim act_dy;
+dim act_target;
+
+dim legal_dx 4;
+dim legal_dy 4;
+
+absv(v)
+{
+    if (v < 0)
+    {
+        return 0 - v;
+    }
+    return v;
+}
+
+cell_idx(x, y)
+{
+    return y * 64 + x;
+}
+
+in_bounds(x, y)
+{
+    if (x < 0)
+    {
+        return 0;
+    }
+    if (y < 0)
+    {
+        return 0;
+    }
+    if (x >= 64)
+    {
+        return 0;
+    }
+    if (y >= 64)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+in_moore_range(sx, sy, tx, ty)
+{
+    dx = absv(sx - tx);
+    dy = absv(sy - ty);
+    if (dx == 0)
+    {
+        if (dy == 0)
+        {
+            return 0;
+        }
+    }
+    if (dx <= 1)
+    {
+        if (dy <= 1)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+wall_at(x, y)
+{
+    i = 0;
+    while (i < n_wall)
+    {
+        if (wx[i] == x)
+        {
+            if (wy[i] == y)
+            {
+                return 1;
+            }
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+enemy_at(x, y)
+{
+    i = 0;
+    while (i < n_enemy)
+    {
+        if (ex[i] == x)
+        {
+            if (ey[i] == y)
+            {
+                return 1;
+            }
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+root_at(x, y)
+{
+    i = 0;
+    while (i < n_root)
+    {
+        if (rx[i] == x)
+        {
+            if (ry[i] == y)
+            {
+                return 1;
+            }
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+blocked(x, y)
+{
+    if (wall_at(x, y) == 1)
+    {
+        return 1;
+    }
+    if (enemy_at(x, y) == 1)
+    {
+        return 1;
+    }
+    if (root_at(x, y) == 1)
+    {
+        return 1;
+    }
+    return 0;
+}
+
+attacks_any_at(x, y, toward_enemy)
+{
+    if (toward_enemy == 1)
+    {
+        i = 0;
+        while (i < n_enemy)
+        {
+            if (in_moore_range(x, y, ex[i], ey[i]) == 1)
+            {
+                return 1;
+            }
+            i = i + 1;
+        }
+        return 0;
+    }
+
+    i = 0;
+    while (i < n_root)
+    {
+        if (in_moore_range(x, y, rx[i], ry[i]) == 1)
+        {
+            return 1;
+        }
+        i = i + 1;
+    }
+    return 0;
+}
+
+clear_visible()
+{
+    n_enemy = 0;
+    n_root = 0;
+    n_wall = 0;
+}
+
+push_enemy(x, y, id)
+{
+    if (n_enemy < 32)
+    {
+        ex[n_enemy] = x;
+        ey[n_enemy] = y;
+        eid[n_enemy] = id;
+        n_enemy = n_enemy + 1;
+    }
+}
+
+push_root(x, y, id)
+{
+    if (n_root < 32)
+    {
+        rx[n_root] = x;
+        ry[n_root] = y;
+        rid[n_root] = id;
+        n_root = n_root + 1;
+    }
+}
+
+push_wall(x, y)
+{
+    if (n_wall < 512)
+    {
+        wx[n_wall] = x;
+        wy[n_wall] = y;
+        n_wall = n_wall + 1;
+    }
+}
+
+first_enemy_in_range()
+{
+    i = 0;
+    while (i < n_enemy)
+    {
+        if (in_moore_range(self_x, self_y, ex[i], ey[i]) == 1)
+        {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+first_root_in_range()
+{
+    i = 0;
+    while (i < n_root)
+    {
+        if (in_moore_range(self_x, self_y, rx[i], ry[i]) == 1)
+        {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+bfs_init()
+{
+    i = 0;
+    while (i < 4096)
+    {
+        visited[i] = 0;
+        parent[i] = -1;
+        i = i + 1;
+    }
+}
+
+bfs_step_toward(toward_enemy)
+{
+    if (have_self == 0)
+    {
+        return 0;
+    }
+
+    if (toward_enemy == 1)
+    {
+        if (n_enemy == 0)
+        {
+            return 0;
+        }
+    }
+    else
+    {
+        if (n_root == 0)
+        {
+            return 0;
+        }
+    }
+
+    bfs_init();
+
+    start = cell_idx(self_x, self_y);
+    qhead = 0;
+    qtail = 0;
+    qcell[qtail] = start;
+    qtail = qtail + 1;
+    visited[start] = 1;
+
+    found = 0;
+    found_cell = start;
+
+    while (qhead < qtail)
+    {
+        if (found == 1)
+        {
+            qhead = qtail;
+        }
+
+        cur = qcell[qhead];
+        qhead = qhead + 1;
+
+        cy = cur / 64;
+        cx = cur - cy * 64;
+
+        if (cur != start)
+        {
+            if (attacks_any_at(cx, cy, toward_enemy) == 1)
+            {
+                if (blocked(cx, cy) == 0)
+                {
+                    found = 1;
+                    found_cell = cur;
+                }
+            }
+        }
+
+        nd = 0;
+        while (nd < 4)
+        {
+            if (nd == 0)
+            {
+                nx = cx + 1;
+                ny = cy;
+            }
+            if (nd == 1)
+            {
+                nx = cx - 1;
+                ny = cy;
+            }
+            if (nd == 2)
+            {
+                nx = cx;
+                ny = cy + 1;
+            }
+            if (nd == 3)
+            {
+                nx = cx;
+                ny = cy - 1;
+            }
+
+            if (in_bounds(nx, ny) == 1)
+            {
+                if (blocked(nx, ny) == 0)
+                {
+                    nxt = cell_idx(nx, ny);
+                    if (visited[nxt] == 0)
+                    {
+                        visited[nxt] = 1;
+                        parent[nxt] = cur;
+                        qcell[qtail] = nxt;
+                        qtail = qtail + 1;
+                    }
+                }
+            }
+
+            nd = nd + 1;
+        }
+    }
+
+    if (found == 0)
+    {
+        return 0;
+    }
+
+    cur = found_cell;
+    while (parent[cur] != start)
+    {
+        if (parent[cur] < 0)
+        {
+            return 0;
+        }
+        cur = parent[cur];
+    }
+
+    cy = cur / 64;
+    cx = cur - cy * 64;
+
+    act_dx = cx - self_x;
+    act_dy = cy - self_y;
+    return 1;
+}
+
+random_step()
+{
+    legal_n = 0;
+
+    nd = 0;
+    while (nd < 4)
+    {
+        if (nd == 0)
+        {
+            nx = self_x + 1;
+            ny = self_y;
+        }
+        if (nd == 1)
+        {
+            nx = self_x - 1;
+            ny = self_y;
+        }
+        if (nd == 2)
+        {
+            nx = self_x;
+            ny = self_y + 1;
+        }
+        if (nd == 3)
+        {
+            nx = self_x;
+            ny = self_y - 1;
+        }
+
+        if (in_bounds(nx, ny) == 1)
+        {
+            if (blocked(nx, ny) == 0)
+            {
+                legal_dx[legal_n] = nx - self_x;
+                legal_dy[legal_n] = ny - self_y;
+                legal_n = legal_n + 1;
+            }
+        }
+
+        nd = nd + 1;
+    }
+
+    if (legal_n == 0)
+    {
+        return 0;
+    }
+
+    rng = rng * 1103515245 + 12345;
+    pick = rng;
+    while (pick < 0)
+    {
+        pick = pick + 2147483647;
+    }
+    pick = pick % legal_n;
+
+    act_dx = legal_dx[pick];
+    act_dy = legal_dy[pick];
+    return 1;
+}
+
+send_action()
+{
+    sock_send_int(sock, act_kind);
+    if (act_kind == 1)
+    {
+        sock_send_int(sock, act_dx);
+        sock_send_int(sock, act_dy);
+    }
+    if (act_kind == 2)
+    {
+        sock_send_int(sock, act_target);
+    }
+}
+
+act_on_tick()
+{
+    act_kind = 0;
+    act_dx = 0;
+    act_dy = 0;
+    act_target = 0;
+
+    if (alive == 0)
+    {
+        act_kind = 3;
+        return;
+    }
+
+    if (have_self == 0)
+    {
+        return;
+    }
+
+    if (has_slash == 1)
+    {
+        idx = first_enemy_in_range();
+        if (idx >= 0)
+        {
+            act_kind = 2;
+            act_target = eid[idx];
+            return;
+        }
+    }
+
+    if (bfs_step_toward(1) == 1)
+    {
+        act_kind = 1;
+        return;
+    }
+
+    if (has_slash == 1)
+    {
+        idx = first_root_in_range();
+        if (idx >= 0)
+        {
+            act_kind = 2;
+            act_target = rid[idx];
+            return;
+        }
+    }
+
+    if (bfs_step_toward(0) == 1)
+    {
+        act_kind = 1;
+        return;
+    }
+
+    if (random_step() == 1)
+    {
+        act_kind = 1;
+    }
+}
+
+handle_event(evt)
+{
+    if (evt == 2)
+    {
+        hp = sock_recv_int(sock);
+        if (hp > 0)
+        {
+            alive = 1;
+        }
+        else
+        {
+            alive = 0;
+        }
+    }
+
+    if (evt == 3)
+    {
+        self_x = sock_recv_int(sock);
+        self_y = sock_recv_int(sock);
+        have_self = 1;
+    }
+
+    if (evt == 4)
+    {
+        x = sock_recv_int(sock);
+        y = sock_recv_int(sock);
+        id = sock_recv_int(sock);
+        push_root(x, y, id);
+    }
+
+    if (evt == 5)
+    {
+        x = sock_recv_int(sock);
+        y = sock_recv_int(sock);
+        id = sock_recv_int(sock);
+        push_enemy(x, y, id);
+    }
+
+    if (evt == 6)
+    {
+        x = sock_recv_int(sock);
+        y = sock_recv_int(sock);
+        push_wall(x, y);
+    }
+
+    if (evt == 7)
+    {
+        has_slash = 1;
+    }
+
+    if (evt == 1)
+    {
+        act_on_tick();
+        send_action();
+        clear_visible();
+    }
+}
+
+main
+{
+    BRAIN_PORT = 17771;
+
+    alive = 1;
+    hp = 1;
+    have_self = 0;
+    self_x = 0;
+    self_y = 0;
+    has_slash = 0;
+    rng = 1;
+    n_enemy = 0;
+    n_root = 0;
+    n_wall = 0;
+
+    sock_init();
+    sock = sock_tcp_connect(127, 0, 0, 1, BRAIN_PORT);
+
+    if (sock < 0)
+    {
+        return;
+    }
+
+    while (1 == 1)
+    {
+        evt = sock_recv_int(sock);
+        handle_event(evt);
+    }
+}
