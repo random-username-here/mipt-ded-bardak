@@ -6,6 +6,8 @@
 #include "BmServerModule.hpp"
 #include <functional>
 #include <netinet/in.h>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <sstream>
 
@@ -44,6 +46,10 @@ public:
     virtual void setTTYLogs(bool enabled) = 0;
     virtual void setLogCallback(LogFunc fn) = 0;
     virtual LogFunc logCallback() = 0;
+    virtual void setConfigValue(std::string_view key, std::string_view value) = 0;
+    virtual std::optional<std::string> configValue(std::string_view key) const = 0;
+    virtual void disconnectClient(modlib::BmClient *client) = 0;
+    virtual void disconnectClient(size_t clientId) = 0;
 };
 
 class Client : public modlib::BmClient {

@@ -58,7 +58,8 @@ int l_iniHandler(void *p, const char *sec_c, const char *name_c, const char *val
         auto path = std::filesystem::absolute(r->configPath.parent_path() / val).lexically_normal();
         r->server->setLogFile(std::string(path.c_str()));
     } else {
-        l_logPrefix() << ESC_YLW << "Key " << name << " is not known\n" << ESC_RST;
+        r->server->setConfigValue(name, val);
+        l_logPrefix() << "Config key " << ESC_BLU << name << ESC_RST << " saved for modules\n";
     }
     return 0;
 }
