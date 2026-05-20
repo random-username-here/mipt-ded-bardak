@@ -19,7 +19,7 @@ class PaladinModule final : public BmServerModule {
     RoleMgr *roles = nullptr;
     anim::AnimationManager *animator = nullptr;
     AssetManager           *assets   = nullptr;
-    PaladinManager manager;
+    PriestManager manager;
 
 public:
     std::string_view id()    const override { return "nellor.bardak.uctl.paladin"; }
@@ -104,7 +104,7 @@ private:
         if (manager.count(client) != 0) {
             return;
         }
-        manager.spawnPaladin(client);
+        manager.spawnPriest(client);
     }
 };
 

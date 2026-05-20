@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 
@@ -55,20 +56,24 @@ bool isPNG(std::string_view raw_bytes)
 
 class AssetManagerModule final : public modlib::AssetManager {
 private:
-	using SpritesMap = std::unordered_map<modlib::SpriteID, modlib::SpriteAsset, modlib::SpriteIDHash>;
-	using BytesMap = std::unordered_map<std::string_view, std::string>;
+    using SpritesMap = std::unordered_map<modlib::SpriteID, modlib::SpriteAsset, modlib::SpriteIDHash>;
+    using SoundsMap  = std::unordered_map<modlib::SoundID,  modlib::SoundAsset,  modlib::SoundIDHash>;
+    using MusicMap   = std::unordered_map<modlib::MusicID,  modlib::MusicAsset,  modlib::MusicIDHash>;
+    using BytesMap   = std::unordered_map<std::string, std::string>;
 
     SpritesMap m_sprites;
-    BytesMap m_bytes;
+    SoundsMap  m_sounds;
+    MusicMap   m_music;
+    BytesMap   m_bytes;
 
 public:
     std::string_view id() const override { return "neilor.bardak.asset_manager"; }
-    std::string_view brief() const override { return "Manager of raw resources, e.g. sprites"; }
-    ModVersion version() const override { return ModVersion(0, 1, 0); }
+    std::string_view brief() const override { return "Manager of raw resources, sprites, and sounds"; }
+    ModVersion version() const override { return ModVersion(0, 2, 0); }
 
     bool registerSprite(modlib::SpriteAsset sprite) override {
         const auto sprite_id = sprite.id.as_u64;
-        if (sprite_id == 0 || m_sprites.count(sprite_id) != 0) {
+        if (sprite_id == 0 || m_sprites.count(sprite.id) != 0) {
             return false;
         }
 
@@ -76,25 +81,58 @@ public:
             return false;
         }
 
-        auto bytes_it = m_bytes.find(sprite.file);
-
+        auto bytes_it = bytesForFile(sprite.file);
         if (bytes_it == m_bytes.end()) {
-			std::string raw_bytes = loadFileBytes(sprite.file);
-			if (!isPNG(raw_bytes))
-			{
-				std::cerr << "Only PNG format for assets is supported (for compatibility with raylib)\n";
-				return false;
-			}
+            return false;
+        }
 
-			bool ok;
-			std::tie(bytes_it, ok) = m_bytes.try_emplace(sprite.file, std::move(raw_bytes));
-            if (!ok || bytes_it->second.empty()) {
-                return false;
-            }
+        if (!isPNG(bytes_it->second)) {
+            std::cerr << "Only PNG format is supported for sprite assets: " << sprite.file << "\n";
+            return false;
         }
 
         sprite.raw_bytes = bytes_it->second;
-        m_sprites.emplace(sprite_id, std::move(sprite));
+        m_sprites.emplace(sprite.id, std::move(sprite));
+        return true;
+    }
+
+    bool registerSound(modlib::SoundAsset sound) override {
+        const auto sound_id = sound.id.as_u64;
+        if (sound_id == 0 || m_sounds.count(sound.id) != 0) {
+            return false;
+        }
+
+        if (sound.file.empty()) {
+            return false;
+        }
+
+        auto bytes_it = bytesForFile(sound.file);
+        if (bytes_it == m_bytes.end()) {
+            return false;
+        }
+
+        sound.raw_bytes = bytes_it->second;
+        m_sounds.emplace(sound.id, std::move(sound));
+        return true;
+    }
+
+    bool registerMusic(modlib::MusicAsset music) override {
+        const auto music_id = music.id.as_u64;
+        if (music_id == 0 || m_music.count(music.id) != 0) {
+            return false;
+        }
+
+        if (music.file.empty()) {
+            return false;
+        }
+
+        auto bytes_it = bytesForFile(music.file);
+        if (bytes_it == m_bytes.end()) {
+            return false;
+        }
+
+        music.raw_bytes = bytes_it->second;
+        m_music.emplace(music.id, std::move(music));
         return true;
     }
 
@@ -107,22 +145,69 @@ public:
 		return sprite_it->second;
     }
 
-    std::optional<std::string_view> bytes(modlib::SpriteID id) const override {
-		const auto sprite_it = m_sprites.find(id);
-        if (sprite_it == m_sprites.end()) {
+    std::optional<modlib::SoundAsset> sound(modlib::SoundID id) const override {
+        auto sound_it = m_sounds.find(id);
+        if (sound_it == m_sounds.end()) {
             return std::nullopt;
         }
 
-		return bytes(sprite_it->second.file);
-	}
+        return sound_it->second;
+    }
+
+    std::optional<modlib::MusicAsset> music(modlib::MusicID id) const override {
+        auto music_it = m_music.find(id);
+        if (music_it == m_music.end()) {
+            return std::nullopt;
+        }
+
+        return music_it->second;
+    }
+
+    std::optional<std::string_view> bytes(modlib::AssetID id) const override {
+        if (const auto sprite_it = m_sprites.find(id); sprite_it != m_sprites.end()) {
+            return bytes(sprite_it->second.file);
+        }
+
+        if (const auto sound_it = m_sounds.find(id); sound_it != m_sounds.end()) {
+            return bytes(sound_it->second.file);
+        }
+
+        if (const auto music_it = m_music.find(id); music_it != m_music.end()) {
+            return bytes(music_it->second.file);
+        }
+
+        return std::nullopt;
+    }
 
     std::optional<std::string_view> bytes(std::string_view file) const override {
-        const auto bytes_it = m_bytes.find(file);
+        const auto bytes_it = m_bytes.find(std::string(file));
         if (bytes_it == m_bytes.end()) {
             return std::nullopt;
         }
 
         return bytes_it->second;
+    }
+
+private:
+    BytesMap::iterator bytesForFile(const std::string &file) {
+        auto bytes_it = m_bytes.find(file);
+        if (bytes_it != m_bytes.end()) {
+            return bytes_it;
+        }
+
+        std::string raw_bytes = loadFileBytes(file);
+        if (raw_bytes.empty()) {
+            std::cerr << "Failed to load asset file: " << file << "\n";
+            return m_bytes.end();
+        }
+
+        bool ok = false;
+        std::tie(bytes_it, ok) = m_bytes.try_emplace(file, std::move(raw_bytes));
+        if (!ok) {
+            return m_bytes.end();
+        }
+
+        return bytes_it;
     }
 };
 
