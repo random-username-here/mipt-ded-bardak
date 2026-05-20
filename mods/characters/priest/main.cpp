@@ -4,7 +4,7 @@
 #include "RoleMgr.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
-#include "paladin_manager.hpp"
+#include "priest_manager.hpp"
 #include "modlib_manager.hpp"
 #include "modlib_mod.hpp"
 
@@ -13,7 +13,7 @@
 
 using namespace modlib;
 
-class PaladinModule final : public BmServerModule {
+class PriestModule final : public BmServerModule {
     Timer   *tm    = nullptr;
     Level   *map   = nullptr;
     RoleMgr *roles = nullptr;
@@ -22,8 +22,8 @@ class PaladinModule final : public BmServerModule {
     PriestManager manager;
 
 public:
-    std::string_view id()    const override { return "nellor.bardak.uctl.paladin"; }
-    std::string_view brief() const override { return "Unit controller for paladin"; }
+    std::string_view id()    const override { return "dodo6b.bardak.uctl.priest"; }
+    std::string_view brief() const override { return "Unit controller for priest"; }
     ModVersion version()     const override { return ModVersion(0, 0, 1); }
 
     void onResolveDeps(ModManager *mm) override
@@ -56,16 +56,16 @@ public:
     void onDepsResolved(ModManager *) override
     {
         manager.resolve();
-        if (!roles->registerRole("paladin", "paladin", "paladin", [this](BmClient *client) {
+        if (!roles->registerRole("priest", "priest", "priest", [this](BmClient *client) {
                 select(client);
             })) {
-            throw ModManager::Error("failed to register paladin role");
+            throw ModManager::Error("failed to register priest role");
         }
     }
 
     void onSetup(BmServer *server) override
     {
-        server->registerPrefix("paladin", this);
+        server->registerPrefix("priest", this);
     }
 
     void onConnect(BmClient *) override {}
@@ -77,12 +77,12 @@ public:
 
     void onMessage(BmClient *client, bmsg::RawMessage message) override
     {
-        if (!message.isCorrect() || !roles->clientHasRole(client, "paladin")) {
+        if (!message.isCorrect() || !roles->clientHasRole(client, "priest")) {
             return;
         }
 
         if (message.header()->type == "move") {
-            const auto move = bmsg::CL_paladin_move::decode(message);
+            const auto move = bmsg::CL_priest_move::decode(message);
             if (move) {
                 manager.receiveMoveCommand(client, *move);
             }
@@ -90,7 +90,7 @@ public:
         }
 
         if (message.header()->type == "use") {
-            const auto use = bmsg::CL_paladin_use::decode(message);
+            const auto use = bmsg::CL_priest_use::decode(message);
             if (use) {
                 manager.receiveUseCommand(client, *use);
             }
@@ -110,5 +110,5 @@ private:
 
 extern "C" Mod *modlib_create(ModManager *)
 {
-    return new PaladinModule();
+    return new PriestModule();
 }

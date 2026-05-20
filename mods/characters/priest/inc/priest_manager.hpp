@@ -3,9 +3,9 @@
 #include "BmServerModule.hpp"
 #include "Timer.hpp"
 #include "binmsg.hpp"
-#include "paladin_animator.hpp"
-#include "paladin_controller.hpp"
-#include "paladin_proto.hpp"
+#include "priest_animator.hpp"
+#include "priest_controller.hpp"
+#include "../proto/generated/priest_proto.hpp"
 #include "combat_grid.hpp"
 
 #include <iostream>
@@ -33,7 +33,7 @@ class PriestManager {
         {}
     };
 
-    std::unordered_map<BmClient *, PriestUtils> paladins_;
+    std::unordered_map<BmClient *, PriestUtils> priests_;
     uint64_t m_tick = 0;
 
 public:
@@ -52,11 +52,11 @@ public:
 
     void destroy(BmClient *client)
     {
-        auto it = paladins_.find(client);
-        if (it != paladins_.end()) {
+        auto it = priests_.find(client);
+        if (it != priests_.end()) {
             it->second.ctl.destroy();
-            paladins_.erase(it);
-            client->send(bmsg::SV_paladin_hp{0});
+            priests_.erase(it);
+            client->send(bmsg::SV_priest_hp{0});
         }
     }
 
@@ -65,20 +65,20 @@ public:
         timer_->setTimer(1, [this]() { sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
     }
 
-    void receiveMoveCommand(BmClient *client, bmsg::CL_paladin_move moveCmd)
+    void receiveMoveCommand(BmClient *client, bmsg::CL_priest_move moveCmd)
     {
-        auto it = paladins_.find(client);
-        if (it == paladins_.end()) {
+        auto it = priests_.find(client);
+        if (it == priests_.end()) {
             return;
         }
 
         it->second.ctl.move(moveCmd.dx, moveCmd.dy);
     }
 
-    void receiveUseCommand(BmClient *client, bmsg::CL_paladin_use useCmd)
+    void receiveUseCommand(BmClient *client, bmsg::CL_priest_use useCmd)
     {
-        auto it = paladins_.find(client);
-        if (it == paladins_.end()) {
+        auto it = priests_.find(client);
+        if (it == priests_.end()) {
             return;
         }
 
@@ -87,17 +87,17 @@ public:
 
     size_t count(BmClient *client) const
     {
-        return paladins_.count(client);
+        return priests_.count(client);
     }
 
     void spawnPriest(BmClient *client)
     {
-        if (paladins_.count(client)) {
-            std::cerr << "paladin with client `" << client->id() << "` was already spawned\n";
+        if (priests_.count(client)) {
+            std::cerr << "priest with client `" << client->id() << "` was already spawned\n";
             return;
         }
 
-        paladins_.try_emplace(client, map_, client, timer_, animator_, assets_);
+        priests_.try_emplace(client, map_, client, timer_, animator_, assets_);
     }
 
 private:
@@ -106,16 +106,16 @@ private:
         ++m_tick;
         const auto size = map_->getSize();
 
-        for (auto &[client, paladin] : paladins_) {
-            const Vec2i pos = paladin.ctl.pos();
+        for (auto &[client, priest] : priests_) {
+            const Vec2i pos = priest.ctl.pos();
 
-            client->send(bmsg::SV_paladin_at{pos.x, pos.y});
-            client->send(bmsg::SV_paladin_hp{paladin.ctl.hp()});
+            client->send(bmsg::SV_priest_at{pos.x, pos.y});
+            client->send(bmsg::SV_priest_hp{priest.ctl.hp()});
 
-            sendVisible(client, paladin.ctl);
-            sendInventory(client, paladin.ctl.paladin()->inventory());
+            sendVisible(client, priest.ctl);
+            sendInventory(client, priest.ctl.priest()->inventory());
 
-            client->send(bmsg::SV_paladin_tick{});
+            client->send(bmsg::SV_priest_tick{});
         }
 
         timer_->setTimer(1, [this]() { sendState(); }, modlib::Timer::Stage::ON_UPDATE_DONE);
@@ -124,11 +124,11 @@ private:
     void sendInventory(BmClient *client, const modlib::Inventory &inventory)
     {
         for (const auto &item : inventory.items()) {
-            client->send(bmsg::SV_paladin_item{item.id});
+            client->send(bmsg::SV_priest_item{item.id});
         }
 
         for (const auto &ability : inventory.abilities()) {
-            client->send(bmsg::SV_paladin_ability{ability.id});
+            client->send(bmsg::SV_priest_ability{ability.id});
         }
     }
 
@@ -150,18 +150,18 @@ private:
             }
 
             if (tile->getType() == Tile::BasicTypes::WALL) {
-                client->send(bmsg::SV_paladin_wall{pos.x, pos.y});
+                client->send(bmsg::SV_priest_wall{pos.x, pos.y});
             }
 
             for (const auto &[id, entity] : tile->getEntityList()) {
                 (void)id;
 
-                if (entity == nullptr || entity == ctl.paladin()) {
+                if (entity == nullptr || entity == ctl.priest()) {
                     continue;
                 }
 
                 if (combat_grid::isRoot(entity)) {
-                    client->send(bmsg::SV_paladin_root{
+                    client->send(bmsg::SV_priest_root{
                         pos.x,
                         pos.y,
                         static_cast<uint32_t>(entity->getID())
@@ -170,7 +170,7 @@ private:
                 }
 
                 if (combat_grid::isCombatant(entity)) {
-                    client->send(bmsg::SV_paladin_enemy{
+                    client->send(bmsg::SV_priest_enemy{
                         pos.x,
                         pos.y,
                         static_cast<uint32_t>(entity->getID()),

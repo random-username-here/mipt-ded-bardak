@@ -4,7 +4,7 @@
 #include "Map.hpp"
 #include "Timer.hpp"
 #include "Vec2.hpp"
-#include "paladin.hpp"
+#include "priest.hpp"
 #include "combat_grid.hpp"
 
 #include <cassert>
@@ -16,7 +16,7 @@
 
 inline
 bool
-checkPaladinRange (
+checkPriestRange (
     modlib::Vec2i from,
     modlib::Vec2i to
 )
@@ -198,7 +198,7 @@ public:
     }
 
     Priest*
-    paladin ()
+    priest ()
     {
         return m_priest.get ();
     }
@@ -324,7 +324,7 @@ private:
         }
 
         const Vec2i delta = target->getPosition () - m_priest->getPosition ();
-        if (!checkPaladinRange (m_priest->getPosition (), target->getPosition()))
+        if (!checkPriestRange (m_priest->getPosition (), target->getPosition()))
         {
             return false;
         }

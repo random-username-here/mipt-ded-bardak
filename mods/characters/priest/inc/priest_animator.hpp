@@ -4,7 +4,7 @@
 #include "AssetManager.hpp"
 #include "Map.hpp"
 #include "Vec2.hpp"
-#include "paladin_controller.hpp"
+#include "priest_controller.hpp"
 
 #include <array>
 #include <cmath>
@@ -13,7 +13,7 @@
 
 constexpr float kPriestTilePixels = 16.0f;
 
-namespace paladin_body {
+namespace priest_body {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 16, 16};
@@ -25,9 +25,9 @@ constexpr int kObjectLayer = 2;
 static constexpr float kMoveSeconds = 0.16f;
 static constexpr float kAttackPoseSeconds = 0.08f;
 
-} // namespace paladin_body
+} // namespace priest_body
 
-namespace paladin_smite {
+namespace priest_smite {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
@@ -37,9 +37,9 @@ struct Config {
 constexpr int kZ = 1;
 static constexpr float kFrameSeconds = 0.04f;
 
-} // namespace paladin_smite
+} // namespace priest_smite
 
-namespace paladin_spawn {
+namespace priest_spawn {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
@@ -49,15 +49,15 @@ struct Config {
 constexpr int kZ = 4;
 static constexpr float kFrameSeconds = 0.045f;
 
-} // namespace paladin_spawn
+} // namespace priest_spawn
 
-namespace paladin_dead {
+namespace priest_dead {
 
 constexpr int kZ = -4;
 
-} // namespace paladin_dead
+} // namespace priest_dead
 
-namespace paladin_assets {
+namespace priest_assets {
 
 inline modlib::SpriteAsset sheetSprite(std::string_view id, const std::string &file, int col)
 {
@@ -65,7 +65,7 @@ inline modlib::SpriteAsset sheetSprite(std::string_view id, const std::string &f
         .id = id,
         .file = file,
         .clip = {static_cast<float>(col * 16), 0, 16, 16},
-        .size = paladin_body::Config::kSize,
+        .size = priest_body::Config::kSize,
     };
 }
 
@@ -73,32 +73,32 @@ inline modlib::SpriteAsset smiteSprite(std::string_view id, int col)
 {
     return {
         .id = id,
-        .file = ASSETS_DIR "/units/paladin/anim_smite.png",
+        .file = ASSETS_DIR "/units/priest/anim_smite.png",
         .clip = {static_cast<float>(col * 32), 0, 32, 32},
-        .size = paladin_smite::Config::kSize,
+        .size = priest_smite::Config::kSize,
         .origin = {16, 16},
     };
 }
 
 static const std::array<modlib::SpriteAsset, 4> Idle = {
-    sheetSprite("p.id.d", ASSETS_DIR "/units/paladin/paladin_idle.png", 0),
-    sheetSprite("p.id.u", ASSETS_DIR "/units/paladin/paladin_idle.png", 1),
-    sheetSprite("p.id.l", ASSETS_DIR "/units/paladin/paladin_idle.png", 2),
-    sheetSprite("p.id.r", ASSETS_DIR "/units/paladin/paladin_idle.png", 3),
+    sheetSprite("p.id.d", ASSETS_DIR "/units/priest/priest_idle.png", 0),
+    sheetSprite("p.id.u", ASSETS_DIR "/units/priest/priest_idle.png", 1),
+    sheetSprite("p.id.l", ASSETS_DIR "/units/priest/priest_idle.png", 2),
+    sheetSprite("p.id.r", ASSETS_DIR "/units/priest/priest_idle.png", 3),
 };
 
 static const std::array<modlib::SpriteAsset, 4> Walk = {
-    sheetSprite("p.w.d", ASSETS_DIR "/units/paladin/paladin_walk.png", 0),
-    sheetSprite("p.w.u", ASSETS_DIR "/units/paladin/paladin_walk.png", 1),
-    sheetSprite("p.w.l", ASSETS_DIR "/units/paladin/paladin_walk.png", 2),
-    sheetSprite("p.w.r", ASSETS_DIR "/units/paladin/paladin_walk.png", 3),
+    sheetSprite("p.w.d", ASSETS_DIR "/units/priest/priest_walk.png", 0),
+    sheetSprite("p.w.u", ASSETS_DIR "/units/priest/priest_walk.png", 1),
+    sheetSprite("p.w.l", ASSETS_DIR "/units/priest/priest_walk.png", 2),
+    sheetSprite("p.w.r", ASSETS_DIR "/units/priest/priest_walk.png", 3),
 };
 
 static const std::array<modlib::SpriteAsset, 4> Hit = {
-    sheetSprite("p.h.d", ASSETS_DIR "/units/paladin/paladin_hit.png", 0),
-    sheetSprite("p.h.u", ASSETS_DIR "/units/paladin/paladin_hit.png", 1),
-    sheetSprite("p.h.l", ASSETS_DIR "/units/paladin/paladin_hit.png", 2),
-    sheetSprite("p.h.r", ASSETS_DIR "/units/paladin/paladin_hit.png", 3),
+    sheetSprite("p.h.d", ASSETS_DIR "/units/priest/priest_hit.png", 0),
+    sheetSprite("p.h.u", ASSETS_DIR "/units/priest/priest_hit.png", 1),
+    sheetSprite("p.h.l", ASSETS_DIR "/units/priest/priest_hit.png", 2),
+    sheetSprite("p.h.r", ASSETS_DIR "/units/priest/priest_hit.png", 3),
 };
 
 static const std::array<modlib::SpriteAsset, 4> Slash = {
@@ -112,18 +112,18 @@ inline modlib::SpriteAsset spawnSprite(std::string_view id, int col)
 {
     return {
         .id     = id,
-        .file   = ASSETS_DIR "/units/paladin/anim_spawn.png",
+        .file   = ASSETS_DIR "/units/priest/anim_spawn.png",
         .clip   = {static_cast<float>(col * 32), 0, 32, 32},
-        .size   = paladin_spawn::Config::kSize,
+        .size   = priest_spawn::Config::kSize,
         .origin = {8, 8},
     };
 }
 
 static const modlib::SpriteAsset Dead = {
     .id   = "p.dead",
-    .file = ASSETS_DIR "/units/paladin/paladin_dead.png",
-    .clip = paladin_body::Config::kClip,
-    .size = paladin_body::Config::kSize,
+    .file = ASSETS_DIR "/units/priest/priest_dead.png",
+    .clip = priest_body::Config::kClip,
+    .size = priest_body::Config::kSize,
 };
 
 static const std::array<modlib::SpriteAsset, 6> Spawn = {
@@ -135,7 +135,7 @@ static const std::array<modlib::SpriteAsset, 6> Spawn = {
     spawnSprite("p.sp.6", 5),
 };
 
-} // namespace paladin_assets
+} // namespace priest_assets
 
 class PriestAnimator {
     PriestCtrl              *m_ctl    = nullptr;
@@ -178,20 +178,20 @@ public:
 private:
     void registerAssets()
     {
-        m_assets->registerSprite(paladin_assets::Dead);
-        for (const auto &asset : paladin_assets::Spawn) {
+        m_assets->registerSprite(priest_assets::Dead);
+        for (const auto &asset : priest_assets::Spawn) {
             m_assets->registerSprite(asset);
         }
-        for (const auto &asset : paladin_assets::Idle) {
+        for (const auto &asset : priest_assets::Idle) {
             m_assets->registerSprite(asset);
         }
-        for (const auto &asset : paladin_assets::Walk) {
+        for (const auto &asset : priest_assets::Walk) {
             m_assets->registerSprite(asset);
         }
-        for (const auto &asset : paladin_assets::Hit) {
+        for (const auto &asset : priest_assets::Hit) {
             m_assets->registerSprite(asset);
         }
-        for (const auto &asset : paladin_assets::Slash) {
+        for (const auto &asset : priest_assets::Slash) {
             m_assets->registerSprite(asset);
         }
     }
@@ -200,27 +200,27 @@ private:
     {
         for (int i = 0; i < 4; ++i) {
             const auto dirrection = static_cast<Dir>(i);
-            m_anims.idle[i]   = buildIdleAnimation  (paladin_assets::Idle[i]);
-            m_anims.move[i]   = buildMoveAnimation  (paladin_assets::Walk[i], paladin_assets::Idle[i], dirrection);
-            m_anims.attack[i] = buildAttackAnimation(paladin_assets::Hit [i], paladin_assets::Idle[i], dirrection);
+            m_anims.idle[i]   = buildIdleAnimation  (priest_assets::Idle[i]);
+            m_anims.move[i]   = buildMoveAnimation  (priest_assets::Walk[i], priest_assets::Idle[i], dirrection);
+            m_anims.attack[i] = buildAttackAnimation(priest_assets::Hit [i], priest_assets::Idle[i], dirrection);
         }
     }
 
     void subscribeOnEvents()
     {
-        m_ctl->paladin()->EvEntityMoved.subscribe([this](modlib::Vec2i delta) {
+        m_ctl->priest()->EvEntityMoved.subscribe([this](modlib::Vec2i delta) {
             animateMove(delta);
         });
 
-        m_ctl->paladin()->EvAttack.subscribe([this](Priest::Damage targetId) {
+        m_ctl->priest()->EvAttack.subscribe([this](Priest::Damage targetId) {
             animateAttack(targetId);
         });
 
-        m_ctl->paladin()->EvDamaged.subscribe([this](EC::Stats::Health::HP) {
+        m_ctl->priest()->EvDamaged.subscribe([this](EC::Stats::Health::HP) {
             animateHitFlash();
         });
 
-        m_ctl->paladin()->EvDeath.subscribe([this]() {
+        m_ctl->priest()->EvDeath.subscribe([this]() {
             animateDeath();
         });
     }
@@ -229,9 +229,9 @@ private:
     {
         auto *animation = m_anim->newAnimation();
 
-        for (const auto &spawn : paladin_assets::Spawn) {
-            animation->addStep<anim::SetAssetStep>(m_spawnSlot, spawn.id, paladin_spawn::kZ);
-            animation->addStep<anim::Step>(paladin_spawn::kFrameSeconds, paladin_spawn::kFrameSeconds);
+        for (const auto &spawn : priest_assets::Spawn) {
+            animation->addStep<anim::SetAssetStep>(m_spawnSlot, spawn.id, priest_spawn::kZ);
+            animation->addStep<anim::Step>(priest_spawn::kFrameSeconds, priest_spawn::kFrameSeconds);
         }
 
         animation->addStep<anim::DelSpriteStep>(m_spawnSlot);
@@ -240,7 +240,7 @@ private:
         m_anim->play(
             m_spawnObject,
             currentPixelPosition(),
-            paladin_body::kObjectLayer + 2,
+            priest_body::kObjectLayer + 2,
             animation->id()
         );
     }
@@ -248,50 +248,50 @@ private:
     void animateDeath()
     {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, paladin_assets::Dead.id, paladin_dead::kZ);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, priest_assets::Dead.id, priest_dead::kZ);
         animation->finishBuild();
 
         m_anim->play(
             m_object,
             currentPixelPosition(),
-            paladin_body::kObjectLayer - 1,
+            priest_body::kObjectLayer - 1,
             animation->id()
         );
     }
 
     void animateIdle()
     {
-        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, idleAnimation(m_ctl->paladin()->dirrection()));
+        m_anim->play(m_object, currentPixelPosition(), priest_body::kObjectLayer, idleAnimation(m_ctl->priest()->dirrection()));
     }
 
     void animateMove(modlib::Vec2i delta)
     {
-        if (m_ctl->paladin()->getCurrentHP() <= 0) {
+        if (m_ctl->priest()->getCurrentHP() <= 0) {
             return;
         }
-        const modlib::Vec2f oldPosition = pixelPosition(m_ctl->paladin()->getPosition() - delta);
-        m_anim->play(m_object, oldPosition, paladin_body::kObjectLayer, moveAnimation(Delta2Dir(delta)));
+        const modlib::Vec2f oldPosition = pixelPosition(m_ctl->priest()->getPosition() - delta);
+        m_anim->play(m_object, oldPosition, priest_body::kObjectLayer, moveAnimation(Delta2Dir(delta)));
     }
 
     void animateAttack(Priest::Damage targetId)
     {
-        if (m_ctl->paladin()->getCurrentHP() <= 0) {
+        if (m_ctl->priest()->getCurrentHP() <= 0) {
             return;
         }
         const modlib::Vec2i delta = attackDelta(targetId);
-        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, attackAnimation(Delta2Dir(delta)));
+        m_anim->play(m_object, currentPixelPosition(), priest_body::kObjectLayer, attackAnimation(Delta2Dir(delta)));
     }
 
     void animateHitFlash()
     {
-        if (m_ctl->paladin()->getCurrentHP() <= 0) {
+        if (m_ctl->priest()->getCurrentHP() <= 0) {
             return;
         }
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(
             m_flashSlot,
-            paladin_assets::Idle[dirrectionIndex(m_ctl->paladin()->dirrection())].id,
-            paladin_body::kZ
+            priest_assets::Idle[dirrectionIndex(m_ctl->priest()->dirrection())].id,
+            priest_body::kZ
         );
         animation->addStep<anim::SetWhiteStep>(m_flashSlot, true);
         animation->addStep<anim::Step>(0.08f, 0.08f);
@@ -301,7 +301,7 @@ private:
         m_anim->play(
             m_flashObject,
             currentPixelPosition(),
-            paladin_body::kObjectLayer + 1,
+            priest_body::kObjectLayer + 1,
             animation->id()
         );
     }
@@ -309,7 +309,7 @@ private:
     anim::AnimationID buildIdleAnimation(const modlib::SpriteAsset &asset)
     {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, asset.id, paladin_body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, asset.id, priest_body::kZ);
         animation->finishBuild();
         return animation->id();
     }
@@ -323,15 +323,15 @@ private:
         const modlib::Vec2f to(delta.x * kPriestTilePixels, delta.y * kPriestTilePixels);
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, walk.id, paladin_body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, walk.id, priest_body::kZ);
         animation->addStep<anim::PosStep>(
-            paladin_body::kMoveSeconds,
-            paladin_body::kMoveSeconds,
+            priest_body::kMoveSeconds,
+            priest_body::kMoveSeconds,
             m_bodySlot,
             to,
             anim::easing::easeInOutQuart
         );
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, idle.id, paladin_body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, idle.id, priest_body::kZ);
         animation->finishBuild();
         return animation->id();
     }
@@ -348,16 +348,16 @@ private:
         );
 
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, hit.id, paladin_body::kZ);
-        animation->addStep<anim::Step>(paladin_body::kAttackPoseSeconds, paladin_body::kAttackPoseSeconds);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, hit.id, priest_body::kZ);
+        animation->addStep<anim::Step>(priest_body::kAttackPoseSeconds, priest_body::kAttackPoseSeconds);
         animation->addStep<anim::SetPosStep>(m_smiteSlot, smiteOffset);
         animation->addStep<anim::SetRotationStep>(m_smiteSlot, smiteRotationDeg(dirrection));
-        for (const auto &smite : paladin_assets::Slash) {
-            animation->addStep<anim::SetAssetStep>(m_smiteSlot, smite.id, paladin_smite::kZ);
-            animation->addStep<anim::Step>(paladin_smite::kFrameSeconds, paladin_smite::kFrameSeconds);
+        for (const auto &smite : priest_assets::Slash) {
+            animation->addStep<anim::SetAssetStep>(m_smiteSlot, smite.id, priest_smite::kZ);
+            animation->addStep<anim::Step>(priest_smite::kFrameSeconds, priest_smite::kFrameSeconds);
         }
         animation->addStep<anim::DelSpriteStep>(m_smiteSlot);
-        animation->addStep<anim::SetAssetStep>(m_bodySlot, idle.id, paladin_body::kZ);
+        animation->addStep<anim::SetAssetStep>(m_bodySlot, idle.id, priest_body::kZ);
         animation->finishBuild();
         return animation->id();
     }
@@ -415,7 +415,7 @@ private:
     modlib::Vec2i attackDelta(Priest::Damage targetId) const
     {
         if (auto *target = m_ctl->map()->getEntity(static_cast<modlib::Entity::ID>(targetId))) {
-            const modlib::Vec2i raw = target->getPosition() - m_ctl->paladin()->getPosition();
+            const modlib::Vec2i raw = target->getPosition() - m_ctl->priest()->getPosition();
 
             if (std::abs(raw.x) <= 1 && std::abs(raw.y) <= 1 && (std::abs(raw.x) + std::abs(raw.y)) > 0) {
                 if (raw.x != 0) {
@@ -426,12 +426,12 @@ private:
             }
         }
 
-        return dirrectionDelta(m_ctl->paladin()->dirrection());
+        return dirrectionDelta(m_ctl->priest()->dirrection());
     }
 
     modlib::Vec2f currentPixelPosition() const
     {
-        return pixelPosition(m_ctl->paladin()->getPosition());
+        return pixelPosition(m_ctl->priest()->getPosition());
     }
 
     static modlib::Vec2f pixelPosition(modlib::Vec2i cell)
