@@ -82,17 +82,21 @@ jobs:
           ./build/clients/person/person_client ./clients/person/default.ini &
           CLIENT_THIRD_PID=$!
 
-          sleep 4
+          sleep 6
 
-          kill $SERVER_PID 2>/dev/null || true
-          wait $SERVER_PID 2>/dev/null || true
+          kill $CLIENT_FIRST_PID_PID 2>/dev/null || true
+          wait $CLIENT_FIRST_PID_PID 2>/dev/null || true
 
-          wait $CLIENT_FIRST_PID 2>/dev/null
-          wait $CLIENT_SECOND_PID 2>/dev/null
-          wait $CLIENT_THIRD_PID 2>/dev/null
-          CLIENT_RESULT=$?
+          kill $CLIENT_SECOND_PID_PID 2>/dev/null || true
+          wait $CLIENT_SECOND_PID_PID 2>/dev/null || true
 
-          exit $CLIENT_RESULT
+          kill $CLIENT_THIRD_PID_PID 2>/dev/null || true
+          wait $CLIENT_THIRD_PID_PID 2>/dev/null || true
+
+          wait $SERVER_PID 2>/dev/null
+          SERVER_RESULT=$?
+
+          exit $SERVER_RESULT
 
   footjob:
     needs: [build-cmake, tests]
