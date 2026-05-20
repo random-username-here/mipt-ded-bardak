@@ -74,14 +74,22 @@ jobs:
           sleep 2
 
           ./build/clients/person/person_client ./clients/person/default.ini &
-          CLIENT_PID=$!
+          CLIENT_FIRST_PID=$!
 
-          sleep 2
+          ./build/clients/person/person_client ./clients/person/default.ini &
+          CLIENT_SECOND_PID=$!
+
+          ./build/clients/person/person_client ./clients/person/default.ini &
+          CLIENT_THIRD_PID=$!
+
+          sleep 4
 
           kill $SERVER_PID 2>/dev/null || true
           wait $SERVER_PID 2>/dev/null || true
 
-          wait $CLIENT_PID 2>/dev/null
+          wait $CLIENT_FIRST_PID 2>/dev/null
+          wait $CLIENT_SECOND_PID 2>/dev/null
+          wait $CLIENT_THIRD_PID 2>/dev/null
           CLIENT_RESULT=$?
 
           exit $CLIENT_RESULT
