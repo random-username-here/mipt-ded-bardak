@@ -143,45 +143,50 @@ private:
         const Vec2i selfPos = ctl.pos();
         const Vec2i size = map_->getSize();
 
-        for (const Vec2i off : combat_grid::visibleOffsets()) {
-            const Vec2i pos{selfPos.x + off.x, selfPos.y + off.y};
+        for (int64_t x = 0; x < size.x; x++) {
+            for (int64_t y = 0; y < size.y; y++) {
+                if (!(std::abs(x - selfPos.x) < 9 && std::abs(y - selfPos.y) < 9)) {
+                    continue;
+                }
+                const Vec2i pos{x, y};
 
-            if (pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y) {
-                continue;
-            }
-
-            Tile *tile = map_->getTile(pos);
-            if (tile == nullptr) {
-                continue;
-            }
-
-            if (tile->getType() == Tile::BasicTypes::WALL) {
-                client->send(bmsg::SV_bomber_wall{pos.x, pos.y});
-            }
-
-            for (const auto &[id, entity] : tile->getEntityList()) {
-                (void)id;
-
-                if (entity == nullptr || entity == ctl.bomber()) {
+                if (pos.x < 0 || pos.y < 0 || pos.x >= size.x || pos.y >= size.y) {
                     continue;
                 }
 
-                if (combat_grid::isRoot(entity)) {
-                    client->send(bmsg::SV_bomber_root{
-                        pos.x,
-                        pos.y,
-                        static_cast<uint32_t>(entity->getID())
-                    });
+                Tile *tile = map_->getTile(pos);
+                if (tile == nullptr) {
                     continue;
                 }
 
-                if (combat_grid::isCombatant(entity)) {
-                    client->send(bmsg::SV_bomber_enemy{
-                        pos.x,
-                        pos.y,
-                        static_cast<uint32_t>(entity->getID()),
-                        combat_grid::entityTypeName(entity)
-                    });
+                if (tile->getType() == Tile::BasicTypes::WALL) {
+                    client->send(bmsg::SV_bomber_wall{pos.x, pos.y});
+                }
+
+                for (const auto &[id, entity] : tile->getEntityList()) {
+                    (void)id;
+
+                    if (entity == nullptr || entity == ctl.bomber()) {
+                        continue;
+                    }
+
+                    if (combat_grid::isRoot(entity)) {
+                        client->send(bmsg::SV_bomber_root{
+                            pos.x,
+                            pos.y,
+                            static_cast<uint32_t>(entity->getID())
+                        });
+                        continue;
+                    }
+
+                    if (combat_grid::isCombatant(entity)) {
+                        client->send(bmsg::SV_bomber_enemy{
+                            pos.x,
+                            pos.y,
+                            static_cast<uint32_t>(entity->getID()),
+                            combat_grid::entityTypeName(entity)
+                        });
+                    }
                 }
             }
         }
