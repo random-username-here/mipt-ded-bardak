@@ -2,6 +2,7 @@
 
 #include "BmServerModule.hpp"
 #include "ECbasis.hpp"
+#include "Event.hpp"
 #include "Inventory.hpp"
 #include "Map.hpp"
 
@@ -43,6 +44,9 @@ class Priest
 , virtual public EC::Stats::Armor
 {
 public:
+    Event<bmsg::Char64, Vec2i> EvCast;
+    Event<Vec2i> EvLightningTile;
+
     static constexpr int  MAX_HP   = 90;
     static constexpr int  STRENGTH = 9;
     static constexpr Type TYPE     = "priest";

@@ -4,6 +4,7 @@
 #include "Sfx.hpp"
 #include "Timer.hpp"
 #include "mage.hpp"
+#include "paladin.hpp"
 #include "modlib_manager.hpp"
 
 #include <optional>
@@ -169,6 +170,12 @@ private:
             });
         }
 
+        if (auto *priest = dynamic_cast<Priest *>(entity)) {
+            priest->EvCast.subscribe([this](bmsg::Char64 spell, modlib::Vec2i) {
+                playPriestCast(spell);
+            });
+        }
+
         entity->EvEntityDeconstructed.subscribe([this, id]() {
             m_seenEntities.erase(id);
         });
@@ -189,7 +196,7 @@ private:
             return;
         }
 
-        if (type == "rogue") {
+        if (type == "rogue" || type == "priest") {
             play(cue("cut"));
             return;
         }
@@ -207,6 +214,23 @@ private:
         }
 
         if (spell == "plant") {
+            play(cue("roots"));
+            return;
+        }
+    }
+
+    void playPriestCast(bmsg::Char64 spell) {
+        if (spell == "heal") {
+            play(cue("heal"));
+            return;
+        }
+
+        if (spell == "smite") {
+            play(cue("fire"));
+            return;
+        }
+
+        if (spell == "shield") {
             play(cue("roots"));
             return;
         }

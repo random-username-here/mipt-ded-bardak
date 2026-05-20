@@ -47,7 +47,7 @@ class PriestCtrl
     static constexpr modlib::Timer::Tick sce_moveCD        = 1;
     static constexpr modlib::Timer::Tick sce_crashCD       = 2;
     static constexpr modlib::Timer::Tick sce_divineSmiteCD = 10;
-    static constexpr modlib::Timer::Tick sce_prayCD        = 1;
+    static constexpr modlib::Timer::Tick sce_prayCD        = 2;
     static constexpr modlib::Timer::Tick sce_shieldsUpCD   = 10;
 
     static constexpr EC::Stats::Health::HP sce_crashDMG        = 20;
@@ -283,6 +283,8 @@ private:
             return false;
         }
 
+        m_priest->EvCast.emit (bmsg::Char64 ("heal"), m_priest->getPosition ());
+
         m_timer->setTimer(
             sce_prayDuration,
             [this] ()
@@ -296,7 +298,7 @@ private:
             sce_prayCD,
             [this] ()
             {
-                this->m_crash = true;
+                this->m_pray = true;
             }
         );
         return true;
@@ -310,7 +312,7 @@ private:
         assert(m_priest);
         assert(m_map);
 
-        if (m_divineSmite) {
+        if (m_divineSmite == false) {
             return false;
         }
 
@@ -339,7 +341,29 @@ private:
         }
 
         m_priest->rotate (Delta2Dir(delta));
-        m_priest->EvAttack.emit (targetID);
+        m_priest->EvCast.emit (bmsg::Char64 ("smite"), target->getPosition ());
+
+        const Vec2i origin = target->getPosition ();
+        const Vec2i size = m_map->getSize ();
+        for (int dx = -2; dx <= 2; ++dx)
+        {
+            for (int dy = -2; dy <= 2; ++dy)
+            {
+                const Vec2i pos {origin.x + dx, origin.y + dy};
+                if (
+                    pos.x < 0 || pos.y < 0 ||
+                    pos.x >= size.x || pos.y >= size.y
+                )
+                {
+                    continue;
+                }
+
+                if (checkPaladinRange (origin, pos))
+                {
+                    m_priest->EvLightningTile.emit (pos);
+                }
+            }
+        }
 
         health->inflictDmg(sce_divivneSmiteDMG);
 
@@ -364,6 +388,7 @@ private:
 
         EC::Stats::Armor::AP oldArmor = m_priest->getArmor ();
         m_priest->setArmor (sce_shieldAp);
+        m_priest->EvCast.emit (bmsg::Char64 ("shield"), m_priest->getPosition ());
         
         m_timer->setTimer(
             sce_shieldDuration,
