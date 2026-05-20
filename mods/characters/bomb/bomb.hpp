@@ -22,8 +22,8 @@ constexpr float kTilePixels = 16.0f;
 namespace bomb_sprite {
 
 struct Config {
-    static constexpr modlib::Rectf kClip = {0, 0, 12, 12};
     static constexpr modlib::Vec2f kSize = {kTilePixels, kTilePixels};
+    static constexpr modlib::Vec2f kBombAnimSize = {16, 20};
 };
 
 constexpr int kObjectLayer = 1;
@@ -41,26 +41,30 @@ static const modlib::SpriteAsset Bomb = {
     .size = {kTilePixels * 16.f / 20.f, kTilePixels},
 };
 
-static const modlib::SpriteAsset Fires[3] = {
-{
-    .id = modlib::SpriteID("d.fire1"),
-    .file = ASSETS_DIR "/units/pacman/dead.png",
-    .clip = bomb_sprite::Config::kClip,
-    .size = bomb_sprite::Config::kSize,
+#define FIRE_FRAME(idx)                                                                     \
+{                                                                                           \
+    .id = modlib::SpriteID("d.fire" #idx),                                                  \
+    .file = ASSETS_DIR "/units/bomb/explode.png",                                           \
+    .clip =                                                                                 \
+    {                                                                                       \
+        bomb_sprite::Config::kBombAnimSize.x * (idx),                                       \
+        0,                                                                                  \
+        bomb_sprite::Config::kBombAnimSize.x,                                               \
+        bomb_sprite::Config::kBombAnimSize.y                                                \
+    },                                                                                      \
+    .size = bomb_sprite::Config::kSize,                                                     \
 },
-{
-    .id = modlib::SpriteID("d.fire2"),
-    .file = ASSETS_DIR "/units/pacman/dead.png",
-    .clip = bomb_sprite::Config::kClip,
-    .size = {kTilePixels * 1.5, kTilePixels * 1.5},
-},
-{
-    .id = modlib::SpriteID("d.fire3"),
-    .file = ASSETS_DIR "/units/pacman/dead.png",
-    .clip = bomb_sprite::Config::kClip,
-    .size = {kTilePixels * 2, kTilePixels * 2},
-},
+static const modlib::SpriteAsset Fires[8] = {
+FIRE_FRAME(0)
+FIRE_FRAME(1)
+FIRE_FRAME(2)
+FIRE_FRAME(3)
+FIRE_FRAME(4)
+FIRE_FRAME(5)
+FIRE_FRAME(6)
+FIRE_FRAME(7)
 };
+#undef FIRE_FRAME
 
 } // namespace bomb_assets
 
@@ -148,12 +152,11 @@ public:
     anim::AnimationID buildFireAnimation()
     {
         auto *animation = m_anim->newAnimation();
-        animation->addStep<anim::SetAssetStep>(m_slot, bomb_assets::Fires[0].id, bomb_sprite::kZ);
-        animation->addStep<anim::Step>(2, 2);
-        animation->addStep<anim::SetAssetStep>(m_slot, bomb_assets::Fires[1].id, bomb_sprite::kZ);
-        animation->addStep<anim::Step>(2, 2);
-        animation->addStep<anim::SetAssetStep>(m_slot, bomb_assets::Fires[2].id, bomb_sprite::kZ);
-        animation->addStep<anim::Step>(2, 2);
+
+        for (size_t i = 0; i < sizeof(bomb_assets::Fires) / sizeof(bomb_assets::Fires[0]); i++) {
+            animation->addStep<anim::SetAssetStep>(m_slot, bomb_assets::Fires[i].id, bomb_sprite::kZ);
+            animation->addStep<anim::Step>(0.1, 0.1);
+        }
 		animation->addStep<anim::DelSpriteStep>(m_slot);
         animation->finishBuild();
         return animation->id();
