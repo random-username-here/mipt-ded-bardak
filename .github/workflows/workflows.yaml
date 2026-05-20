@@ -65,28 +65,15 @@ jobs:
         run: |
           cmake -S . -B build -D CMAKE_BUILD_TYPE=${{matrix.build_type}} -D CMAKE_CXX_COMPILER=${{matrix.compiler}} -D BUILD_GRAPHICS=OFF
           cmake --build build
-      - name: move mod dirs
-        run: |
-          mkdir ./CItest
-          cp -r ./build/* ./CItest
-          rm -r -f ./CItest/mods/tty-graphics
-          rm -r -f ./CItest/mods/vis
       - name: test
         run: |
           SERVER_IP=$(hostname -I | awk '{print $1}')
-          ./build/servers/msva/msva ./.github/CItest.ini &
+          ./build/servers/msva/msva ./servers/msva/sample.ini &
           SERVER_PID=$!
 
           sleep 2
 
-          cat > /tmp/ci_person_client.ini <<EOF
-          host = ${SERVER_IP}
-          port = 3000
-          pan_dir = ./specs/proto/srv.pan
-          pan_dir = ./specs/proto/role.pan
-          pan_dir = ./mods/characters/person/proto/person.pan
-          EOF
-          ./build/clients/person/person_client /tmp/ci_person_client.ini &
+          ./build/clients/person/person_client ./clients/person/default.ini &
           CLIENT_PID=$!
 
           sleep 2
