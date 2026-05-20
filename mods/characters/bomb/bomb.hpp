@@ -238,10 +238,11 @@ public:
             int32_t dy = pos.y - bomb_pos.y;
             if (dx * dx + dy * dy <= kBombRange * kBombRange) {
                 if (auto *health = dynamic_cast<EC::Stats::Health*>(entity.second)) {
-                    if (kBombDamage > health->getCurrentHP()) {
+                    auto hp = health->getCurrentHP();
+                    health->inflictDmg(kBombDamage);
+                    health->EvDamaged.emit(kBombDamage);
+                    if (kBombDamage > hp) {
                         health->EvDeath.emit();
-                    } else {
-                        health->EvDamaged.emit(kBombDamage);
                     }
                 }
             }
