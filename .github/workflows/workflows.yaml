@@ -84,14 +84,14 @@ jobs:
 
           sleep 6
 
-          kill $CLIENT_FIRST_PID_PID 2>/dev/null || true
-          wait $CLIENT_FIRST_PID_PID 2>/dev/null || true
+          kill $CLIENT_FIRST_PID 2>/dev/null || true
+          wait $CLIENT_FIRST_PID 2>/dev/null || true
 
-          kill $CLIENT_SECOND_PID_PID 2>/dev/null || true
-          wait $CLIENT_SECOND_PID_PID 2>/dev/null || true
+          kill $CLIENT_SECOND_PID 2>/dev/null || true
+          wait $CLIENT_SECOND_PID 2>/dev/null || true
 
-          kill $CLIENT_THIRD_PID_PID 2>/dev/null || true
-          wait $CLIENT_THIRD_PID_PID 2>/dev/null || true
+          kill $CLIENT_THIRD_PID 2>/dev/null || true
+          wait $CLIENT_THIRD_PID 2>/dev/null || true
 
           kill $SERVER_PID 2>/dev/null
           wait $SERVER_PID 2>/dev/null
