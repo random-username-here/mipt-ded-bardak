@@ -279,7 +279,7 @@ bfs_step_toward(toward_enemy)
             return 0;
         }
     }
-    else
+    if (toward_enemy != 1)
     {
         if (n_root == 0)
         {
@@ -442,7 +442,8 @@ random_step()
     {
         pick = pick + 2147483647;
     }
-    pick = pick % legal_n;
+    // CMM frontend doesn't support '%' (0x25); compute remainder explicitly.
+    pick = pick - pick / legal_n * legal_n;
 
     act_dx = legal_dx[pick];
     act_dy = legal_dy[pick];
@@ -530,7 +531,7 @@ handle_event(evt)
         {
             alive = 1;
         }
-        else
+        if (hp <= 0)
         {
             alive = 0;
         }
@@ -599,7 +600,19 @@ main
 
     if (sock < 0)
     {
-        return;
+        // Adapter is not up / port mismatch / missing runtime DLL.
+        // Print a marker and keep retrying so the console doesn't just close.
+        print(-777);
+
+        ok = 0;
+        while (ok == 0)
+        {
+            sock = sock_tcp_connect(127, 0, 0, 1, BRAIN_PORT);
+            if (sock >= 0)
+            {
+                ok = 1;
+            }
+        }
     }
 
     while (1 == 1)

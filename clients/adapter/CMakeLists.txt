@@ -38,6 +38,9 @@ target_include_directories(adapter_client PRIVATE
 )
 
 target_link_libraries(adapter_client PRIVATE client-core generated_proto)
+if (WIN32)
+    target_link_libraries(adapter_client PRIVATE ws2_32)
+endif()
 
 add_custom_target(generate_adapter_headers DEPENDS ${KNIGHT_PROTO_OUTPUTS})
 add_dependencies(adapter_client generate_adapter_headers)

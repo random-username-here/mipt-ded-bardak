@@ -9,6 +9,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(__MINGW32__) || defined(_WIN32)
+static char *strndup(const char *s, size_t n)
+{
+    char *copy = (char *)malloc(n + 1);
+    if (copy == NULL) {
+        return NULL;
+    }
+    memcpy(copy, s, n);
+    copy[n] = '\0';
+    return copy;
+}
+#endif
+
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define ESC_GRY "\x1b[90m"
 #define ESC_RED "\x1b[91m"

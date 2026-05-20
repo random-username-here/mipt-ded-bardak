@@ -16,4 +16,7 @@ target_include_directories(client-core PUBLIC
 	${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
-target_link_libraries(client-core PUBLIC libpan PkgConfig::inih)
+target_link_libraries(client-core PUBLIC libpan inih)
+if (WIN32)
+	target_link_libraries(client-core PUBLIC ws2_32)
+endif()

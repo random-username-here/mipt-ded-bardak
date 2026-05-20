@@ -1,17 +1,58 @@
 #include "client-core/tcp/tcp_connection.hpp"
 
+#include <cerrno>
 #include <cstring>
 #include <stdexcept>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+#else
+#include <netdb.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netdb.h>
 #include <unistd.h>
+#endif
 
 namespace
 {
+
+#ifdef _WIN32
+void ensureWinsock()
+{
+	static bool ready = false;
+	if (!ready) {
+		WSADATA wsa{};
+		if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+			throw std::runtime_error("WSAStartup failed");
+		}
+		ready = true;
+	}
+}
+
+void closeSocket(SOCKET fd)
+{
+	::closesocket(fd);
+}
+#else
+void ensureWinsock() {}
+
+void closeSocket(int fd)
+{
+	::close(fd);
+}
+#endif
+
 int connect(std::string_view host, std::string_view port)
 {
+	ensureWinsock();
 	addrinfo hints{};
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_family = AF_UNSPEC;
@@ -36,7 +77,7 @@ int connect(std::string_view host, std::string_view port)
 			break;
 		}
 
-		close(fd);
+		closeSocket(fd);
 		fd = -1;
 	}
 
@@ -64,9 +105,16 @@ TcpConnection::IoStatus doExact(WaitFunc wf, Callback cb, std::size_t len)
 			return TcpConnection::IoStatus::CLOSED;
 		}
 		if (count < 0) {
+#ifdef _WIN32
+			const int err = WSAGetLastError();
+			if (err == WSAEINTR || err == WSAEWOULDBLOCK) {
+				continue;
+			}
+#else
 			if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
 				continue;
 			}
+#endif
 			return TcpConnection::IoStatus::ERROR;
 		}
 		offset += static_cast<std::size_t>(count);
@@ -155,7 +203,12 @@ TcpConnection::IoStatus TcpConnection::readExact(void *buf, std::size_t len, int
 {
 	return doExact([this, timeout_ms]() { return waitForIo(false, timeout_ms); },
 	               [this, buf, len](std::size_t offset) {
+#ifdef _WIN32
+		               return ::recv(m_fd, static_cast<char *>(buf) + offset,
+		                             static_cast<int>(len - offset), 0);
+#else
 		               return ::recv(m_fd, static_cast<uint8_t *>(buf) + offset, len - offset, 0);
+#endif
 	               },
 	               len);
 }
@@ -164,8 +217,13 @@ TcpConnection::IoStatus TcpConnection::writeExact(const void *buf, std::size_t l
 {
 	return doExact([this, timeout_ms]() { return waitForIo(true, timeout_ms); },
 	               [this, buf, len](std::size_t offset) {
+#ifdef _WIN32
+		               return ::send(m_fd, static_cast<const char *>(buf) + offset,
+		                             static_cast<int>(len - offset), 0);
+#else
 		               return ::send(m_fd, static_cast<const uint8_t *>(buf) + offset, len - offset,
 		                             MSG_NOSIGNAL);
+#endif
 	               },
 	               len);
 }
@@ -173,7 +231,7 @@ TcpConnection::IoStatus TcpConnection::writeExact(const void *buf, std::size_t l
 void TcpConnection::closeConnection()
 {
 	if (m_fd >= 0) {
-		::close(m_fd);
+		closeSocket(m_fd);
 		m_fd = -1;
 	}
 }
@@ -204,8 +262,15 @@ TcpConnection::IoStatus TcpConnection::waitForIo(bool want_write, int timeout_ms
 		if (rc == 0) {
 			return IoStatus::TIMEOUT;
 		}
+#ifdef _WIN32
+		const int err = WSAGetLastError();
+		if (err != WSAEINTR) {
+			return IoStatus::ERROR;
+		}
+#else
 		if (errno != EINTR) {
 			return IoStatus::ERROR;
 		}
+#endif
 	}
 }

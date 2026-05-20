@@ -4,11 +4,17 @@
 
 Gameplay logic lives only in `clients/knight/knight_brain.cmm`.
 
-## Build
+## Build (Windows / MSYS2 MinGW)
 
-```bash
-cmake --build build --target adapter_client
+From repo root:
+
+```powershell
+cmake -B build -S . -G "MinGW Makefiles" -DBUILD_GRAPHICS=OFF -DSANITIZE=OFF
+cmake --build build --target adapter_client knight_client
 ```
+
+`inih` is vendored under `third_party/inih` (no pkg-config needed).
+`msva` server still needs Linux (`dlfcn`) — run the server elsewhere, clients build on Windows.
 
 Compile the brain with [comp-lang](https://github.com/NeIIor/comp-lang) (from its `build/` directory):
 

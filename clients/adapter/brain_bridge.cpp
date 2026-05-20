@@ -6,20 +6,63 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+#else
 #include <netdb.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 namespace
 {
+
+#ifdef _WIN32
+void ensureWinsock()
+{
+    static bool ready = false;
+    if (!ready) {
+        WSADATA wsa{};
+        WSAStartup(MAKEWORD(2, 2), &wsa);
+        ready = true;
+    }
+}
+
+void closeFd(SOCKET fd)
+{
+    closesocket(fd);
+}
+
+bool isWouldBlock()
+{
+    const int err = WSAGetLastError();
+    return err == WSAEWOULDBLOCK || err == WSAEINTR;
+}
+#else
+void ensureWinsock() {}
+
+void closeFd(int fd)
+{
+    close(fd);
+}
 
 bool isWouldBlock()
 {
     return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR;
 }
+#endif
 
 } // namespace
 
@@ -36,25 +79,31 @@ BrainBridge::~BrainBridge()
 void BrainBridge::close()
 {
     if (m_client_fd >= 0) {
-        ::shutdown(m_client_fd, SHUT_RDWR);
-        ::close(m_client_fd);
+#ifdef _WIN32
+        shutdown(m_client_fd, SD_BOTH);
+#else
+        shutdown(m_client_fd, SHUT_RDWR);
+#endif
+        closeFd(m_client_fd);
         m_client_fd = -1;
     }
     if (m_listen_fd >= 0) {
-        ::close(m_listen_fd);
+        closeFd(m_listen_fd);
         m_listen_fd = -1;
     }
 }
 
 bool BrainBridge::listen()
 {
+    ensureWinsock();
+
     addrinfo hints{};
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_family = AF_INET;
     hints.ai_flags = AI_PASSIVE;
 
     addrinfo *res = nullptr;
-    const int gai = ::getaddrinfo(m_host.c_str(), m_port.c_str(), &hints, &res);
+    const int gai = getaddrinfo(m_host.c_str(), m_port.c_str(), &hints, &res);
     if (gai != 0) {
         std::cerr << "brain bridge getaddrinfo: " << gai_strerror(gai) << '\n';
         return false;
@@ -62,24 +111,24 @@ bool BrainBridge::listen()
 
     int fd = -1;
     for (addrinfo *it = res; it != nullptr; it = it->ai_next) {
-        fd = ::socket(it->ai_family, it->ai_socktype, it->ai_protocol);
+        fd = static_cast<int>(socket(it->ai_family, it->ai_socktype, it->ai_protocol));
         if (fd < 0) {
             continue;
         }
 
         const int yes = 1;
-        ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&yes),
+                   sizeof(yes));
 
-        if (::bind(fd, it->ai_addr, it->ai_addrlen) == 0 &&
-            ::listen(fd, 1) == 0) {
+        if (bind(fd, it->ai_addr, static_cast<int>(it->ai_addrlen)) == 0 && ::listen(fd, 1) == 0) {
             break;
         }
 
-        ::close(fd);
+        closeFd(fd);
         fd = -1;
     }
 
-    ::freeaddrinfo(res);
+    freeaddrinfo(res);
 
     if (fd < 0) {
         std::cerr << "brain bridge listen failed\n";
@@ -92,19 +141,34 @@ bool BrainBridge::listen()
 
 bool BrainBridge::launchScript(std::string_view executable)
 {
-    const pid_t child = ::fork();
+#ifdef _WIN32
+    std::string cmd(executable);
+    STARTUPINFOA si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+    if (!CreateProcessA(nullptr, cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si,
+                        &pi)) {
+        std::cerr << "CreateProcess failed: " << GetLastError() << '\n';
+        return false;
+    }
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+#else
+    const pid_t child = fork();
     if (child < 0) {
         perror("fork");
         return false;
     }
 
     if (child == 0) {
-        ::execlp(executable.data(), executable.data(), static_cast<char *>(nullptr));
+        execlp(executable.data(), executable.data(), static_cast<char *>(nullptr));
         perror("execlp");
         _exit(127);
     }
 
     return true;
+#endif
 }
 
 bool BrainBridge::acceptScript(int timeout_ms)
@@ -126,13 +190,13 @@ bool BrainBridge::waitForScript(int timeout_ms)
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    const int sel = ::select(m_listen_fd + 1, &rfds, nullptr, nullptr, &tv);
+    const int sel = select(m_listen_fd + 1, &rfds, nullptr, nullptr, &tv);
     if (sel <= 0) {
         std::cerr << "brain bridge accept timeout\n";
         return false;
     }
 
-    const int client = ::accept(m_listen_fd, nullptr, nullptr);
+    const int client = static_cast<int>(accept(m_listen_fd, nullptr, nullptr));
     if (client < 0) {
         perror("accept");
         return false;
@@ -156,7 +220,7 @@ bool BrainBridge::waitReadable(int timeout_ms)
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    const int sel = ::select(m_client_fd + 1, &rfds, nullptr, nullptr, &tv);
+    const int sel = select(m_client_fd + 1, &rfds, nullptr, nullptr, &tv);
     return sel > 0 && FD_ISSET(m_client_fd, &rfds);
 }
 
@@ -174,7 +238,7 @@ bool BrainBridge::waitWritable(int timeout_ms)
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
 
-    const int sel = ::select(m_client_fd + 1, nullptr, &wfds, nullptr, &tv);
+    const int sel = select(m_client_fd + 1, nullptr, &wfds, nullptr, &tv);
     return sel > 0 && FD_ISSET(m_client_fd, &wfds);
 }
 
@@ -196,7 +260,7 @@ bool BrainBridge::sendInt(int32_t value)
             return false;
         }
 
-        const ssize_t n = ::send(m_client_fd, line + sent, static_cast<std::size_t>(len) - sent, 0);
+        const int n = send(m_client_fd, line + sent, static_cast<int>(len - sent), 0);
         if (n < 0) {
             if (isWouldBlock()) {
                 continue;
@@ -227,7 +291,7 @@ bool BrainBridge::recvInt(int32_t &value, int timeout_ms)
         }
 
         char c = 0;
-        const ssize_t n = ::recv(m_client_fd, &c, 1, 0);
+        const int n = recv(m_client_fd, &c, 1, 0);
         if (n < 0) {
             if (isWouldBlock()) {
                 continue;

@@ -26,6 +26,7 @@ if(BUILD_GRAPHICS)
 endif()
 
 
+add_subdirectory(third_party/inih)
 add_subdirectory(core)
 add_subdirectory(specs/binmsg)
 add_subdirectory(modlib-ifc)
