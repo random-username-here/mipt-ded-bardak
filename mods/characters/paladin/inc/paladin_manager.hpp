@@ -11,28 +11,29 @@
 #include <iostream>
 #include <unordered_map>
 
-class PaladinManager {
+class PriestManager {
     Timer *timer_ = nullptr;
     Level *map_   = nullptr;
     anim::AnimationManager *animator_ = nullptr;
     modlib::AssetManager   *assets_   = nullptr;
 
-    struct PaladinUtils {
-        PaladinCtl ctl;
-        PaladinAnimator anim;
+    struct PriestUtils {
+        PriestCtrl ctl;
+        PriestAnimator anim;
 
-        PaladinUtils(
+        PriestUtils(
             Level    *map,
             BmClient *client,
+            Timer* timer,
             anim::AnimationManager *animator,
             modlib::AssetManager   *assets
         )
-            : ctl(map, client)
+            : ctl(map, client, timer)
             , anim(&ctl, animator, assets)
         {}
     };
 
-    std::unordered_map<BmClient *, PaladinUtils> paladins_;
+    std::unordered_map<BmClient *, PriestUtils> paladins_;
     uint64_t m_tick = 0;
 
 public:
@@ -71,7 +72,7 @@ public:
             return;
         }
 
-        it->second.ctl.move(moveCmd.dx, moveCmd.dy, m_tick);
+        it->second.ctl.move(moveCmd.dx, moveCmd.dy);
     }
 
     void receiveUseCommand(BmClient *client, bmsg::CL_paladin_use useCmd)
@@ -81,7 +82,7 @@ public:
             return;
         }
 
-        it->second.ctl.useAbility(useCmd.ability, useCmd.target, m_tick);
+        it->second.ctl.useAbility(useCmd.ability, useCmd.target);
     }
 
     size_t count(BmClient *client) const
@@ -89,14 +90,14 @@ public:
         return paladins_.count(client);
     }
 
-    void spawnPaladin(BmClient *client)
+    void spawnPriest(BmClient *client)
     {
         if (paladins_.count(client)) {
             std::cerr << "paladin with client `" << client->id() << "` was already spawned\n";
             return;
         }
 
-        paladins_.try_emplace(client, map_, client, animator_, assets_);
+        paladins_.try_emplace(client, map_, client, timer_, animator_, assets_);
     }
 
 private:
@@ -131,7 +132,7 @@ private:
         }
     }
 
-    void sendVisible(BmClient *client, PaladinCtl &ctl)
+    void sendVisible(BmClient *client, PriestCtrl &ctl)
     {
         const Vec2i selfPos = ctl.pos();
         const Vec2i size = map_->getSize();

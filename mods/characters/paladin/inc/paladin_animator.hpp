@@ -11,13 +11,13 @@
 #include <string>
 #include <string_view>
 
-constexpr float kPaladinTilePixels = 16.0f;
+constexpr float kPriestTilePixels = 16.0f;
 
 namespace paladin_body {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 16, 16};
-    static constexpr modlib::Vec2f kSize = {kPaladinTilePixels, kPaladinTilePixels};
+    static constexpr modlib::Vec2f kSize = {kPriestTilePixels, kPriestTilePixels};
 };
 
 constexpr int kZ = 0;
@@ -31,7 +31,7 @@ namespace paladin_smite {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
-    static constexpr modlib::Vec2f kSize = {kPaladinTilePixels * 2.0f, kPaladinTilePixels * 2.0f};
+    static constexpr modlib::Vec2f kSize = {kPriestTilePixels * 2.0f, kPriestTilePixels * 2.0f};
 };
 
 constexpr int kZ = 1;
@@ -43,7 +43,7 @@ namespace paladin_spawn {
 
 struct Config {
     static constexpr modlib::Rectf kClip = {0, 0, 32, 32};
-    static constexpr modlib::Vec2f kSize = {kPaladinTilePixels * 2.0f, kPaladinTilePixels * 2.0f};
+    static constexpr modlib::Vec2f kSize = {kPriestTilePixels * 2.0f, kPriestTilePixels * 2.0f};
 };
 
 constexpr int kZ = 4;
@@ -137,8 +137,8 @@ static const std::array<modlib::SpriteAsset, 6> Spawn = {
 
 } // namespace paladin_assets
 
-class PaladinAnimator {
-    PaladinCtl              *m_ctl    = nullptr;
+class PriestAnimator {
+    PriestCtrl              *m_ctl    = nullptr;
     anim::AnimationManager *m_anim   = nullptr;
     modlib::AssetManager   *m_assets = nullptr;
     anim::AnimatedObjectID  m_object      = anim::NO_ANIMATION_OBJECT;
@@ -156,7 +156,7 @@ class PaladinAnimator {
     } m_anims;
 
 public:
-    PaladinAnimator(PaladinCtl *ctl, anim::AnimationManager *anim, modlib::AssetManager *assets)
+    PriestAnimator(PriestCtrl *ctl, anim::AnimationManager *anim, modlib::AssetManager *assets)
         : m_ctl(ctl), m_anim(anim), m_assets(assets)
     {
         m_object      = m_anim->newObject();
@@ -199,10 +199,10 @@ private:
     void buildAnimations()
     {
         for (int i = 0; i < 4; ++i) {
-            const auto dir = static_cast<PaladinDir>(i);
+            const auto dirrection = static_cast<Dir>(i);
             m_anims.idle[i]   = buildIdleAnimation  (paladin_assets::Idle[i]);
-            m_anims.move[i]   = buildMoveAnimation  (paladin_assets::Walk[i], paladin_assets::Idle[i], dir);
-            m_anims.attack[i] = buildAttackAnimation(paladin_assets::Hit [i], paladin_assets::Idle[i], dir);
+            m_anims.move[i]   = buildMoveAnimation  (paladin_assets::Walk[i], paladin_assets::Idle[i], dirrection);
+            m_anims.attack[i] = buildAttackAnimation(paladin_assets::Hit [i], paladin_assets::Idle[i], dirrection);
         }
     }
 
@@ -212,7 +212,7 @@ private:
             animateMove(delta);
         });
 
-        m_ctl->paladin()->EvAttack.subscribe([this](Paladin::Damage targetId) {
+        m_ctl->paladin()->EvAttack.subscribe([this](Priest::Damage targetId) {
             animateAttack(targetId);
         });
 
@@ -261,7 +261,7 @@ private:
 
     void animateIdle()
     {
-        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, idleAnimation(m_ctl->paladin()->dir()));
+        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, idleAnimation(m_ctl->paladin()->dirrection()));
     }
 
     void animateMove(modlib::Vec2i delta)
@@ -270,16 +270,16 @@ private:
             return;
         }
         const modlib::Vec2f oldPosition = pixelPosition(m_ctl->paladin()->getPosition() - delta);
-        m_anim->play(m_object, oldPosition, paladin_body::kObjectLayer, moveAnimation(paladinDirFromDelta(delta)));
+        m_anim->play(m_object, oldPosition, paladin_body::kObjectLayer, moveAnimation(Delta2Dir(delta)));
     }
 
-    void animateAttack(Paladin::Damage targetId)
+    void animateAttack(Priest::Damage targetId)
     {
         if (m_ctl->paladin()->getCurrentHP() <= 0) {
             return;
         }
         const modlib::Vec2i delta = attackDelta(targetId);
-        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, attackAnimation(paladinDirFromDelta(delta)));
+        m_anim->play(m_object, currentPixelPosition(), paladin_body::kObjectLayer, attackAnimation(Delta2Dir(delta)));
     }
 
     void animateHitFlash()
@@ -290,7 +290,7 @@ private:
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(
             m_flashSlot,
-            paladin_assets::Idle[dirIndex(m_ctl->paladin()->dir())].id,
+            paladin_assets::Idle[dirrectionIndex(m_ctl->paladin()->dirrection())].id,
             paladin_body::kZ
         );
         animation->addStep<anim::SetWhiteStep>(m_flashSlot, true);
@@ -317,10 +317,10 @@ private:
     anim::AnimationID buildMoveAnimation(
         const modlib::SpriteAsset &walk,
         const modlib::SpriteAsset &idle,
-        PaladinDir dir)
+        Dir dirrection)
     {
-        const modlib::Vec2i delta = dirDelta(dir);
-        const modlib::Vec2f to(delta.x * kPaladinTilePixels, delta.y * kPaladinTilePixels);
+        const modlib::Vec2i delta = dirrectionDelta(dirrection);
+        const modlib::Vec2f to(delta.x * kPriestTilePixels, delta.y * kPriestTilePixels);
 
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_bodySlot, walk.id, paladin_body::kZ);
@@ -339,19 +339,19 @@ private:
     anim::AnimationID buildAttackAnimation(
         const modlib::SpriteAsset &hit,
         const modlib::SpriteAsset &idle,
-        PaladinDir dir)
+        Dir dirrection)
     {
-        const modlib::Vec2i delta = dirDelta(dir);
+        const modlib::Vec2i delta = dirrectionDelta(dirrection);
         const modlib::Vec2f smiteOffset(
-            delta.x * kPaladinTilePixels + kPaladinTilePixels * 0.5f,
-            delta.y * kPaladinTilePixels + kPaladinTilePixels * 0.5f
+            delta.x * kPriestTilePixels + kPriestTilePixels * 0.5f,
+            delta.y * kPriestTilePixels + kPriestTilePixels * 0.5f
         );
 
         auto *animation = m_anim->newAnimation();
         animation->addStep<anim::SetAssetStep>(m_bodySlot, hit.id, paladin_body::kZ);
         animation->addStep<anim::Step>(paladin_body::kAttackPoseSeconds, paladin_body::kAttackPoseSeconds);
         animation->addStep<anim::SetPosStep>(m_smiteSlot, smiteOffset);
-        animation->addStep<anim::SetRotationStep>(m_smiteSlot, smiteRotationDeg(dir));
+        animation->addStep<anim::SetRotationStep>(m_smiteSlot, smiteRotationDeg(dirrection));
         for (const auto &smite : paladin_assets::Slash) {
             animation->addStep<anim::SetAssetStep>(m_smiteSlot, smite.id, paladin_smite::kZ);
             animation->addStep<anim::Step>(paladin_smite::kFrameSeconds, paladin_smite::kFrameSeconds);
@@ -362,57 +362,57 @@ private:
         return animation->id();
     }
 
-    anim::AnimationID idleAnimation(PaladinDir dir) const
+    anim::AnimationID idleAnimation(Dir dirrection) const
     {
-        return m_anims.idle[dirIndex(dir)];
+        return m_anims.idle[dirrectionIndex(dirrection)];
     }
 
-    anim::AnimationID moveAnimation(PaladinDir dir) const
+    anim::AnimationID moveAnimation(Dir dirrection) const
     {
-        return m_anims.move[dirIndex(dir)];
+        return m_anims.move[dirrectionIndex(dirrection)];
     }
 
-    anim::AnimationID attackAnimation(PaladinDir dir) const
+    anim::AnimationID attackAnimation(Dir dirrection) const
     {
-        return m_anims.attack[dirIndex(dir)];
+        return m_anims.attack[dirrectionIndex(dirrection)];
     }
 
-    static int dirIndex(PaladinDir dir)
+    static int dirrectionIndex(Dir dirrection)
     {
-        return static_cast<int>(dir);
+        return static_cast<int>(dirrection);
     }
 
-    static float smiteRotationDeg(PaladinDir dir)
+    static float smiteRotationDeg(Dir dirrection)
     {
-        switch (dir) {
-        case PaladinDir::right:
+        switch (dirrection) {
+        case Dir::RIGHT:
             return 0.0f;
-        case PaladinDir::down:
+        case Dir::DOWN:
             return 90.0f;
-        case PaladinDir::left:
+        case Dir::LEFT:
             return 180.0f;
-        case PaladinDir::up:
+        case Dir::UP:
             return -90.0f;
         }
         return 0.0f;
     }
 
-    static modlib::Vec2i dirDelta(PaladinDir dir)
+    static modlib::Vec2i dirrectionDelta(Dir dirrection)
     {
-        switch (dir) {
-        case PaladinDir::up:
+        switch (dirrection) {
+        case Dir::UP:
             return {0, -1};
-        case PaladinDir::down:
+        case Dir::DOWN:
             return {0, 1};
-        case PaladinDir::left:
+        case Dir::LEFT:
             return {-1, 0};
-        case PaladinDir::right:
+        case Dir::RIGHT:
             return {1, 0};
         }
         return {0, 1};
     }
 
-    modlib::Vec2i attackDelta(Paladin::Damage targetId) const
+    modlib::Vec2i attackDelta(Priest::Damage targetId) const
     {
         if (auto *target = m_ctl->map()->getEntity(static_cast<modlib::Entity::ID>(targetId))) {
             const modlib::Vec2i raw = target->getPosition() - m_ctl->paladin()->getPosition();
@@ -426,7 +426,7 @@ private:
             }
         }
 
-        return dirDelta(m_ctl->paladin()->dir());
+        return dirrectionDelta(m_ctl->paladin()->dirrection());
     }
 
     modlib::Vec2f currentPixelPosition() const
@@ -436,6 +436,6 @@ private:
 
     static modlib::Vec2f pixelPosition(modlib::Vec2i cell)
     {
-        return modlib::Vec2f(cell.x * kPaladinTilePixels, cell.y * kPaladinTilePixels);
+        return modlib::Vec2f(cell.x * kPriestTilePixels, cell.y * kPriestTilePixels);
     }
 };

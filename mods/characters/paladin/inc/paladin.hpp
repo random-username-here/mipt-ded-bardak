@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BmServerModule.hpp"
+#include "ECbasis.hpp"
 #include "Inventory.hpp"
 #include "Map.hpp"
 
@@ -8,91 +9,113 @@
 
 using namespace modlib;
 
-enum class PaladinDir {
-    down  = 0,
-    up    = 1,
-    left  = 2,
-    right = 3,
+
+enum class Dir 
+{
+    DOWN  = 0,
+    UP    = 1,
+    LEFT  = 2,
+    RIGHT = 3,
 };
 
-inline PaladinDir paladinDirFromDelta(Vec2i delta)
+inline
+Dir
+Delta2Dir (
+    Vec2i delta
+)
 {
-    if (std::abs(delta.x) > std::abs(delta.y)) {
-        return delta.x < 0 ? PaladinDir::left : PaladinDir::right;
+    if (std::abs (delta.x) > std::abs (delta.y))
+    {
+        return delta.x < 0 ? Dir::LEFT : Dir::RIGHT;
     }
-    if (delta.y != 0) {
-        return delta.y < 0 ? PaladinDir::up : PaladinDir::down;
+    if (delta.y != 0)
+    {
+        return delta.y < 0 ? Dir::UP : Dir::DOWN;
     }
-    return PaladinDir::down;
+    return Dir::DOWN;
 }
 
-class Paladin :
-    virtual public modlib::Entity,
-    virtual public EC::Stats::Health,
-    virtual public EC::Stats::Attack
+
+class Priest
+: virtual public modlib::Entity
+, virtual public EC::Stats::Health
+, virtual public EC::Stats::Attack
+, virtual public EC::Stats::Armor
 {
 public:
-    static constexpr int MAX_HP     = 90;
-    static constexpr int CURRENT_HP = 90;
-    static constexpr int STRENGTH   = 9;
-    static constexpr Type PALADIN_TYPE = "paladin";
+    static constexpr int  MAX_HP   = 90;
+    static constexpr int  STRENGTH = 9;
+    static constexpr Type TYPE     = "priest";
 
 private:
-    Level    *map_ = nullptr;
-    PaladinDir dir_ = PaladinDir::down;
-    modlib::Inventory inventory_;
+    Level*            m_map       = nullptr;
+    Dir               m_direction = Dir::DOWN;
+    modlib::Inventory m_inventory;
 
 public:
-    Paladin(Level *map, Tile *tile, modlib::BmClient *client)
-        : Entity(PALADIN_TYPE, tile)
-        , Health(CURRENT_HP, MAX_HP)
-        , Attack(STRENGTH)
-        , map_(map)
+    Priest (
+        Level *map,
+        Tile *tile,
+        modlib::BmClient *client
+    )
+    : Entity(TYPE, tile)
+    , Health(MAX_HP, MAX_HP)
+    , Attack(STRENGTH)
+    , EC::Stats::Armor(0, 1)
+    , m_map(map)
     {
         (void)client;
 
-        inventory_.addItem(modlib::ItemDef(
-            "warhammer",
-            {
-                modlib::AbilityDef("smite"),
-            }
-        ));
-        inventory_.addItem(modlib::ItemDef(
-            "tower_shield",
-            {
-                modlib::AbilityDef("aegis"),
-            }
-        ));
-        inventory_.addItem(modlib::ItemDef(
-            "relic_seal",
-            {
-                modlib::AbilityDef("judgement"),
-            }
-        ));
+        m_inventory.addItem (
+            modlib::ItemDef (
+                "holyhammer",
+                {
+                    modlib::AbilityDef("crash"),
+                    modlib::AbilityDef("divine_smite")
+                }
+            )
+        );
+        m_inventory.addItem (
+            modlib::ItemDef (
+                "holy_shield",
+                {
+                    modlib::AbilityDef("pray"),
+                    modlib::AbilityDef("shieldsup")
+                }
+            )
+        );
     }
 
-    void rotate(PaladinDir dir)
+    void
+    rotate (
+        Dir dir
+    )
     {
-        dir_ = dir;
+        m_direction = dir;
     }
 
-    PaladinDir dir() const
+    Dir
+    dirrection () const
     {
-        return dir_;
+        return m_direction;
     }
 
-    Level *map()
+    Level* 
+    map ()
     {
-        return map_;
+        return m_map;
     }
 
-    modlib::Inventory &inventory()
+    modlib::Inventory&
+    inventory()
     {
-        return inventory_;
+        return m_inventory;
     }
 
-    const modlib::Inventory &inventory() const
+    const modlib::Inventory&
+    inventory()
+    const
     {
-        return inventory_;
+        return m_inventory;
     }
 };
