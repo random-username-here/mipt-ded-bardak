@@ -27,6 +27,14 @@ MsvaUser::MsvaUser(MsvaServer *s, int tcp, int udp, size_t id, sockaddr_in addr)
     m_tag = oss.str();
 }
 
+std::string MsvaUser::addr_str() const {
+    char buf[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, (const void*) &m_addr.sin_addr, buf, INET_ADDRSTRLEN);
+    std::ostringstream oss;
+    oss << buf << ":" << ntohs(m_addr.sin_port);
+    return oss.str();
+}
+
 void MsvaUser::send(bmsg::RawMessage m) {
     if (m_disconnecting || m_tcp < 0) {
         return;

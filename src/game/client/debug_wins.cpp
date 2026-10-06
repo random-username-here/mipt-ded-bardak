@@ -1,6 +1,6 @@
 #include "aixlog.hpp"
 #include "imgui.h"
-#include "./debug_wins.h"
+#include "./debug_wins.hpp"
 #include <vector>
 
 static std::vector<std::pair<AixLog::Metadata, std::string>> l_logMessages;

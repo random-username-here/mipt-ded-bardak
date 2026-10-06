@@ -51,6 +51,7 @@ public:
 
     double getDouble(Id sc, Id idx, double def = 0) const;
     int64_t getInt(Id sc, Id idx, int64_t def = 0) const;
+    float getFloat(Id sc, Id idx, float def = 0) const { return getDouble(sc, idx, def); }
 
     // clear after server disconnect
     void forceClear() {

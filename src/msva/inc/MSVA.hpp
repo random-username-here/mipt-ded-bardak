@@ -66,9 +66,10 @@ public:
     }
 
     /** Client's ID */
-    size_t id() const { return m_id; };
+    bmsg::Id id() const { return m_id; };
 
-    virtual sockaddr_in addr() const { return m_addr; };
+    sockaddr_in addr() const { return m_addr; };
+    std::string addr_str() const;
 };
 
 /**
