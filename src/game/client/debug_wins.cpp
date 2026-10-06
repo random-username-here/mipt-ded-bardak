@@ -62,7 +62,9 @@ void ansiText(std::string_view t) {
 void logWindow(bool *show) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
     ImGui::Begin("Logs browser", show);
-    if (ImGui::BeginTable("logs", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_SizingFixedFit, ImVec2(0, std::max<int>(ImGui::GetWindowHeight() - 50, 10)))) {
+    if (ImGui::BeginTable("logs", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_SizingFixedFit, 
+        ImVec2(std::max<int>(ImGui::GetWindowWidth() - 20, 10), std::max<int>(ImGui::GetWindowHeight() - 50, 10)))
+    ) {
         ImGui::TableSetupColumn("Level", ImGuiTableColumnFlags_None, 30);
         ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_None, 100);
         ImGui::TableSetupColumn("Message", ImGuiTableColumnFlags_None, 400);
@@ -108,7 +110,8 @@ void logWindow(bool *show) {
 void syncvWindow(syncv::SyncvClient &client, bool *show) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
     ImGui::Begin("Syncvars", show);
-    if (ImGui::BeginTable("syncvars", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_SizingFixedFit, ImVec2(0, std::max<int>(ImGui::GetWindowHeight() - 50, 10)))) {
+    if (ImGui::BeginTable("syncvars", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_ScrollX | ImGuiTableFlags_SizingFixedFit, 
+        ImVec2(std::max<int>(ImGui::GetWindowWidth() - 20, 10), std::max<int>(ImGui::GetWindowHeight() - 50, 10)))) {
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableSetupColumn("Id", ImGuiTableColumnFlags_None, 40);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_None, 150);

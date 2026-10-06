@@ -3,7 +3,9 @@
 #include "srv_proto.hpp"
 #include <cstdarg>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <sys/poll.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <cmath>
 namespace msva {
@@ -86,13 +88,16 @@ bool MsvaClient::connect(std::string_view name) {
     err = setsockopt(m_udp, SOL_SOCKET, SO_REUSEADDR, &en, sizeof(en));
     ERROR_IF(err < 0, "Failed to set SO_REUSEADDR on udp socket");
 
-    addrinfo *addr = res;
     bool found = false;
-    while (addr != nullptr) {
-        while (addr && addr->ai_family != AF_INET)
-            addr = addr->ai_next;
-        ERROR_IF(addr == nullptr, "No AF_INET addresses resolved");
-        err = ::connect(m_tcp, res->ai_addr, res->ai_addrlen);
+    for (addrinfo *addr = res; addr != nullptr; addr = addr->ai_next) {
+        char hostname[INET6_ADDRSTRLEN];
+        char servname[32];
+        getnameinfo(addr->ai_addr, addr->ai_addrlen, hostname, sizeof(hostname), servname, sizeof(servname), NI_NUMERICHOST | NI_NUMERICSERV);
+        LOG(INFO, "msva/client") << "Availiable address: " << hostname << " port " << servname << '\n';
+
+        if (addr->ai_family != AF_INET)
+            continue;
+        err = ::connect(m_tcp, addr->ai_addr, addr->ai_addrlen);
         if (err < 0) {
             LOG(NOTICE, "msva/client") << "Failed to connect by one address: " << strerror(errno) << '\n';
             addr = addr->ai_next;
@@ -112,7 +117,7 @@ bool MsvaClient::connect(std::string_view name) {
     err = ::bind(m_udp, (const sockaddr*)(&tcp_local_addr), sizeof(tcp_local_addr));
     ERROR_IF(err < 0, "Failed to bind udp socket to same port as tcp one");
 
-    err = ::connect(m_udp, res->ai_addr, res->ai_addrlen);
+    err = ::connect(m_udp, (const sockaddr*) &m_serverAddr, sizeof(m_serverAddr));
     ERROR_IF(err < 0, "Failed to connect udp socket");
 
     LOG(NOTICE, "msva/client") << "Connected to " << m_host << ":" << m_port << '\n';

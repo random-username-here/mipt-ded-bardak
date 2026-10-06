@@ -7,6 +7,7 @@
 #include "imgui_stdlib.h"
 #include "syncv/client.hpp"
 #include "gameloop.hpp"
+#include <raylib.h>
 
 msva::MsvaClient g_client;
 syncv::SyncvClient g_syncvars;
@@ -15,6 +16,23 @@ static bool l_logsOpened = false;
 static bool l_demoOpened = false;
 static bool l_syncvOpened = false;
 static std::string l_host;
+
+static void l_printNs(int64_t nsi) {
+    ImGui::SameLine();
+    if (nsi < 0) { 
+        ImGui::Text("-"); 
+        nsi = -nsi;
+        ImGui::SameLine();
+    }
+    long double ns = nsi;
+    if (ns < 1000) { ImGui::Text("%.3Lg ns", ns); return; }
+    ns /= 1000;
+    if (ns < 1000) { ImGui::Text("%.3Lg us", ns); return; }
+    ns /= 1000;
+    if (ns < 1000) { ImGui::Text("%.3Lg ms", ns); return; }
+    ns /= 1000;
+    ImGui::Text("%.3Lg s", ns);
+}
 
 static void l_debugMenu() {
     ImGui::Begin("Debug");
@@ -53,8 +71,8 @@ static void l_debugMenu() {
     ImGui::EndDisabled();
 
     if (g_client.state() == msva::MsvaClientState::CONNECTED) {
-        ImGui::Text("Ping : %lld ns", g_client.delay());
-        ImGui::Text("Clock offset : %lld ns", g_client.delta());
+        ImGui::Text("Ping : "); l_printNs(g_client.delay());
+        ImGui::Text("Clock offset : "); l_printNs(g_client.delta());
     }
     
     ImGui::End();
@@ -67,7 +85,9 @@ int main() {
     LOG(NOTICE, "game") << "Application starting!\n";
 
     InitWindow(1280, 720, "Flightsim");
+    ToggleFullscreen();
     SetTargetFPS(60);
+    SetExitKey(KEY_NULL);
     rlImGuiSetup(true);
 
     g_syncvars.attach(g_client);

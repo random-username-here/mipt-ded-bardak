@@ -7,6 +7,7 @@ add_executable(game)
 target_sources(game PRIVATE
     client/main.cpp
     client/debug_wins.cpp
+    client/gameloop.cpp
     common/proto.hpp
 )
 target_include_directories(game PUBLIC client/ common/)

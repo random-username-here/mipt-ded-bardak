@@ -19,11 +19,13 @@ void SyncvModule::onIteration() {
     int64_t t = msva::nsTime();
     if (m_lastUpdated + m_updateInterval >= t) return;
     m_lastUpdated = t;
-    LOG(DEBUG, "syncv") << "Sending " << m_pending.size() << " vars\n";
+    //LOG(DEBUG, "syncv") << "Sending " << m_pending.size() << " vars\n";
     server()->forAllClients([this](msva::MsvaUser *user){
-        for (auto id : m_pending) {
+        // FIXME: if var doesn't change, lerping won't be updated
+        //for (auto id : m_pending) {
+        for (auto &[id, var] : m_vars) {
             auto [scope, idx] = m_unpack(id);
-            const auto &var = m_vars[id];
+            //const auto &var = m_vars[id];
             user->send(bmsg::SV_syncv_update {
                 scope, idx, var.updateTime, var.i
             }, (var.useTcp ? bmsg::Flags(0) : bmsg::USE_UDP));
@@ -42,11 +44,12 @@ void SyncvModule::createVar(
     assert(!m_vars.count(id)); // no double declaring
     m_vars[id] = VarInfo {
         .type = type,
-        .i = 0,
         .name = std::string(name),
         .useTcp = !useUdp,
         .updateTime = msva::nsTime()
     };
+    if (type == VarType::DOUBLE) m_vars[id].d = 0;
+    else m_vars[id].i = 0;
     if (server()) {
         server()->forAllClients([this, scope, idx, type, name](msva::MsvaUser *user){
             user->send(bmsg::SV_syncv_declare { scope, idx, (int8_t) type, name });

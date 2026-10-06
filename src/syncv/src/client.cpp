@@ -9,7 +9,7 @@ namespace syncv {
 double SyncvClient::VarInfo::val_dbl() const {
     assert(type == VarType::DOUBLE);
     if (curTime == 0) return 0;
-    //return curD;
+    return curD;
     if (prevTime == 0) return curD;
     return curD + (curD - prevD) * (msva::nsTime() - curTime) / (curTime - prevTime);
 }

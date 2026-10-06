@@ -26,15 +26,23 @@ PAN_GH_ENCODE(PAN_GH_SERVER, game, despawn, "game", "despawn",
 
 PAN_GH_MSG(PAN_GH_SERVER, game, spawn, "game", "spawn",
     PAN_GH_ID        id;
+    PAN_GH_SLICE     name;
 )
 PAN_GH_DECODE(PAN_GH_SERVER, game, spawn, "game", "spawn",
     PAN_GH_READ(&self->id, sizeof(self->id));
+    uint16_t name_len = 0;
+    PAN_GH_READ(&name_len, 2);
+    PAN_GH_READ_SLICE(&self->name, name_len);
 )
 PAN_GH_ENCODE(PAN_GH_SERVER, game, spawn, "game", "spawn",
     uint16_t len = 0;
     len += sizeof(self->id);
+    len += 2 + PAN_GH_SLICE_LEN(&self->name);
     PAN_GH_HEADER("game", "spawn", len);
     PAN_GH_WRITE(&self->id, sizeof(self->id));
+    uint16_t name_len = PAN_GH_SLICE_LEN(&self->name);
+    PAN_GH_WRITE(&name_len, 2);
+    PAN_GH_WRITE_SLICE(&self->name, name_len);
 )
 
 PAN_GH_MSG(PAN_GH_CLIENT, game, rotate, "game", "rotate",

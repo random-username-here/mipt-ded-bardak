@@ -48,6 +48,13 @@ public:
         bmsg::Id scope, bmsg::Id index, VarType type,
         bool useUdp = true, std::string_view name = ""
     );
+
+    void createVar(
+        bmsg::Id scope, bmsg::Id index, VarType type,
+        bool useUdp = true, const std::string &name = ""
+    ) {
+        createVar(scope, index, type, useUdp, std::string_view(name));
+    }
     void removeVar(bmsg::Id scope, bmsg::Id index);
     void setVar(bmsg::Id scope, bmsg::Id index, int64_t val);
     void setVar(bmsg::Id scope, bmsg::Id index, double val);

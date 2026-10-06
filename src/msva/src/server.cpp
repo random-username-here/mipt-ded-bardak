@@ -289,92 +289,91 @@ void MsvaServer::mainloop() {
 
     LOG(NOTICE, "msva/server") << "Now listening...\n";
 
-    int64_t nextClock = nsTime();
+    int64_t nextClock = nsTime(), now = 0;
 
     while (1) {
         for (auto i : m_plugins)
             i->onIteration();
 
-        int64_t curTime = nsTime(), waitTime = 0;
-        if (curTime < nextClock) {
-            waitTime = nextClock - curTime;
-        } else {
-            // todo: ticks
-            nextClock += (curTime - nextClock) / m_tickTime * m_tickTime + m_tickTime;
-        }
+        now = nsTime();
+        nextClock = now + m_tickTime;
 
-        epoll_event ev;
-        int nfds = epoll_wait(m_epollFd, &ev, 1, waitTime / 1e6); // 1s time
-        if (nfds < 0) {
-            LOG(FATAL, "msva/server") << "epoll_wait() error: " << strerror(errno) << "\n";
-            return;
-        } if (nfds == 0) {
-            continue;
-        }
+        while (now < nextClock) {
+            now = nsTime();
 
-        LOG(TRACE, "msva/server") << "Epoll event: ptr = " << ev.data.ptr 
-            << ", ev = " << ev.events << "\n";
-
-        if (ev.data.ptr == P_TCP) {
-            // tcp socket
-            LOG(TRACE, "msva/server") << "New client connecting to tcp socket...\n";
-            size_t id = ++m_lastId;
-            sockaddr_in addr;
-            socklen_t slen = sizeof(addr);
-            int clTcp = accept(m_tcpSockFd, (sockaddr*) &addr, &slen);
-            m_clients[id] = std::make_unique<MsvaUser>(MsvaUser(this, clTcp, m_udpSockFd, id, addr));
-
-            LOG(NOTICE, m_clients[id]->m_tag) << "Client connected!\n";
-            m_addToEpoll(m_clients[id].get(), clTcp, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
-            m_onConnect(m_clients[id].get()); 
-        } else if (ev.data.ptr == P_UDP) {
-            // udp socket
-            // each message has client id prepended
-            if (ev.events & EPOLLIN) {
-                LOG(TRACE, "msva/server") << "UDP message incoming\n";
-                struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
-                struct sockaddr_in addr;
-                struct msghdr msg = {
-                    .msg_name = &addr, .msg_namelen = sizeof(addr),
-                    .msg_iov = &iov, .msg_iovlen = 1
-                };
-                ssize_t n = recvmsg(m_udpSockFd, &msg, 0);
-                //LOG(TRACE, "msva/server") << "Message of size " << n << "\n";
-                if (n < 4) 
-                    continue;
-                uint32_t id;
-                memcpy(&id, buf, 4);
-                //LOG(TRACE, "msva/server") << "By client ID = " << id << "\n";
-                if (!m_clients.count(id)) {
-                    //LOG(TRACE, "msva/server") << "Unknown ID, dropping\n";
-                    continue;
-                }
-                auto client = m_clients.at(id).get();
-                /*if (memcmp(&addr, &client->m_addr, sizeof(sockaddr_in)) != 0) {
-                    LOG(TRACE, "msva/server") << "Bad addr, dropping\n";
-                    continue; // TODO: add real authenticity checking
-                }*/
-                m_processMessage(client, bmsg::RawMessage(std::string_view(buf+4, n-4)));
+            epoll_event ev;
+            int nfds = epoll_wait(m_epollFd, &ev, 1, (nextClock - now) / 1e6); // 1s time
+            if (nfds < 0) {
+                LOG(FATAL, "msva/server") << "epoll_wait() error: " << strerror(errno) << "\n";
+                return;
+            } if (nfds == 0) {
+                continue;
             }
-        } else if (ev.data.ptr) {
-            // tcp connection
-            if (ev.events & EPOLLIN) {
-                LOG(TRACE, "msva/server") << "TCP data incoming\n";
-                MsvaUser *cl = (MsvaUser*) ev.data.ptr;
-                const size_t clientId = cl->m_id;
 
-                int n = read(cl->m_tcp, buf, sizeof(buf));
-                if (n > 0) {
-                    m_incoming(cl, std::string_view(buf, n));
-                }
+            LOG(TRACE, "msva/server") << "Epoll event: ptr = " << ev.data.ptr 
+                << ", ev = " << ev.events << "\n";
 
-                if (m_clients.find(clientId) == m_clients.end()) {
-                    continue;
+            if (ev.data.ptr == P_TCP) {
+                // tcp socket
+                LOG(TRACE, "msva/server") << "New client connecting to tcp socket...\n";
+                size_t id = ++m_lastId;
+                sockaddr_in addr;
+                socklen_t slen = sizeof(addr);
+                int clTcp = accept(m_tcpSockFd, (sockaddr*) &addr, &slen);
+                m_clients[id] = std::make_unique<MsvaUser>(MsvaUser(this, clTcp, m_udpSockFd, id, addr));
+
+                LOG(NOTICE, m_clients[id]->m_tag) << "Client connected!\n";
+                m_addToEpoll(m_clients[id].get(), clTcp, EPOLLIN | EPOLLET | EPOLLRDHUP | EPOLLHUP);
+                m_onConnect(m_clients[id].get()); 
+            } else if (ev.data.ptr == P_UDP) {
+                // udp socket
+                // each message has client id prepended
+                if (ev.events & EPOLLIN) {
+                    LOG(TRACE, "msva/server") << "UDP message incoming\n";
+                    struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+                    struct sockaddr_in addr;
+                    struct msghdr msg = {
+                        .msg_name = &addr, .msg_namelen = sizeof(addr),
+                        .msg_iov = &iov, .msg_iovlen = 1
+                    };
+                    ssize_t n = recvmsg(m_udpSockFd, &msg, 0);
+                    //LOG(TRACE, "msva/server") << "Message of size " << n << "\n";
+                    if (n < 4) 
+                        continue;
+                    uint32_t id;
+                    memcpy(&id, buf, 4);
+                    //LOG(TRACE, "msva/server") << "By client ID = " << id << "\n";
+                    if (!m_clients.count(id)) {
+                        //LOG(TRACE, "msva/server") << "Unknown ID, dropping\n";
+                        continue;
+                    }
+                    auto client = m_clients.at(id).get();
+                    /*if (memcmp(&addr, &client->m_addr, sizeof(sockaddr_in)) != 0) {
+                        LOG(TRACE, "msva/server") << "Bad addr, dropping\n";
+                        continue; // TODO: add real authenticity checking
+                    }*/
+                    m_processMessage(client, bmsg::RawMessage(std::string_view(buf+4, n-4)));
                 }
-            }
-            if (ev.events & (EPOLLRDHUP | EPOLLHUP)) {
-                MsvaUser *cl = (MsvaUser*) ev.data.ptr;
-                m_disconnect(cl);
+            } else if (ev.data.ptr) {
+                // tcp connection
+                if (ev.events & EPOLLIN) {
+                    LOG(TRACE, "msva/server") << "TCP data incoming\n";
+                    MsvaUser *cl = (MsvaUser*) ev.data.ptr;
+                    const size_t clientId = cl->m_id;
+
+                    int n = read(cl->m_tcp, buf, sizeof(buf));
+                    if (n > 0) {
+                        m_incoming(cl, std::string_view(buf, n));
+                    }
+
+                    if (m_clients.find(clientId) == m_clients.end()) {
+                        continue;
+                    }
+                }
+                if (ev.events & (EPOLLRDHUP | EPOLLHUP)) {
+                    MsvaUser *cl = (MsvaUser*) ev.data.ptr;
+                    m_disconnect(cl);
+                }
             }
         }
     }
